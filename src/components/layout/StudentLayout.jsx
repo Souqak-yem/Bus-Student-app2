@@ -1,20 +1,17 @@
-import { useState, useEffect } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { NavLink, Outlet } from 'react-router-dom'
-import { Home, CreditCard, Bell, Settings, Smartphone, Bus } from 'lucide-react'
+import { Home, CreditCard, Bell, Settings, Bus } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useNotifications } from '../../context/NotificationContext'
 import NotificationPopup from '../ui/NotificationPopup'
 
 export default function StudentLayout() {
-  const { user } = useAuth()
   const { unreadCount, popups } = useNotifications()
 
   const navItems = [
     { path: '/student', label: 'الرئيسية', icon: Home, end: true },
     { path: '/student/subscriptions', label: 'الاشتراكات', icon: CreditCard },
     { path: '/student/notifications', label: 'الإشعارات', icon: Bell, badge: unreadCount },
-    { path: '/student/download', label: 'التطبيق', icon: Smartphone },
     { path: '/student/settings', label: 'الإعدادات', icon: Settings },
   ]
 

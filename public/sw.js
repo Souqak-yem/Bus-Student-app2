@@ -8,6 +8,9 @@ const STATIC = [
   '/sounds/emergency-alarm.wav',
   '/sounds/info.wav',
   '/sounds/warning.wav',
+  '/fonts/cairo/SLXVc1nY6HkvangtZmpQdkhzfH5lkSscQyyS4J0.woff2',
+  '/fonts/cairo/SLXVc1nY6HkvangtZmpQdkhzfH5lkSscSCyS4J0.woff2',
+  '/fonts/cairo/SLXVc1nY6HkvangtZmpQdkhzfH5lkSscRiyS.woff2',
 ]
 
 self.addEventListener('install', (e) => {

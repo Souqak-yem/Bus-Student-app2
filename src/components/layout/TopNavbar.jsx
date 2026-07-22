@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Bell, Menu, Wifi, WifiOff, ChevronDown, Smartphone } from 'lucide-react'
+import { Search, Bell, Menu, Wifi, WifiOff, ChevronDown } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useNotifications } from '../../context/NotificationContext'
 import GlobalSearch from '../ui/GlobalSearch'
@@ -31,7 +31,6 @@ export default function TopNavbar({ onMenuToggle, unreadCount: _unreadCount }) {
   const [online, setOnline] = useState(navigator.onLine)
   const [dateStr, setDateStr] = useState('')
   const location = useLocation()
-  const navigate = useNavigate()
   const { user } = useAuth()
   const { unreadCount } = useNotifications()
 
@@ -154,9 +153,6 @@ export default function TopNavbar({ onMenuToggle, unreadCount: _unreadCount }) {
                     <p className="text-sm font-medium">{user?.name}</p>
                     <p className="text-xs text-[var(--color-text-muted)]">{user?.phone}</p>
                   </div>
-                  <button onClick={() => navigate('/admin/download-app')} className="w-full text-right px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-border-light)] flex items-center gap-2">
-                    <Smartphone size={16} /> تنزيل التطبيق
-                  </button>
                   <button onClick={() => { window.location.href = '/login' }} className="w-full text-right px-3 py-2 text-sm text-[var(--color-danger)] hover:bg-[var(--color-danger-light)] flex items-center gap-2">
                     تسجيل الخروج
                   </button>

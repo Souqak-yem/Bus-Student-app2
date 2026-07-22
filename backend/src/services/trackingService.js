@@ -57,6 +57,15 @@ export async function getTrackingState(activeBusId) {
     orderBy: { sortOrder: 'asc' },
   })
 
+  const assignmentsSorted = [...assignments].sort((a, b) => {
+    const toMin = (t) => {
+      if (!t) return 24 * 60
+      const [h, m] = String(t).split(':').map(Number)
+      return (h || 0) * 60 + (m || 0)
+    }
+    return toMin(a.pickupTime) - toMin(b.pickupTime)
+  })
+
   const attendances = await prisma.attendance.findMany({
     where: {
       busId: activeBus.busId,
@@ -69,7 +78,7 @@ export async function getTrackingState(activeBusId) {
   }
 
   let currentFound = false
-  const students = assignments.map((a, idx) => {
+  const students = assignmentsSorted.map((a, idx) => {
     const attStatus = attendanceMap[a.student.id]
     let trackingStatus
 
@@ -94,6 +103,7 @@ export async function getTrackingState(activeBusId) {
       pickupLocation: a.student.pickupLocation || a.student.homeAddress,
       institutionName: a.student.institutionName,
       sortOrder: a.sortOrder || idx,
+      pickupTime: a.pickupTime || null,
       attendanceStatus: attStatus || null,
       trackingStatus,
     }

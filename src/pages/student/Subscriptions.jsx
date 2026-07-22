@@ -64,6 +64,17 @@ export default function Subscriptions() {
   const [cartError, setCartError] = useState('')
 
   const [destPricing, setDestPricing] = useState([])
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false)
+
+  const handleCartSubmit = useCallback(() => {
+    setCartError('')
+    setCartSuccess('')
+    if (!cartReceipt) {
+      setCartError('يرجى رفع صورة سند التحويل')
+      return
+    }
+    setShowSubmitConfirm(true)
+  }, [cartReceipt])
 
   useEffect(() => {
     let cancelled = false
@@ -800,18 +811,6 @@ export default function Subscriptions() {
       </div>
     )
   }
-
-  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false)
-
-  const handleCartSubmit = useCallback(() => {
-    setCartError('')
-    setCartSuccess('')
-    if (!cartReceipt) {
-      setCartError('يرجى رفع صورة سند التحويل')
-      return
-    }
-    setShowSubmitConfirm(true)
-  }, [cartReceipt])
 
   async function handleConfirmSubmit() {
     setShowSubmitConfirm(false)

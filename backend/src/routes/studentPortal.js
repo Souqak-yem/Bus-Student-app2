@@ -82,6 +82,7 @@ router.get('/dashboard', async (req, res) => {
         homeAddress: a.student.homeAddress,
         pickupLocation: a.student.pickupLocation,
         sortOrder: a.sortOrder,
+        pickupTime: a.pickupTime || null,
         attendance: attendanceMap[a.student.id] || null,
       }))
 

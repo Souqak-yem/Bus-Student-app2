@@ -8,7 +8,7 @@ import DriverLayout from './components/layout/DriverLayout'
 import StudentLayout from './components/layout/StudentLayout'
 import Login from './pages/auth/Login'
 import ChangePassword from './pages/auth/ChangePassword'
-import InstallPWA from './components/ui/InstallPWA'
+import InstallPWAPopup from './components/ui/InstallPWAPopup'
 import StudentHome from './pages/student/Home'
 import StudentSubscriptions from './pages/student/Subscriptions'
 import StudentNotifications from './pages/student/Notifications'
@@ -40,7 +40,6 @@ import AdminSystemManagement from './pages/admin/SystemManagement'
 import FinancialControl from './pages/admin/FinancialControl'
 import EmergencyCenter from './pages/admin/EmergencyCenter'
 import EmergencyBusDetail from './pages/admin/EmergencyBusDetail'
-import DownloadApp from './pages/shared/DownloadApp'
 import DriverDashboard from './pages/driver/Dashboard'
 import DriverReturnTrip from './pages/driver/ReturnTrip'
 import DriverSettings from './pages/driver/Settings'
@@ -141,8 +140,6 @@ export default function App() {
           <Route path="financial-control" element={<FinancialControl />} />
           <Route path="destinations" element={<AdminDestinations />} />
           <Route path="system" element={<Navigate to="/admin/manage/system" replace />} />
-          <Route path="download-app" element={<DownloadApp />} />
-
           {/* Legacy admin aliases preserved for direct links */}
           <Route path="trips" element={<AdminDailyOperation />} />
           <Route path="operations-history" element={<OperationHistory />} />
@@ -169,7 +166,6 @@ export default function App() {
           <Route index element={<DriverDashboard />} />
           <Route path="return" element={<DriverReturnTrip />} />
           <Route path="settings" element={<DriverSettings />} />
-          <Route path="download" element={<DownloadApp />} />
         </Route>
 
         <Route
@@ -184,12 +180,11 @@ export default function App() {
           <Route path="subscriptions/*" element={<StudentSubscriptions />} />
           <Route path="notifications" element={<StudentNotifications />} />
           <Route path="settings" element={<StudentSettings />} />
-          <Route path="download" element={<DownloadApp />} />
         </Route>
 
         <Route path="*" element={<RoleRedirect />} />
       </Routes>
-      <InstallPWA />
+      <InstallPWAPopup />
     </>
   )
 }

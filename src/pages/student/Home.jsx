@@ -3,6 +3,7 @@ import { Bus, Clock, MapPin, Phone, Check, X, Bell, ArrowLeft, Users, MessageCir
 import { api } from '../../lib/api'
 import { connectSocket, joinBusRoom, leaveBusRoom, onTrackingUpdate, offTrackingUpdate, onNotificationNew, offNotificationNew, joinNotificationRoom, onStudentUpdate, offStudentUpdate } from '../../lib/socket'
 import ConfirmModal from '../../components/ui/ConfirmModal'
+import QuickContactCard from '../../components/ui/QuickContactCard'
 
 const Stage = {
   NO_TRIP: 'NO_TRIP',
@@ -171,6 +172,8 @@ export default function Home() {
         <p className="text-xs text-white/70">نتمنى لك يوماً سعيداً</p>
       </div>
 
+      <QuickContactCard />
+
       {stage === Stage.NO_TRIP && (
         <div className="bg-white rounded-xl p-6 text-center">
           <Bus size={40} className="mx-auto mb-2 text-slate-200" />
@@ -190,6 +193,10 @@ export default function Home() {
             presentCount={presentCount}
             totalCount={totalCount}
             stage={stage}
+            showReturnConfirm={showReturnConfirm}
+            setShowReturnConfirm={setShowReturnConfirm}
+            joining={joining}
+            handleConfirmReturn={handleConfirmReturn}
           />
           <div className="bg-white rounded-xl p-3 opacity-50 pointer-events-none select-none">
             <div className="flex items-center gap-2 text-sm text-slate-400">
@@ -211,6 +218,10 @@ export default function Home() {
             presentCount={presentCount}
             totalCount={totalCount}
             stage={stage}
+            showReturnConfirm={showReturnConfirm}
+            setShowReturnConfirm={setShowReturnConfirm}
+            joining={joining}
+            handleConfirmReturn={handleConfirmReturn}
           />
           <div className="bg-white rounded-xl p-3 border border-green-100 text-center">
             <div className="flex items-center justify-center gap-2">
@@ -306,13 +317,25 @@ export default function Home() {
               </div>
             </div>
           ) : (
-            <button
-              onClick={handleJoinReturnQueue}
-              disabled={joining}
-              className="w-full bg-[var(--color-primary)] text-white py-3 rounded-xl text-sm font-medium disabled:opacity-50 min-h-[44px]"
-            >
-              {joining ? 'جاري...' : 'طلب رحلة العودة'}
-            </button>
+            <>
+              <button
+                onClick={handleJoinReturnQueue}
+                disabled={joining}
+                className="w-full bg-[var(--color-primary)] text-white py-3 rounded-xl text-sm font-medium disabled:opacity-50 min-h-[44px]"
+              >
+                {joining ? 'جاري...' : 'طلب رحلة العودة'}
+              </button>
+              <ConfirmModal
+                show={showReturnConfirm}
+                onClose={() => setShowReturnConfirm(false)}
+                onConfirm={handleConfirmReturn}
+                title="تأكيد طلب رحلة العودة"
+                loading={joining}
+              >
+                <p>هل أنت متأكد من طلب رحلة العودة؟</p>
+                <p className="text-xs text-slate-400 mt-2">بعد التأكيد، سيتم إضافتك إلى قائمة انتظار رحلة العودة وإشعار المشرف.</p>
+              </ConfirmModal>
+            </>
           )}
         </>
       )}
@@ -320,15 +343,27 @@ export default function Home() {
   )
 }
 
-function MorningTripCard({ bus, todayAssignment, student, busStudents, tracking, presentCount, totalCount, stage }) {
+function MorningTripCard({ bus, todayAssignment, student, busStudents, tracking, presentCount, totalCount, stage, showReturnConfirm, setShowReturnConfirm, joining, handleConfirmReturn }) {
   const isStudentNext = tracking?.nextStudent?.studentId === student?.id
   const isStudentCurrent = tracking?.currentStudent?.studentId === student?.id
-  const displayStudents = tracking?.students || busStudents?.map(s => ({
+  const rawStudents = tracking?.students || busStudents?.map(s => ({
     ...s,
     trackingStatus: s.attendance === 'present' || s.attendance === 'late' ? TrackingStatus.PICKED_UP
       : s.attendance === 'absent' ? TrackingStatus.ABSENT
       : TrackingStatus.PENDING,
   })) || []
+
+  const toMinutes = (time) => {
+    if (!time) return 24 * 60
+    const [h, m] = String(time).split(':').map(Number)
+    if (Number.isNaN(h) || Number.isNaN(m)) return 24 * 60
+    return h * 60 + m
+  }
+  const displayStudents = [...rawStudents].sort((a, b) => {
+    const aTime = a.pickupTime || null
+    const bTime = b.pickupTime || null
+    return toMinutes(aTime) - toMinutes(bTime)
+  })
 
   const myIdx = displayStudents.findIndex(s => s.studentId === student?.id)
   const currentIdx = displayStudents.findIndex(s => s.trackingStatus === TrackingStatus.CURRENT)
@@ -398,27 +433,55 @@ function MorningTripCard({ bus, todayAssignment, student, busStudents, tracking,
         </div>
 
         {/* Student list compact */}
-        <div className="space-y-0.5">
+        <div className="space-y-2">
+          <div className="hidden sm:grid grid-cols-[1.6fr_1.4fr_0.9fr] gap-2 text-[10px] text-slate-500 uppercase tracking-wide px-2">
+            <span>الاسم والحالة</span>
+            <span>العنوان</span>
+            <span className="text-left">الوقت</span>
+          </div>
+
           {displayStudents.map((s) => {
             const isMe = s.studentId === student?.id
             const ts = s.trackingStatus
+            const address = s.transportMode === 'HOME'
+              ? (s.homeAddress || '-')
+              : (s.pickupLocation || '-')
+            const studentTime = s.pickupTime ? formatTime(s.pickupTime) : 'غير محدد'
+
             return (
               <div
                 key={s.studentId}
-                className={`flex items-center gap-2 py-1.5 px-2 rounded-lg transition-all ${
+                className={`grid gap-2 py-2 px-2 rounded-lg transition-all ${
                   ts === TrackingStatus.CURRENT && isMe ? 'ring-2 ring-yellow-300 bg-yellow-50' :
                   ts === TrackingStatus.CURRENT ? 'bg-yellow-50' :
-                  ts === TrackingStatus.PICKED_UP ? 'bg-green-50/50' : ''
-                }`}
+                  ts === TrackingStatus.PICKED_UP ? 'bg-green-50/50' : 'bg-slate-50'
+                } sm:grid-cols-[1.6fr_1.4fr_0.9fr] sm:items-center`}
               >
-                <span className={`w-2 h-2 rounded-full shrink-0 ${dotColors[ts] || 'bg-slate-300'}`} />
-                <span className="flex-1 min-w-0 text-xs text-slate-700 truncate">
-                  {s.name}
-                  {isMe && <span className="mr-1 text-[10px] text-slate-400">(أنت)</span>}
-                </span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${labelColors[ts] || 'text-slate-400'}`}>
-                  {statusLabels[ts] || 'في الانتظار'}
-                </span>
+                <div className="min-w-0">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${dotColors[ts] || 'bg-slate-300'}`} />
+                      <span className="text-xs text-slate-700 truncate font-medium">
+                        {s.name}
+                        {isMe && <span className="mr-1 text-[10px] text-slate-400">(أنت)</span>}
+                      </span>
+                    </div>
+                    <span className={`inline-flex text-[10px] px-1.5 py-0.5 rounded-full font-medium ${labelColors[ts] || 'text-slate-400'}`}>
+                      {statusLabels[ts] || 'في الانتظار'}
+                    </span>
+                    <span className="block text-[11px] text-slate-500 sm:hidden truncate">
+                      {address}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="hidden sm:block text-[11px] text-slate-600 truncate">
+                  {address}
+                </div>
+
+                <div className="text-[11px] text-slate-600 text-right sm:text-left">
+                  {studentTime}
+                </div>
               </div>
             )
           })}

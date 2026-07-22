@@ -42,7 +42,8 @@ export async function generateTodayOperations(userId, busIds) {
         driver: true,
         templateStudents: {
           where: { isActive: true },
-          include: { student: true }
+          include: { student: true },
+          orderBy: { pickupTime: 'asc' },
         },
         outgoingTransfers: {
           where: { isActive: true, startDate: { lte: today }, endDate: { gte: today } }

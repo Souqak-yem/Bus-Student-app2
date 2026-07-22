@@ -5,12 +5,11 @@ import { useAuth } from '../../context/AuthContext'
 import { useNotifications } from '../../context/NotificationContext'
 import NotificationPopup from '../ui/NotificationPopup'
 import NotificationCenter from '../ui/NotificationCenter'
-import { LayoutDashboard, Bus, Settings, Smartphone, LogOut, Bell } from 'lucide-react'
+import { LayoutDashboard, Bus, Settings, LogOut, Bell } from 'lucide-react'
 
 const navItems = [
   { to: '/driver', label: 'الرئيسية', icon: LayoutDashboard, end: true },
   { to: '/driver/return', label: 'العودة', icon: Bus },
-  { to: '/driver/download', label: 'التطبيق', icon: Smartphone },
   { to: '/driver/settings', label: 'الإعدادات', icon: Settings },
 ]
 

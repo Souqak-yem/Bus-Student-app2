@@ -126,4 +126,105 @@ router.get('/available-buses', authorize('admin'), async (req, res) => {
   }
 })
 
+router.get('/student/dashboard', authorize('student'), async (req, res) => {
+  try {
+    const today = getLocalDate()
+    const studentId = req.user.studentId
+
+    if (!studentId) {
+      const dbUser = await prisma.user.findUnique({ where: { id: req.user.id }, select: { studentId: true } })
+      if (!dbUser?.studentId) {
+        return res.status(404).json({ error: 'الطالب غير موجود' })
+      }
+    }
+
+    const resolvedStudentId = studentId || (await prisma.user.findUnique({ where: { id: req.user.id }, select: { studentId: true } }))?.studentId
+
+    const op = await prisma.saturdayOperation.findUnique({
+      where: { operationDate: today },
+      include: {
+        buses: {
+          include: {
+          bus: { select: { id: true, busNumber: true, plateNumber: true } },
+          driver: { select: { id: true, name: true, phone: true } },
+          loads: {
+            where: { studentId: resolvedStudentId },
+            include: {
+              student: { select: { id: true, name: true } }
+            }
+          }
+        }
+      }
+    }
+  })
+
+    let myBus = null
+    if (op) {
+      for (const bus of op.buses) {
+        if (bus.loads.length > 0) {
+          myBus = {
+            bus: bus.bus,
+            driver: bus.driver,
+            pickupTime: bus.loads[0].pickupTime,
+            assignedAt: bus.loads[0].assignedAt,
+            status: bus.status
+          }
+          break
+        }
+      }
+    }
+
+    res.json({
+      operationExists: !!op,
+      operationStatus: op?.status || null,
+      myBus
+    })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+router.get('/driver/dashboard', authorize('driver'), async (req, res) => {
+  try {
+    const today = getLocalDate()
+    const driverId = req.user.id
+
+    const op = await prisma.saturdayOperation.findUnique({
+      where: { operationDate: today },
+      include: {
+        buses: {
+          where: { driverId },
+          include: {
+            bus: { select: { id: true, busNumber: true, plateNumber: true, capacity: true } },
+            loads: {
+              include: {
+                student: {
+                  select: {
+                  id: true, name: true, phone: true, whatsapp: true, parentName: true, parentPhone: true, zone: true, address: true, destination: { select: { id: true, name: true } }, pickupLocation: true
+                }
+              }
+            },
+            orderBy: { createdAt: 'asc' }
+          }
+        }
+      }
+    }
+  })
+
+    const myBuses = op?.buses || []
+
+    res.json({
+      operationExists: !!op,
+      operationStatus: op?.status || null,
+      buses: myBuses.map(b => ({
+        ...b,
+        studentCount: b.loads.length,
+        remainingCapacity: b.capacitySnapshot - b.loads.length
+      }))
+    })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 export default router

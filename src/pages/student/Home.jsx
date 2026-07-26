@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
-import { Bus, Clock, MapPin, Phone, Check, X, Bell, ArrowLeft, Users, MessageCircle, LogIn } from 'lucide-react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { Bus, Clock, MapPin, Phone, Check, X, Bell, ArrowLeft, Users, MessageCircle, LogIn, AlertCircle, CheckCircle2, Clock3, MapPinned, CheckCheck } from 'lucide-react'
 import { api } from '../../lib/api'
-import { connectSocket, joinBusRoom, leaveBusRoom, onTrackingUpdate, offTrackingUpdate, onNotificationNew, offNotificationNew, joinNotificationRoom, onStudentUpdate, offStudentUpdate } from '../../lib/socket'
+import { connectSocket, joinBusRoom, leaveBusRoom, onTrackingUpdate, offTrackingUpdate, onNotificationNew, offNotificationNew, joinNotificationRoom, onStudentUpdate, offStudentUpdate, onReadinessUpdate, offReadinessUpdate, onBoardingTimerUpdate, offBoardingTimerUpdate } from '../../lib/socket'
 import ConfirmModal from '../../components/ui/ConfirmModal'
 import QuickContactCard from '../../components/ui/QuickContactCard'
+import { ReturnTripViewWrapper } from '../../components/student/returnTrip'
 
 const Stage = {
   NO_TRIP: 'NO_TRIP',
@@ -20,6 +21,14 @@ const TrackingStatus = {
   PENDING: 'PENDING',
   ABSENT: 'ABSENT',
   SKIPPED: 'SKIPPED',
+}
+
+const READINESS_LABELS = {
+  NO_RESPONSE: { label: 'لم يرد', cls: 'bg-red-100 text-red-700 border-red-200' },
+  READY: { label: 'جاهز', cls: 'bg-green-100 text-green-700 border-green-200' },
+  DELAYED: { label: 'سأتأخر', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
+  ON_BOARD: { label: 'في الباص', cls: 'bg-blue-100 text-blue-700 border-blue-200' },
+  MISSED_BUS: { label: 'فات الباص', cls: 'bg-slate-200 text-slate-600 border-slate-300' },
 }
 
 function formatTime(timeStr) {
@@ -58,14 +67,48 @@ const statusLabels = {
 export default function Home() {
   const [data, setData] = useState(null)
   const [tracking, setTracking] = useState(null)
+  const [saturdayData, setSaturdayData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(false)
   const notifiedRef = useRef(false)
   const activeBusIdRef = useRef(null)
   const studentIdRef = useRef(null)
+  const [returnReadiness, setReturnReadiness] = useState(null)
+
+  const today = new Date()
+  const isSaturday = today.getDay() === 6
 
   const load = async () => {
     try {
+      if (isSaturday) {
+        const saturdayResult = await api.saturday.studentDashboard().catch(() => null)
+        setSaturdayData(saturdayResult)
+
+        if (!saturdayResult?.operationExists) {
+          setData({ operationStage: Stage.NO_TRIP })
+          setLoading(false)
+          return
+        }
+
+        if (saturdayResult?.myBus) {
+          const syntheticData = {
+            student: saturdayResult.myBus.loads?.[0]?.student || null,
+            todayAssignment: {
+              bus: saturdayResult.myBus.bus,
+              pickupTime: saturdayResult.myBus.pickupTime,
+              busId: saturdayResult.myBus.bus?.id
+            },
+            operationStage: Stage.BEFORE_PICKUP,
+            busStudents: [],
+          }
+          setData(syntheticData)
+        } else {
+          setData({ operationStage: Stage.NO_TRIP })
+        }
+        setLoading(false)
+        return
+      }
+
       const d = await api.studentPortal.getDashboard()
       setData(d)
       setLoading(false)
@@ -85,6 +128,17 @@ export default function Home() {
             } catch {}
           }
         }
+      }
+
+      if (d.operationStage === Stage.MORNING_COMPLETED) {
+        try {
+          const rd = await api.returnReadiness.student.dashboard().catch(() => null)
+          setReturnReadiness(rd)
+          if (rd?.activeBusId) {
+            activeBusIdRef.current = rd.activeBusId
+            joinBusRoom(rd.activeBusId)
+          }
+        } catch {}
       }
     } catch (e) {
       if (loading) setLoading(false)
@@ -106,6 +160,40 @@ export default function Home() {
     onStudentUpdate(() => {
       load()
     })
+    onReadinessUpdate((payload) => {
+      if (payload?.activeBusId && payload?.studentId && payload.studentId === studentIdRef.current) {
+        setReturnReadiness((prev) => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            readiness: {
+              ...(prev.readiness || {}),
+              status: payload.status,
+              delayMinutes: payload.delayMinutes,
+              delayReason: payload.delayReason,
+              onBoardAt: payload.onBoardAt,
+              updatedAt: payload.updatedAt,
+            }
+          }
+        })
+      }
+    })
+    onBoardingTimerUpdate((payload) => {
+      if (payload?.activeBusId && payload.activeBusId === activeBusIdRef.current) {
+        setReturnReadiness((prev) => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            timer: {
+              startedAt: payload.startedAt,
+              durationMinutes: payload.durationMinutes,
+              endedAt: payload.endedAt,
+              serverNow: payload.serverNow,
+            }
+          }
+        })
+      }
+    })
     const interval = setInterval(load, 10000)
     return () => {
       clearInterval(interval)
@@ -115,6 +203,8 @@ export default function Home() {
       }
       offTrackingUpdate()
       offNotificationNew()
+      offReadinessUpdate()
+      offBoardingTimerUpdate()
     }
   }, [])
 
@@ -130,7 +220,7 @@ export default function Home() {
         }
       })
     }
-  }, [data?.todayAssignment?.busId])
+  }, [data?.todayAssignment?.busId, returnReadiness?.activeBusId])
 
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
 
@@ -166,7 +256,6 @@ export default function Home() {
 
   return (
     <div className="space-y-2">
-      {/* Welcome card compact */}
       <div className="bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] rounded-xl p-3 text-white">
         <h2 className="text-base font-bold">مرحباً {firstName}</h2>
         <p className="text-xs text-white/70">نتمنى لك يوماً سعيداً</p>
@@ -253,92 +342,488 @@ export default function Home() {
       )}
 
       {stage === Stage.MORNING_COMPLETED && (
-        <>
-          <div className="bg-white rounded-xl p-3 border border-green-100">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center shrink-0">
-                <Check size={16} className="text-green-600" />
-              </div>
-              <div>
-                <div className="text-sm font-medium text-green-700">تم الوصول إلى الجامعة</div>
-                <div className="text-xs text-green-600">انتهت رحلة الذهاب</div>
-              </div>
+        <ReturnTripViewWrapper
+          student={student}
+          returnBusInfo={returnBusInfo}
+          returnQueueStatus={returnQueueStatus}
+          showReturnConfirm={showReturnConfirm}
+          setShowReturnConfirm={setShowReturnConfirm}
+          joining={joining}
+          handleConfirmReturn={handleConfirmReturn}
+          returnReadiness={returnReadiness}
+          setReturnReadiness={setReturnReadiness}
+        />
+      )}
+    </div>
+  )
+}
+
+function MorningCompletedView({ student, returnBusInfo, returnQueueStatus, showReturnConfirm, setShowReturnConfirm, joining, handleConfirmReturn, returnReadiness, setReturnReadiness, activeBusIdRef }) {
+  const rd = returnReadiness
+  const readiness = rd?.readiness
+  const timer = rd?.timer
+  const bus = rd?.bus
+  const driver = rd?.driver
+
+  if (returnBusInfo?.droppedOffAt) {
+    return (
+      <div className="bg-white rounded-xl p-3 border border-green-100">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center shrink-0">
+            <Check size={16} className="text-green-600" />
+          </div>
+          <div>
+            <div className="text-sm font-medium text-green-700">تم إيصالك إلى وجهتك</div>
+            <div className="text-xs text-green-600">شكراً لاستخدامك الخدمة</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (rd?.activeBusId || returnBusInfo) {
+    return <ReturnReadinessCard readiness={readiness} timer={timer} bus={bus} driver={driver} rd={rd} setReturnReadiness={setReturnReadiness} activeBusIdRef={activeBusIdRef} />
+  }
+
+  if (returnQueueStatus) {
+    return (
+      <>
+        <div className="bg-white rounded-xl p-3 border border-green-100 mb-2">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center shrink-0">
+              <Check size={16} className="text-green-600" />
+            </div>
+            <div>
+              <div className="text-sm font-medium text-green-700">تم الوصول إلى الجامعة</div>
+              <div className="text-xs text-green-600">انتهت رحلة الذهاب</div>
             </div>
           </div>
+        </div>
+        <div className="bg-white rounded-xl p-3 border border-amber-100">
+          <div className="flex items-center gap-2">
+            <Bell size={16} className="text-amber-500 shrink-0" />
+            <div>
+              <div className="text-sm font-medium text-amber-700">أنت في قائمة انتظار العودة</div>
+              <div className="text-xs text-amber-600">في انتظار التخصيص</div>
+            </div>
+          </div>
+        </div>
+      </>
+    )
+  }
 
-          {returnBusInfo?.droppedOffAt ? (
-            <div className="bg-white rounded-xl p-3 border border-green-100">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center shrink-0">
-                  <Check size={16} className="text-green-600" />
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-green-700">تم إيصالك إلى وجهتك</div>
-                  <div className="text-xs text-green-600">شكراً لاستخدامك الخدمة</div>
-                </div>
-              </div>
-            </div>
-          ) : returnBusInfo ? (
-            <div className="bg-white rounded-xl p-3">
-              <h3 className="text-xs font-bold text-slate-700 mb-2">رحلة العودة</h3>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 bg-amber-50 rounded-full flex items-center justify-center shrink-0">
-                  <Bus size={16} className="text-amber-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-slate-800">باص رقم {returnBusInfo.busNumber}</div>
-                  <div className="text-xs text-slate-500">السائق: {returnBusInfo.driverName}</div>
-                </div>
-              </div>
-              <div className="flex gap-1.5">
-                {returnBusInfo.primaryPhone && (
-                  <a href={`tel:${returnBusInfo.primaryPhone}`}
-                    className="flex-1 flex items-center justify-center gap-1 bg-green-500 text-white py-2 rounded-lg text-xs font-medium">
-                    <Phone size={12} /> اتصال
-                  </a>
-                )}
-                {returnBusInfo.secondaryPhone && (
-                  <a href={`https://wa.me/${returnBusInfo.secondaryPhone.replace(/[^0-9]/g, '')}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-1 bg-emerald-500 text-white py-2 rounded-lg text-xs font-medium">
-                    <MessageCircle size={12} /> واتساب
-                  </a>
-                )}
-              </div>
-            </div>
-          ) : returnQueueStatus ? (
-            <div className="bg-white rounded-xl p-3 border border-amber-100">
-              <div className="flex items-center gap-2">
-                <Bell size={16} className="text-amber-500 shrink-0" />
-                <div>
-                  <div className="text-sm font-medium text-amber-700">أنت في قائمة انتظار العودة</div>
-                  <div className="text-xs text-amber-600">في انتظار التخصيص</div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <>
-              <button
-                onClick={handleJoinReturnQueue}
-                disabled={joining}
-                className="w-full bg-[var(--color-primary)] text-white py-3 rounded-xl text-sm font-medium disabled:opacity-50 min-h-[44px]"
-              >
-                {joining ? 'جاري...' : 'طلب رحلة العودة'}
-              </button>
-              <ConfirmModal
-                show={showReturnConfirm}
-                onClose={() => setShowReturnConfirm(false)}
-                onConfirm={handleConfirmReturn}
-                title="تأكيد طلب رحلة العودة"
-                loading={joining}
-              >
-                <p>هل أنت متأكد من طلب رحلة العودة؟</p>
-                <p className="text-xs text-slate-400 mt-2">بعد التأكيد، سيتم إضافتك إلى قائمة انتظار رحلة العودة وإشعار المشرف.</p>
-              </ConfirmModal>
-            </>
+  return (
+    <>
+      <div className="bg-white rounded-xl p-3 border border-green-100 mb-2">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center shrink-0">
+            <Check size={16} className="text-green-600" />
+          </div>
+          <div>
+            <div className="text-sm font-medium text-green-700">تم الوصول إلى الجامعة</div>
+            <div className="text-xs text-green-600">انتهت رحلة الذهاب</div>
+          </div>
+        </div>
+      </div>
+      <button
+        onClick={() => setShowReturnConfirm(true)}
+        disabled={joining}
+        className="w-full bg-[var(--color-primary)] text-white py-3 rounded-xl text-sm font-medium disabled:opacity-50 min-h-[44px]"
+      >
+        {joining ? 'جاري...' : 'طلب رحلة العودة'}
+      </button>
+      <ConfirmModal
+        show={showReturnConfirm}
+        onClose={() => setShowReturnConfirm(false)}
+        onConfirm={handleConfirmReturn}
+        title="تأكيد طلب رحلة العودة"
+        loading={joining}
+      >
+        <p>هل أنت متأكد من طلب رحلة العودة؟</p>
+        <p className="text-xs text-slate-400 mt-2">بعد التأكيد، سيتم إضافتك إلى قائمة انتظار رحلة العودة وإشعار المشرف.</p>
+      </ConfirmModal>
+    </>
+  )
+}
+
+function ReturnReadinessCard({ readiness, timer, bus, driver, rd, setReturnReadiness, activeBusIdRef }) {
+  const [showDelayDialog, setShowDelayDialog] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const status = readiness?.status || 'NO_RESPONSE'
+  const activeBusId = rd?.activeBusId
+
+  const statusLabel = READINESS_LABELS[status] || READINESS_LABELS.NO_RESPONSE
+
+  const markReady = async () => {
+    if (!activeBusId) return
+    setSubmitting(true)
+    try {
+      await api.returnReadiness.student.ready(activeBusId)
+      setReturnReadiness((prev) => ({
+        ...prev,
+        readiness: { ...(prev?.readiness || {}), status: 'READY', updatedAt: new Date().toISOString() }
+      }))
+    } catch (e) { alert(e.message) }
+    finally { setSubmitting(false) }
+  }
+
+  const markDelayed = async (delayMinutes, delayReason) => {
+    if (!activeBusId) return
+    setSubmitting(true)
+    try {
+      const finalMin = delayMinutes === 'MORE' ? -1 : Number(delayMinutes)
+      const finalDelayDisplay = delayMinutes === 'MORE' ? 20 : Number(delayMinutes)
+      await api.returnReadiness.student.delayed(activeBusId, finalMin, delayReason)
+      setReturnReadiness((prev) => ({
+        ...prev,
+        readiness: { ...(prev?.readiness || {}), status: 'DELAYED', delayMinutes: finalDelayDisplay, delayReason: delayReason || null, updatedAt: new Date().toISOString() }
+      }))
+      setShowDelayDialog(false)
+    } catch (e) { alert(e.message) }
+    finally { setSubmitting(false) }
+  }
+
+  const markArrived = async () => {
+    if (!activeBusId) return
+    setSubmitting(true)
+    try {
+      await api.returnReadiness.student.arrived(activeBusId)
+      setReturnReadiness((prev) => ({
+        ...prev,
+        readiness: { ...(prev?.readiness || {}), status: 'READY', updatedAt: new Date().toISOString() }
+      }))
+    } catch (e) { alert(e.message) }
+    finally { setSubmitting(false) }
+  }
+
+  const isOnBoard = status === 'ON_BOARD'
+  const showTimer = timer && !timer.endedAt && !isOnBoard
+
+  return (
+    <div className="space-y-2">
+      <JourneySequence readiness={readiness} timer={timer} busStatus={rd?.busStatus} />
+
+      <div className="bg-white rounded-xl p-3 border border-slate-100">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-bold text-slate-800">تفاصيل باص العودة</h3>
+          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold border ${statusLabel.cls}`}>
+            {statusLabel.label}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-8 h-8 bg-amber-50 rounded-full flex items-center justify-center shrink-0">
+            <Bus size={16} className="text-amber-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-slate-800">باص رقم {bus?.busNumber || bus?.plateNumber || '---'}</div>
+            <div className="text-xs text-slate-500">السائق: {driver?.name || '---'}</div>
+          </div>
+        </div>
+        <div className="flex gap-1.5">
+          {driver?.phone && (
+            <a href={`tel:${driver.phone}`}
+              className="flex-1 flex items-center justify-center gap-1 bg-green-500 text-white py-2 rounded-lg text-xs font-medium min-h-[36px]">
+              <Phone size={12} /> اتصال
+            </a>
           )}
+        </div>
+      </div>
+
+      {isOnBoard ? (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+            <CheckCheck size={24} className="text-green-600" />
+          </div>
+          <div className="text-sm font-bold text-green-800">✅ تم تسجيل صعودك إلى الباص</div>
+          <div className="text-xs text-green-700 mt-1">رحلة سعيدة! في الطريق إلى وجهتك</div>
+        </div>
+      ) : status === 'MISSED_BUS' ? (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
+          <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-2">
+            <AlertCircle size={24} className="text-slate-500" />
+          </div>
+          <div className="text-sm font-bold text-slate-800">⛔ فاتك الباص</div>
+          <div className="text-xs text-slate-600 mt-1">انتهى وقت تسجيل الصعود. يرجى مراجعة الإدارة.</div>
+        </div>
+      ) : (
+        <>
+          {showTimer && <BoardingTimerView timer={timer} />}
+
+          <div className="bg-white rounded-xl p-3 border border-slate-100">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-bold text-slate-800">جاهزية رحلة العودة</h3>
+            </div>
+
+            {status === 'READY' ? (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <CheckCircle2 size={20} className="text-green-600" />
+                </div>
+                <div className="text-sm font-bold text-green-800">أنت جاهز للصعود</div>
+                <div className="text-xs text-green-700 mt-0.5">في انتظار وصول الباص وتسجيل الصعود</div>
+              </div>
+            ) : status === 'DELAYED' ? (
+              <div className="space-y-2">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-9 h-9 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
+                      <Clock3 size={18} className="text-amber-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold text-amber-800">سأتأخر</div>
+                      {readiness?.delayMinutes && <div className="text-xs text-amber-700">مدة التأخير المتوقعة: {readiness.delayMinutes} دقيقة</div>}
+                      {readiness?.delayReason && <div className="text-xs text-amber-700 mt-0.5">السبب: {readiness.delayReason}</div>}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={markArrived}
+                  disabled={submitting}
+                  className="w-full bg-green-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-green-700 transition-colors disabled:opacity-50 min-h-[44px] flex items-center justify-center gap-1.5"
+                >
+                  <MapPinned size={16} /> وصلت إلى نقطة التجمع
+                </button>
+                <button
+                  onClick={markReady}
+                  disabled={submitting}
+                  className="w-full bg-slate-100 text-slate-700 py-2 rounded-xl text-xs font-medium hover:bg-slate-200 transition-colors disabled:opacity-50"
+                >
+                  عدل الحالة إلى: أنا جاهز
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={markReady}
+                    disabled={submitting}
+                    className="bg-green-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-green-700 transition-colors disabled:opacity-50 min-h-[48px] flex flex-col items-center justify-center gap-0.5"
+                  >
+                    <span className="text-base">🟢</span>
+                    <span>أنا جاهز</span>
+                  </button>
+                  <button
+                    onClick={() => setShowDelayDialog(true)}
+                    disabled={submitting}
+                    className="bg-amber-500 text-white py-3 rounded-xl text-sm font-bold hover:bg-amber-600 transition-colors disabled:opacity-50 min-h-[48px] flex flex-col items-center justify-center gap-0.5"
+                  >
+                    <span className="text-base">🟡</span>
+                    <span>سأتأخر</span>
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400 text-center">يرجى الإشارة إلى جاهزيتك حتى يتم إبلاغ المشرف والسائق</p>
+              </div>
+            )}
+          </div>
         </>
       )}
+
+      {showDelayDialog && (
+        <DelayDialog onClose={() => setShowDelayDialog(false)} onSubmit={markDelayed} submitting={submitting} />
+      )}
+    </div>
+  )
+}
+
+function DelayDialog({ onClose, onSubmit, submitting }) {
+  const [delayMinutes, setDelayMinutes] = useState('5')
+  const [delayReason, setDelayReason] = useState('')
+  const options = [
+    { value: '5', label: '5 دقائق' },
+    { value: '10', label: '10 دقائق' },
+    { value: '15', label: '15 دقيقة' },
+    { value: 'MORE', label: 'أكثر' },
+  ]
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center" onClick={onClose}>
+      <div
+        className="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+            <Clock3 size={18} className="text-amber-500" />
+            سأتأخر عن موعد الصعود
+          </h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100">
+            <X size={18} className="text-slate-400" />
+          </button>
+        </div>
+
+        <div className="mb-3">
+          <label className="block text-xs font-semibold text-slate-700 mb-1.5">مدة التأخير المتوقعة</label>
+          <div className="grid grid-cols-2 gap-1.5">
+            {options.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setDelayMinutes(opt.value)}
+                className={`py-2 rounded-lg text-xs font-medium transition-colors border ${
+                  delayMinutes === opt.value
+                    ? 'bg-amber-500 text-white border-amber-500'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+            السبب <span className="text-slate-400 font-normal">(اختياري)</span>
+          </label>
+          <textarea
+            value={delayReason}
+            onChange={(e) => setDelayReason(e.target.value)}
+            rows={3}
+            placeholder="اكتب سبب التأخير هنا..."
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400 resize-none"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={onClose}
+            className="bg-slate-100 text-slate-700 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-200 transition-colors"
+          >
+            إلغاء
+          </button>
+          <button
+            onClick={() => onSubmit(delayMinutes, delayReason.trim())}
+            disabled={submitting}
+            className="bg-amber-500 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-amber-600 transition-colors disabled:opacity-50"
+          >
+            {submitting ? 'جاري الحفظ...' : 'حفظ'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BoardingTimerView({ timer }) {
+  const [now, setNow] = useState(new Date())
+  useEffect(() => {
+    const i = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(i)
+  }, [])
+
+  const startedAt = timer.serverNow ? new Date(timer.serverNow) : new Date()
+  const offsetMs = timer.startedAt ? (startedAt.getTime() - new Date(timer.startedAt).getTime()) : 0
+  const effectiveNow = new Date(now.getTime() + offsetMs)
+  const start = new Date(timer.startedAt)
+  const durationMs = (timer.durationMinutes || 15) * 60 * 1000
+  const endMs = start.getTime() + durationMs
+  const remainingMs = Math.max(0, endMs - effectiveNow.getTime())
+  const elapsedMs = Math.max(0, durationMs - remainingMs)
+  const pct = Math.max(0, Math.min(100, (elapsedMs / durationMs) * 100))
+  const mm = Math.floor(remainingMs / 60000)
+  const ss = Math.floor((remainingMs % 60000) / 1000)
+  const isEnded = remainingMs <= 0 || timer.endedAt
+
+  return (
+    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-3">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5">
+          <Clock size={16} className="text-indigo-600" />
+          <span className="text-xs font-bold text-indigo-800">العد التنازلي لتسجيل الصعود</span>
+        </div>
+        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-100 px-1.5 py-0.5 rounded-full">
+          الوقت المحدد: {timer.durationMinutes || 15} د
+        </span>
+      </div>
+      <div className="text-center mb-2">
+        <span className={`text-4xl font-black font-mono tracking-wider ${
+          remainingMs <= 60000 ? 'text-red-600 animate-pulse' : remainingMs <= 5 * 60000 ? 'text-amber-600' : 'text-indigo-700'
+        }`}>
+          {String(mm).padStart(2, '0')}:{String(ss).padStart(2, '0')}
+        </span>
+      </div>
+      <div className="w-full bg-white rounded-full h-2 overflow-hidden mb-2">
+        <div
+          className={`h-2 rounded-full transition-all duration-1000 ${isEnded ? 'bg-red-500' : remainingMs <= 5 * 60000 ? 'bg-amber-500' : 'bg-indigo-500'}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="text-[10px] text-indigo-700 text-center font-medium">
+        وصل الباص إلى الجامعة · قم بالتوجه للباص فوراً
+      </p>
+    </div>
+  )
+}
+
+function JourneySequence({ readiness, timer, busStatus }) {
+  const status = readiness?.status || 'NO_RESPONSE'
+  const isAssigned = true
+  const isReady = status === 'READY' || status === 'ON_BOARD' || status === 'MISSED_BUS'
+  const isDelayed = status === 'DELAYED'
+  const busArrived = !!timer
+  const isOnBoard = status === 'ON_BOARD'
+  const busDeparted = busStatus === 'DEPARTED'
+  const isDroppedOff = false
+
+  const steps = [
+    { key: 'assigned', label: 'تم تخصيصك للباص', done: isAssigned, active: !isReady && !isDelayed && isAssigned, icon: Bus, color: 'slate' },
+    { key: 'ready', label: isDelayed ? 'سأتأخر' : 'أنا جاهز', done: isReady || isDelayed, active: !busArrived && !isReady && !isDelayed, icon: CheckCircle2, color: isDelayed ? 'amber' : 'green' },
+    { key: 'bus_coming', label: 'الباص في الطريق', done: busArrived || busDeparted || isOnBoard, active: false, icon: Bus, color: 'slate' },
+    { key: 'bus_arrived', label: 'وصل الباص', done: busArrived || busDeparted || isOnBoard, active: false, icon: MapPin, color: 'indigo' },
+    { key: 'countdown', label: 'العد التنازلي', done: busDeparted || isOnBoard, active: busArrived && !busDeparted && !isOnBoard, icon: Clock, color: 'indigo' },
+    { key: 'on_board', label: 'تم تسجيل صعودك', done: isOnBoard || busDeparted, active: false, icon: CheckCheck, color: 'blue' },
+    { key: 'on_way', label: 'في الطريق', done: busDeparted || isOnBoard, active: busDeparted && !isDroppedOff, icon: Bus, color: 'blue' },
+    { key: 'dropped_off', label: 'تم الإنزال', done: isDroppedOff, active: false, icon: Check, color: 'green' },
+  ]
+
+  const filteredSteps = steps.filter(s => {
+    if (!busArrived && !busDeparted && !isOnBoard) {
+      return ['assigned', 'ready'].includes(s.key)
+    }
+    if (!busDeparted && !isOnBoard) {
+      return ['assigned', 'ready', 'bus_coming', 'bus_arrived', 'countdown'].includes(s.key)
+    }
+    if (!isDroppedOff) {
+      return ['assigned', 'ready', 'bus_coming', 'bus_arrived', 'countdown', 'on_board', 'on_way'].includes(s.key)
+    }
+    return true
+  })
+
+  return (
+    <div className="bg-white rounded-xl p-3 border border-slate-100">
+      <h3 className="text-[11px] font-bold text-slate-700 mb-2 flex items-center gap-1">
+        <MapPin size={12} className="text-slate-500" />
+        تسلسل رحلة العودة
+      </h3>
+      <div className="space-y-0.5">
+        {filteredSteps.map((step, idx) => {
+          const Icon = step.icon
+          const isLast = idx === filteredSteps.length - 1
+          const colorCls = step.done
+            ? step.color === 'amber' ? 'bg-amber-500 border-amber-500 text-white'
+              : step.color === 'green' ? 'bg-green-500 border-green-500 text-white'
+              : step.color === 'blue' ? 'bg-blue-500 border-blue-500 text-white'
+              : step.color === 'indigo' ? 'bg-indigo-500 border-indigo-500 text-white'
+              : 'bg-slate-500 border-slate-500 text-white'
+            : step.active ? 'ring-2 ring-[var(--color-primary)] ring-offset-2 bg-white border-[var(--color-primary)] text-[var(--color-primary)]'
+            : 'bg-white border-slate-200 text-slate-300'
+          const lineCls = step.done ? (step.color === 'amber' ? 'bg-amber-300' : step.color === 'green' ? 'bg-green-300' : step.color === 'blue' ? 'bg-blue-300' : 'bg-indigo-300') : 'bg-slate-100'
+          const labelCls = step.done ? (step.color === 'amber' ? 'text-amber-800' : step.color === 'green' ? 'text-green-800' : step.color === 'blue' ? 'text-blue-800' : 'text-indigo-800') : step.active ? 'text-[var(--color-primary)] font-bold' : 'text-slate-400'
+          return (
+            <div key={step.key} className="flex items-start gap-2">
+              <div className="flex flex-col items-center">
+                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${colorCls}`}>
+                  <Icon size={12} strokeWidth={2.5} />
+                </div>
+                {!isLast && <div className={`w-0.5 flex-1 min-h-[14px] my-0.5 ${lineCls}`} />}
+              </div>
+              <div className="pt-1 pb-2 min-h-[30px]">
+                <p className={`text-[11px] font-medium transition-all ${labelCls}`}>{step.label}</p>
+                {step.active && <p className="text-[9px] text-[var(--color-primary)] mt-0.5">المرحلة الحالية</p>}
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -371,7 +856,6 @@ function MorningTripCard({ bus, todayAssignment, student, busStudents, tracking,
 
   return (
     <>
-      {/* Bus info compact */}
       <div className="bg-white rounded-xl p-3">
         <div className="flex items-center gap-2 mb-2">
           <div className="w-8 h-8 bg-[var(--color-primary)]/10 rounded-full flex items-center justify-center shrink-0">
@@ -386,7 +870,6 @@ function MorningTripCard({ bus, todayAssignment, student, busStudents, tracking,
           </div>
         </div>
 
-        {/* Time & location row */}
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 mb-2">
           {todayAssignment?.pickupTime && (
             <span className="flex items-center gap-1">
@@ -402,7 +885,6 @@ function MorningTripCard({ bus, todayAssignment, student, busStudents, tracking,
           )}
         </div>
 
-        {/* Contact buttons */}
         <div className="flex gap-1.5 mb-2">
           {bus?.primaryPhone && (
             <a href={`tel:${bus.primaryPhone}`}
@@ -418,7 +900,6 @@ function MorningTripCard({ bus, todayAssignment, student, busStudents, tracking,
           )}
         </div>
 
-        {/* Progress bar */}
         <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
           <span>تقدم الباص</span>
           <span className="text-[var(--color-primary)] font-medium">
@@ -432,7 +913,6 @@ function MorningTripCard({ bus, todayAssignment, student, busStudents, tracking,
           />
         </div>
 
-        {/* Student list compact */}
         <div className="space-y-2">
           <div className="hidden sm:grid grid-cols-[1.6fr_1.4fr_0.9fr] gap-2 text-[10px] text-slate-500 uppercase tracking-wide px-2">
             <span>الاسم والحالة</span>
@@ -490,7 +970,6 @@ function MorningTripCard({ bus, todayAssignment, student, busStudents, tracking,
           )}
         </div>
 
-        {/* Position indicator */}
         {isStudentCurrent && (
           <div className="mt-1.5 text-center">
             <span className="inline-block bg-yellow-100 text-yellow-700 px-3 py-1 rounded-lg text-xs font-medium">

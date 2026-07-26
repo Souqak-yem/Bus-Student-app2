@@ -310,3 +310,226 @@
 @media (max-width: 639px) {
   .btn-sm { min-height: 44px; }
 }
+
+/* =========================================================
+   === Return Trip UX Enhancements — Animation Keyframes ===
+   ========================================================= */
+
+@keyframes rt-checkmark-draw {
+  0% { stroke-dashoffset: 48; }
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes rt-checkmark-circle {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes rt-pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  70% { transform: scale(1.6); opacity: 0; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+@keyframes rt-countdown-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-2px); }
+  40%, 80% { transform: translateX(2px); }
+}
+@keyframes rt-slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes rt-slide-down {
+  from { transform: translateY(-20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes rt-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes rt-scale-in {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes rt-progress-stripes {
+  from { background-position: 0 0; }
+  to { background-position: 40px 0; }
+}
+@keyframes rt-timeline-glow {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; }
+  50% { box-shadow: 0 0 0 6px rgba(37, 99, 235, 0); }
+}
+@keyframes rt-notification-pop {
+  0% { transform: translateY(-20px) scale(0.95); opacity: 0; }
+  60% { transform: translateY(2px) scale(1.01); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes rt-countdown-digit {
+  0% { transform: translateY(0); }
+  25% { transform: translateY(-2px) scale(1.02); }
+  50% { transform: translateY(0); }
+  100% { transform: translateY(0); }
+}
+@keyframes rt-badge-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+@utility rt-anim-slide-up { animation: rt-slide-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@utility rt-anim-slide-down { animation: rt-slide-down 0.35s ease-out both; }
+@utility rt-anim-fade-in { animation: rt-fade-in 0.35s ease-out both; }
+@utility rt-anim-scale-in { animation: rt-scale-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@utility rt-anim-notification-pop { animation: rt-notification-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@utility rt-anim-badge-bounce { animation: rt-badge-bounce 0.6s ease-in-out both; }
+@utility rt-anim-shake { animation: rt-countdown-shake 0.5s ease-in-out infinite; }
+@utility rt-anim-digit { animation: rt-countdown-digit 1s ease-in-out infinite; }
+
+.rt-anim-timeline-glow { animation: rt-timeline-glow 1.8s ease-in-out infinite; color: var(--color-primary); }
+.rt-anim-pulse-ring { position: relative; display: inline-block; }
+.rt-anim-pulse-ring::after {
+  content: ''; position: absolute; inset: 0; border-radius: 9999px;
+  background: currentColor; opacity: 0.35;
+  animation: rt-pulse-ring 1.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  pointer-events: none;
+}
+
+/* Return Trip — Checkmark Animation */
+.rt-checkmark-path {
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: rt-checkmark-draw 0.6s 0.2s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+.rt-checkmark-circle-anim { animation: rt-checkmark-circle 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+/* Return Trip — Bottom Sheet */
+.rt-bottom-sheet-backdrop {
+  position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(3px); z-index: 60; display: flex;
+  align-items: flex-end; justify-content: center;
+  animation: rt-fade-in 0.25s ease-out both;
+}
+.rt-bottom-sheet {
+  width: 100%; max-width: 520px; background: white;
+  border-radius: 1.25rem 1.25rem 0 0; padding: 0.5rem 1rem 1.25rem;
+  box-shadow: 0 -20px 60px -10px rgba(15, 23, 42, 0.25);
+  max-height: 92vh; overflow-y: auto;
+  animation: rt-slide-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));
+}
+.rt-bottom-sheet-handle {
+  width: 40px; height: 4px; background: #E2E8F0;
+  border-radius: 9999px; margin: 0.5rem auto 0.75rem;
+}
+
+/* Return Trip — Status Chip Pill */
+.rt-status-pill {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.28rem 0.7rem; border-radius: 9999px;
+  font-size: 0.72rem; font-weight: 700; line-height: 1;
+  border: 1px solid transparent; letter-spacing: 0.01em;
+}
+
+/* Return Trip — Timeline */
+.rt-timeline-step {
+  transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.rt-timeline-icon {
+  width: 32px; height: 32px; border-radius: 9999px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all 0.3s ease;
+  border: 2px solid transparent; position: relative;
+}
+.rt-timeline-line {
+  width: 2px; flex: 1; min-height: 14px; margin: 3px 0;
+  border-radius: 2px; transition: all 0.5s ease;
+  background: #E2E8F0;
+}
+.rt-timeline-line--done {
+  background: linear-gradient(to bottom, #22C55E, #16A34A);
+}
+
+/* Return Trip — Countdown Critical Pulse */
+.rt-countdown-critical {
+  color: #DC2626;
+  text-shadow: 0 0 12px rgba(239, 68, 68, 0.35);
+}
+.rt-countdown-digit-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}
+
+/* Return Trip — Progress Striped (animated) */
+.rt-progress-striped {
+  background-image: linear-gradient(
+    45deg,
+    rgba(255,255,255,0.2) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255,255,255,0.2) 50%,
+    rgba(255,255,255,0.2) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 40px 40px;
+  animation: rt-progress-stripes 1.2s linear infinite;
+}
+
+/* Return Trip — Bus Card Gradient Variants */
+.rt-card-surface {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.03), 0 4px 10px -4px rgba(15, 23, 42, 0.05);
+}
+.rt-card-header-gradient-green {
+  background: linear-gradient(135deg, #DCFCE7 0%, #FFFFFF 65%);
+  border: 1px solid #BBF7D0;
+}
+.rt-card-header-gradient-amber {
+  background: linear-gradient(135deg, #FEF3C7 0%, #FFFFFF 65%);
+  border: 1px solid #FDE68A;
+}
+.rt-card-header-gradient-blue {
+  background: linear-gradient(135deg, #DBEAFE 0%, #FFFFFF 65%);
+  border: 1px solid #BFDBFE;
+}
+.rt-card-header-gradient-purple {
+  background: linear-gradient(135deg, #F3E8FF 0%, #FFFFFF 65%);
+  border: 1px solid #E9D5FF;
+}
+.rt-card-header-gradient-gray {
+  background: linear-gradient(135deg, #F1F5F9 0%, #FFFFFF 65%);
+  border: 1px solid #E2E8F0;
+}
+
+/* Return Trip — Option Tile (selectable) */
+.rt-option-tile {
+  padding: 0.65rem 0.75rem;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: center;
+  background: white;
+  color: #334155;
+  user-select: none;
+}
+.rt-option-tile:hover { border-color: #CBD5E1; background: #F8FAFC; }
+.rt-option-tile--selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-lighter);
+  color: var(--color-primary-dark);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Return Trip — Tap target size for mobile */
+@media (max-width: 639px) {
+  .rt-tap-min { min-height: 44px; min-width: 44px; }
+  .rt-btn-min { min-height: 44px; }
+}
+
+/* Hide scrollbar aesthetic for chips/options row */
+.rt-scrollbar-hidden::-webkit-scrollbar { display: none; }
+.rt-scrollbar-hidden { -ms-overflow-style: none; scrollbar-width: none; }

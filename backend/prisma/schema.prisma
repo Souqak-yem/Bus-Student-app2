@@ -96,6 +96,8 @@ enum OperationStatus {
 enum ActiveBusStatus {
   AVAILABLE
   LOADING
+  BOARDING
+  BOARDING_TIME_ENDED
   DEPARTED
   ARRIVED
   CANCELLED
@@ -414,6 +416,7 @@ model ActiveBus {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   loads            BusLoad[]
+  boardingTimer    ReturnBoardingTimer?
 
   @@index([operationId])
   @@index([busId])
@@ -440,22 +443,28 @@ model ReturnQueue {
 }
 
 model BusLoad {
-  id              String     @id @default(uuid())
-  activeBusId     String
-  activeBus       ActiveBus  @relation(fields: [activeBusId], references: [id], onDelete: Cascade)
-  studentId       String
-  student         Student    @relation(fields: [studentId], references: [id])
-  assignedAt      DateTime   @default(now())
-  assignedById    String
-  assignedBy      User       @relation("BusLoadAssigner", fields: [assignedById], references: [id])
-  exceptionReason String?
-  departedAt      DateTime?
-  droppedOffAt    DateTime?
-  sortOrder       Int          @default(0)
+  id                String              @id @default(uuid())
+  activeBusId       String
+  activeBus         ActiveBus           @relation(fields: [activeBusId], references: [id], onDelete: Cascade)
+  studentId         String
+  student           Student             @relation(fields: [studentId], references: [id])
+  assignedAt        DateTime            @default(now())
+  assignedById      String
+  assignedBy        User                @relation("BusLoadAssigner", fields: [assignedById], references: [id])
+  exceptionReason   String?
+  departedAt        DateTime?
+  droppedOffAt      DateTime?
+  sortOrder         Int                 @default(0)
+  readinessStatus   ReturnReadinessStatus @default(NO_RESPONSE)
+  readinessUpdatedAt DateTime?
+  delayMinutes      Int?
+  delayReason       String?
+  onBoardAt         DateTime?
 
   @@unique([activeBusId, studentId])
   @@index([activeBusId])
   @@index([studentId])
+  @@index([readinessStatus])
   @@map("bus_loads")
 }
 
@@ -887,4 +896,52 @@ model PushSubscription {
 
   @@index([userId])
   @@map("push_subscriptions")
+}
+
+enum ReturnReadinessStatus {
+  NO_RESPONSE
+  READY
+  DELAYED
+  ON_BOARD
+  MISSED_BUS
+}
+
+enum DelayDuration {
+  FIVE_MIN
+  TEN_MIN
+  FIFTEEN_MIN
+  MORE
+}
+
+model AppSetting {
+  id           String  @id @default(uuid())
+  key          String  @unique
+  value        String?
+  valueType    String  @default("string")
+  description  String?
+  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now())
+
+  @@index([key])
+  @@map("app_settings")
+}
+
+model ReturnBoardingTimer {
+  id              String              @id @default(uuid())
+  activeBusId     String              @unique
+  activeBus       ActiveBus           @relation(fields: [activeBusId], references: [id], onDelete: Cascade)
+  startedAt       DateTime            @default(now())
+  durationMinutes Int               @default(15)
+  endedAt         DateTime?
+  notifiedStartSent     Boolean             @default(false)
+  notifiedFiveMin Boolean             @default(false)
+  notifiedBefore5 Boolean             @default(false)
+  notifiedBefore1 Boolean             @default(false)
+  notifiedEnd     Boolean             @default(false)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([activeBusId])
+  @@index([startedAt])
+  @@map("return_boarding_timers")
 }

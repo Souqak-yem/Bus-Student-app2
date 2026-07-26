@@ -233,3 +233,22 @@ export async function notifyStudentsOnBus(busId, { type, title, message, priorit
     // silent - best effort
   }
 }
+
+export function broadcastReadinessUpdate(activeBusId, data) {
+  if (!io) return
+  io.to(`bus:${activeBusId}`).emit('readiness:update', { activeBusId, ...data, timestamp: new Date().toISOString() })
+  io.emit('readiness:admin-update', { activeBusId, ...data, timestamp: new Date().toISOString() })
+}
+
+export function broadcastBoardingTimerUpdate(activeBusId, data) {
+  if (!io) return
+  io.to(`bus:${activeBusId}`).emit('boarding-timer:update', { activeBusId, ...data, timestamp: new Date().toISOString() })
+  io.emit('boarding-timer:admin-update', { activeBusId, ...data, timestamp: new Date().toISOString() })
+}
+
+export function broadcastReturnReadinessStats(activeBusId, stats) {
+  if (!io) return
+  const payload = { activeBusId, stats, timestamp: new Date().toISOString() }
+  io.to(`bus:${activeBusId}`).emit('readiness:stats', payload)
+  io.emit('readiness:admin-stats', payload)
+}

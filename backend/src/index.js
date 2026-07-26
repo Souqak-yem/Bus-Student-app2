@@ -42,6 +42,7 @@ import cartRoutes from './routes/cart.js'
 import cartApprovalRoutes from './routes/cartApprovals.js'
 import saturdayRoutes from './routes/saturdayOperations.js'
 import pushSubscriptionRoutes from './routes/pushSubscriptions.js'
+import returnReadinessRoutes from './routes/returnReadiness.js'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -152,6 +153,7 @@ app.use('/api/student/cart', cartRoutes)
 app.use('/api/approvals/carts', cartApprovalRoutes)
 app.use('/api/saturday', saturdayRoutes)
 app.use('/api/push', pushSubscriptionRoutes)
+app.use('/api/return-readiness', returnReadinessRoutes)
 
 // Auto-expire temporary transfers every 15 minutes
 import { getLocalDate } from './utils/dateUtils.js'
@@ -174,6 +176,15 @@ setInterval(async () => {
   } catch (e) {
   }
 }, 5 * 60 * 1000)
+
+// Smart Return Readiness boarding timer ticks every 15 seconds
+import { tickBoardingTimers } from './services/returnReadinessService.js'
+setInterval(async () => {
+  try {
+    await tickBoardingTimers()
+  } catch (e) {
+  }
+}, 15 * 1000)
 
 app.get('/api/health', async (_req, res) => {
   let database = 'disconnected'

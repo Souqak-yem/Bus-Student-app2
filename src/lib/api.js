@@ -135,6 +135,8 @@ export const api = {
       api.post(`/return/active-buses/${activeBusId}/reorder`, { studentIds }),
     dispatch: (activeBusId, line, studentIds) =>
       api.post(`/return/active-buses/${activeBusId}/dispatch`, { line, studentIds }),
+    dispatchByDriver: (activeBusId) =>
+      api.post(`/return/active-buses/${activeBusId}/dispatch-by-driver`, {}),
     complete: (activeBusId) =>
       api.patch(`/return/active-buses/${activeBusId}/complete`, {}),
     departed: () => api.get("/return/departed"),
@@ -365,6 +367,8 @@ export const api = {
     updatePickupTime: (busId, studentId, pickupTime) => api.patch(`/saturday/buses/${busId}/students/${studentId}/pickup-time`, { pickupTime }),
     close: () => api.post('/saturday/close'),
     removeBus: (busId) => api.delete(`/saturday/buses/${busId}`),
+    studentDashboard: () => api.get('/saturday/student/dashboard'),
+    driverDashboard: () => api.get('/saturday/driver/dashboard'),
   },
 
   busStudentOrder: {
@@ -376,5 +380,35 @@ export const api = {
         isTemporary,
         saveAsDefault,
       }),
+  },
+
+  returnReadiness: {
+    settings: {
+      getDefaultBoardingMinutes: () => api.get('/return-readiness/settings/default-boarding-minutes'),
+      setDefaultBoardingMinutes: (minutes) => api.post('/return-readiness/settings/default-boarding-minutes', { minutes }),
+      get: (key) => api.get(`/return-readiness/settings/${key}`),
+      set: (key, value, valueType, description) => api.put(`/return-readiness/settings/${key}`, { value, valueType, description }),
+    },
+    student: {
+      dashboard: () => api.get('/return-readiness/student/dashboard'),
+      ready: (activeBusId) => api.post('/return-readiness/student/ready', { activeBusId }),
+      delayed: (activeBusId, delayMinutes, delayReason) => api.post('/return-readiness/student/delayed', { activeBusId, delayMinutes, delayReason }),
+      arrived: (activeBusId) => api.post('/return-readiness/student/arrived', { activeBusId }),
+    },
+    driver: {
+      checklist: () => api.get('/return-readiness/driver/checklist'),
+      onBoard: (activeBusId, studentId) => api.post('/return-readiness/driver/on-board', { activeBusId, studentId }),
+      onBoardBatch: (activeBusId, studentIds) => api.post('/return-readiness/driver/on-board/batch', { activeBusId, studentIds }),
+      startTimer: (activeBusId) => api.post(`/return-readiness/driver/start-timer/${activeBusId}`),
+      stopTimer: (activeBusId) => api.post(`/return-readiness/driver/stop-timer/${activeBusId}`),
+    },
+    admin: {
+      startTimer: (activeBusId) => api.post(`/return-readiness/admin/start-timer/${activeBusId}`),
+      stopTimer: (activeBusId) => api.post(`/return-readiness/admin/stop-timer/${activeBusId}`),
+      tick: () => api.post('/return-readiness/admin/tick'),
+      stats: (activeBusId) => api.get(`/return-readiness/admin/stats/${activeBusId}`),
+      activeBusesReadiness: () => api.get('/return-readiness/admin/active-buses-readiness'),
+      announceAssign: (activeBusId, studentId) => api.post('/return-readiness/admin/load-assign-announce', { activeBusId, studentId }),
+    },
   },
 };

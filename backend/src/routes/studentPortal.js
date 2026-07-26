@@ -101,7 +101,7 @@ router.get('/dashboard', async (req, res) => {
           const returnLoad = await prisma.busLoad.findFirst({
             where: {
               studentId,
-              activeBus: { operationId: op.id, status: { not: 'CANCELLED' }, tripType: 'RETURN' },
+              activeBus: { operationId: op.id, status: { not: 'CANCELLED' }, tripType: 'RETURN', returnCompletedAt: null },
             },
             include: {
               activeBus: {

@@ -1,6 +1,6 @@
 import { prisma } from '../lib/prisma.js'
 import { getLocalDate } from '../utils/dateUtils.js'
-import { broadcastSaturdayUpdate } from './socketService.js'
+import { broadcastSaturdayUpdate, notifyStudent } from './socketService.js'
 import { createAndBroadcast } from './notificationService.js'
 
 export async function getSaturdaySubscribers(date = getLocalDate()) {
@@ -112,17 +112,27 @@ export async function createSaturdayOperation(date, busIds, createdById) {
     throw new Error(`الباصات غير موجودة: ${missing.join(', ')}`)
   }
 
-  const existingOp = await prisma.saturdayOperation.findUnique({ where: { operationDate: date } })
-  if (existingOp) {
-    throw new Error('يوجد تشغيل سبت لهذا التاريخ بالفعل')
-  }
+  let existingOp = await prisma.saturdayOperation.findUnique({ where: { operationDate: date } })
 
-  const op = await prisma.$transaction(async (tx) => {
-    const operation = await tx.saturdayOperation.create({
-      data: { operationDate: date, createdById },
+  const result = await prisma.$transaction(async (tx) => {
+    let operation = existingOp
+
+    if (!operation) {
+      operation = await tx.saturdayOperation.create({
+        data: { operationDate: date, createdById },
+      })
+    }
+
+    const existingBuses = await tx.saturdayActiveBus.findMany({
+      where: { operationId: operation.id },
+      select: { busId: true },
     })
+    const existingBusIds = new Set(existingBuses.map(b => b.busId))
 
+    let addedCount = 0
     for (const bus of busesData) {
+      if (existingBusIds.has(bus.id)) continue
+
       await tx.saturdayActiveBus.create({
         data: {
           operationId: operation.id,
@@ -131,6 +141,7 @@ export async function createSaturdayOperation(date, busIds, createdById) {
           capacitySnapshot: bus.capacity,
         },
       })
+      addedCount++
 
       if (bus.driver?.id) {
         await createAndBroadcast({
@@ -141,6 +152,10 @@ export async function createSaturdayOperation(date, busIds, createdById) {
           dedupKey: `saturday_duty_${bus.driver.id}_${date.toISOString()}`,
         })
       }
+    }
+
+    if (addedCount === 0 && existingOp) {
+      throw new Error('جميع الباصات مضافة مسبقاً')
     }
 
     return tx.saturdayOperation.findUnique({
@@ -172,8 +187,8 @@ export async function createSaturdayOperation(date, busIds, createdById) {
     })
   })
 
-  broadcastSaturdayUpdate({ type: 'operation_created', operation: op, timestamp: new Date().toISOString() })
-  return op
+  broadcastSaturdayUpdate({ type: 'operation_created', operation: result, timestamp: new Date().toISOString() })
+  return result
 }
 
 export async function addStudentToSaturdayBus(activeBusId, studentId, pickupTime) {
@@ -220,6 +235,20 @@ export async function addStudentToSaturdayBus(activeBusId, studentId, pickupTime
         title: 'إضافة طالب',
         message: `تم إضافة ${student?.name || 'طالب'} إلى باصك`,
         dedupKey: `saturday_student_added_${driverBus.driver.id}_${studentId}`,
+      })
+    }
+
+    const studentUser = await tx.user.findUnique({ where: { studentId }, select: { id: true } })
+    if (studentUser?.id) {
+      const busNumber = activeBus.bus?.busNumber || ''
+      const pickupMsg = pickupTime ? ` في الساعة ${pickupTime}` : ''
+      await createAndBroadcast({
+        userId: studentUser.id,
+        type: 'saturday_student_added_to_student',
+        title: 'إضافة لرحلة السبت',
+        message: `تمت إضافتك إلى باص رقم ${busNumber}${pickupMsg}`,
+        targetRoute: '/student',
+        dedupKey: `saturday_student_added_to_student_${studentId}_${activeBusId}`,
       })
     }
 

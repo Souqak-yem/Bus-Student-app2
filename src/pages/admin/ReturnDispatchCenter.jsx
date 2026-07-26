@@ -4,6 +4,24 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Bus, Users, Search, Plus, X, GripVertical, Phone, MessageCircle, MapPin } from 'lucide-react'
 import PageHeader from '../../components/ui/PageHeader'
 import ConfirmModal from '../../components/ui/ConfirmModal'
+import { onAdminReadinessUpdate, offAdminReadinessUpdate, onAdminBoardingTimerUpdate, offAdminBoardingTimerUpdate, onAdminReadinessStats, offAdminReadinessStats } from '../../lib/socket'
+
+const STATUS_BADGE = {
+  READY: { label: 'READY', cls: 'bg-green-100 text-green-700 border-green-200' },
+  DELAYED: { label: 'DELAYED', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
+  NO_RESPONSE: { label: 'NO_RESPONSE', cls: 'bg-red-100 text-red-700 border-red-200' },
+  ON_BOARD: { label: 'ON_BOARD', cls: 'bg-blue-100 text-blue-700 border-blue-200' },
+  MISSED_BUS: { label: 'MISSED_BUS', cls: 'bg-slate-200 text-slate-700 border-slate-300' },
+}
+
+function ReadinessBadge({ status }) {
+  const badge = STATUS_BADGE[status] || STATUS_BADGE.NO_RESPONSE
+  return (
+    <span className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold border ${badge.cls}`}>
+      {badge.label}
+    </span>
+  )
+}
 
 export default function ReturnDispatchCenter() {
   const [loading, setLoading] = useState(true)
@@ -19,6 +37,8 @@ export default function ReturnDispatchCenter() {
   const [transferMode, setTransferMode] = useState(null)
   const [confirmRemoveQueueId, setConfirmRemoveQueueId] = useState(null)
   const [confirmRemoveBusStudentId, setConfirmRemoveBusStudentId] = useState(null)
+  const [readinessStats, setReadinessStats] = useState({})
+  const [boardingTimers, setBoardingTimers] = useState({})
 
   const dateStr = new Date().toLocaleDateString('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 
@@ -34,6 +54,42 @@ export default function ReturnDispatchCenter() {
   }, [])
 
   useEffect(() => { loadAll() }, [loadAll])
+
+  useEffect(() => {
+    const handleReadiness = (payload) => {
+      if (!payload) return
+      setBusStudents(prev => prev.map(load => {
+        if (load.id === payload.busLoadId || load.studentId === payload.studentId) {
+          return { ...load, readinessStatus: payload.status, delayMinutes: payload.delayMinutes, delayReason: payload.delayReason, onBoardAt: payload.onBoardAt }
+        }
+        return load
+      }))
+      setActiveBuses(prev => prev.map(b => ({
+        ...b,
+        loads: b.loads ? b.loads.map(l => (l.id === payload.busLoadId || l.studentId === payload.studentId
+          ? { ...l, readinessStatus: payload.status, delayMinutes: payload.delayMinutes, delayReason: payload.delayReason, onBoardAt: payload.onBoardAt }
+          : l)) : [],
+      })))
+    }
+    const handleStats = (payload) => {
+      if (payload?.activeBusId) {
+        setReadinessStats(prev => ({ ...prev, [payload.activeBusId]: payload.stats }))
+      }
+    }
+    const handleTimer = (payload) => {
+      if (payload?.activeBusId) {
+        setBoardingTimers(prev => ({ ...prev, [payload.activeBusId]: payload }))
+      }
+    }
+    onAdminReadinessUpdate(handleReadiness)
+    onAdminReadinessStats(handleStats)
+    onAdminBoardingTimerUpdate(handleTimer)
+    return () => {
+      offAdminReadinessUpdate()
+      offAdminReadinessStats()
+      offAdminBoardingTimerUpdate()
+    }
+  }, [])
 
   function openBusPanel(bus) {
     setSelectedBus(bus)
@@ -67,6 +123,9 @@ export default function ReturnDispatchCenter() {
   async function handleAddToBus(studentId) {
     try {
       await api.return.loads.add(selectedBus.id, studentId, '')
+      try {
+        await api.returnReadiness.admin.announceAssign(selectedBus.id, studentId).catch(() => {})
+      } catch { /* silent */ }
       const [buses, q] = await Promise.all([
         api.return.activeBuses.list().catch(() => []),
         api.return.queue.list().catch(() => []),
@@ -133,15 +192,6 @@ export default function ReturnDispatchCenter() {
 
   function handleDragEnd() { setDraggedIdx(null) }
 
-  async function handleDispatch() {
-    if (!busLine) { alert('الرجاء اختيار الطريق'); return }
-    try {
-      await api.return.dispatch(selectedBus.id, busLine, busStudents.map(l => l.studentId))
-      loadAll()
-      closeBusPanel()
-    } catch (err) { alert(err.message) }
-  }
-
   const filteredQueue = queue.filter(item =>
     !search || item.student?.name?.includes(search) || item.student?.phone?.includes(search)
   )
@@ -162,6 +212,38 @@ export default function ReturnDispatchCenter() {
   return (
     <div>
       <PageHeader title="رحلات العودة" subtitle={`إدارة رحلات العودة · ${dateStr}`} />
+
+      {activeBuses.length > 0 && (() => {
+        const totals = activeBuses.reduce((acc, b) => {
+          const loads = b.loads || []
+          for (const l of loads) {
+            const st = l.readinessStatus || 'NO_RESPONSE'
+            acc[st] = (acc[st] || 0) + 1
+            acc.TOTAL = (acc.TOTAL || 0) + 1
+          }
+          return acc
+        }, {})
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+            <div className="bg-green-50 border border-green-100 rounded-xl p-3">
+              <div className="text-[10px] font-bold text-green-600 mb-1">جاهزون (READY)</div>
+              <div className="text-2xl font-black text-green-700">{totals.READY || 0}</div>
+            </div>
+            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+              <div className="text-[10px] font-bold text-amber-600 mb-1">سيتأخرون (DELAYED)</div>
+              <div className="text-2xl font-black text-amber-700">{totals.DELAYED || 0}</div>
+            </div>
+            <div className="bg-red-50 border border-red-100 rounded-xl p-3">
+              <div className="text-[10px] font-bold text-red-600 mb-1">لم يردوا (NO_RESPONSE)</div>
+              <div className="text-2xl font-black text-red-700">{totals.NO_RESPONSE || 0}</div>
+            </div>
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
+              <div className="text-[10px] font-bold text-blue-600 mb-1">داخل الباص (ON_BOARD)</div>
+              <div className="text-2xl font-black text-blue-700">{totals.ON_BOARD || 0}</div>
+            </div>
+          </div>
+        )
+      })()}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Right column: Queue */}
@@ -386,6 +468,8 @@ export default function ReturnDispatchCenter() {
                       const s = load.student
                       const isHome = s?.transportMode === 'HOME'
                       const isDeparted = selectedBus.status === 'DEPARTED'
+                      const readinessStatus = load.readinessStatus || 'NO_RESPONSE'
+                      const hasDelay = readinessStatus === 'DELAYED' && load.delayMinutes
                       return (
                         <div
                           key={load.id || load.studentId}
@@ -403,17 +487,23 @@ export default function ReturnDispatchCenter() {
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1 flex-wrap">
                               <span className="font-semibold text-slate-800 text-xs truncate">{s?.name}</span>
+                              <ReadinessBadge status={readinessStatus} />
                               {isHome && (
                                 <span className="shrink-0 inline-flex items-center px-1 py-0.5 rounded text-[9px] font-medium bg-purple-100 text-purple-700">
                                   توصيل منزلي
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                            <div className="flex items-center gap-1 text-[10px] text-slate-400 flex-wrap">
                               {s?.institutionName && <span className="truncate">{s.institutionName}</span>}
                               <span className="truncate">{isHome ? s?.homeAddress : (s?.pickupLocation || s?.address || '---')}</span>
+                              {hasDelay && (
+                                <span className="shrink-0 text-amber-600">
+                                  ⏱ {load.delayMinutes}د {load.delayReason ? `· ${load.delayReason}` : ''}
+                                </span>
+                              )}
                             </div>
                           </div>
                           {!isDeparted && (
@@ -468,15 +558,51 @@ export default function ReturnDispatchCenter() {
                   </div>
                 )}
 
+                {(() => {
+                  const busTimer = boardingTimers[selectedBus.id] || selectedBus.boardingTimer
+                  const stats = readinessStats[selectedBus.id] || busStudents.reduce((acc, l) => {
+                    const st = l.readinessStatus || 'NO_RESPONSE'
+                    acc[st] = (acc[st] || 0) + 1
+                    return acc
+                  }, { READY: 0, DELAYED: 0, NO_RESPONSE: 0, ON_BOARD: 0, MISSED_BUS: 0 })
+                  const totals = { READY: 0, DELAYED: 0, NO_RESPONSE: 0, ON_BOARD: 0, MISSED_BUS: 0, ...stats }
+                  return (
+                    <div className="mb-3">
+                      <div className="text-xs font-semibold text-slate-700 mb-1.5">إحصائيات الجاهزية لهذا الباص</div>
+                      <div className="grid grid-cols-4 gap-1 mb-2">
+                        <div className="bg-green-50 rounded-lg p-1.5 text-center border border-green-100">
+                          <div className="text-xs font-black text-green-700">{totals.READY || 0}</div>
+                          <div className="text-[9px] text-green-600">جاهز</div>
+                        </div>
+                        <div className="bg-amber-50 rounded-lg p-1.5 text-center border border-amber-100">
+                          <div className="text-xs font-black text-amber-700">{totals.DELAYED || 0}</div>
+                          <div className="text-[9px] text-amber-600">متأخر</div>
+                        </div>
+                        <div className="bg-red-50 rounded-lg p-1.5 text-center border border-red-100">
+                          <div className="text-xs font-black text-red-700">{totals.NO_RESPONSE || 0}</div>
+                          <div className="text-[9px] text-red-600">لم يرد</div>
+                        </div>
+                        <div className="bg-blue-50 rounded-lg p-1.5 text-center border border-blue-100">
+                          <div className="text-xs font-black text-blue-700">{totals.ON_BOARD || 0}</div>
+                          <div className="text-[9px] text-blue-600">بالداخل</div>
+                        </div>
+                      </div>
+                      {selectedBus.status !== 'DEPARTED' && busTimer && (
+                        <div className="bg-slate-50 rounded-lg p-2 border border-slate-200">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] font-bold text-slate-600">العد التنازلي للصعود</span>
+                            <span className={`text-[10px] font-black ${busTimer.endedAt ? 'text-red-600' : 'text-green-600'}`}>
+                              {busTimer.endedAt ? 'انتهى' : 'يعمل'}
+                            </span>
+                          </div>
+                          <TimerDisplay timer={busTimer} />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
                 <div className="space-y-1.5 pt-3 border-t border-slate-100">
-                  {selectedBus.status !== 'DEPARTED' && (
-                    <button
-                      onClick={handleDispatch}
-                      className="w-full bg-green-600 text-white py-3 rounded-xl font-bold text-sm hover:brightness-110 transition-all"
-                    >
-                      انطلاق الباص
-                    </button>
-                  )}
                   <button
                     onClick={closeBusPanel}
                     className="w-full bg-slate-100 text-slate-600 py-2 rounded-xl font-medium text-xs hover:bg-slate-200 transition-all"
@@ -509,6 +635,39 @@ export default function ReturnDispatchCenter() {
       >
         هل أنت متأكد من حذف هذا الطالب من الباص؟
       </ConfirmModal>
+    </div>
+  )
+}
+
+function TimerDisplay({ timer }) {
+  const [now, setNow] = useState(new Date())
+  useEffect(() => {
+    const i = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(i)
+  }, [])
+  const startedAt = timer.serverNow ? new Date(timer.serverNow) : new Date()
+  const offsetMs = timer.startedAt ? (startedAt.getTime() - new Date(timer.startedAt).getTime()) : 0
+  const effectiveNow = new Date(now.getTime() + offsetMs)
+  const start = new Date(timer.startedAt)
+  const durationMs = (timer.durationMinutes || 15) * 60 * 1000
+  const endMs = start.getTime() + durationMs
+  const remainingMs = Math.max(0, endMs - effectiveNow.getTime())
+  const elapsedMs = Math.max(0, durationMs - remainingMs)
+  const pct = Math.max(0, Math.min(100, (elapsedMs / durationMs) * 100))
+  const mm = Math.floor(remainingMs / 60000)
+  const ss = Math.floor((remainingMs % 60000) / 1000)
+  const isEnded = remainingMs <= 0 || timer.endedAt
+  return (
+    <div>
+      <div className="text-center mb-1">
+        <span className={`text-2xl font-black font-mono ${remainingMs <= 60000 ? 'text-red-600 animate-pulse' : remainingMs <= 5 * 60000 ? 'text-amber-600' : 'text-slate-700'}`}>
+          {String(mm).padStart(2, '0')}:{String(ss).padStart(2, '0')}
+        </span>
+      </div>
+      <div className="w-full bg-slate-200 rounded-full h-1.5">
+        <div className={`h-1.5 rounded-full transition-all duration-1000 ${isEnded ? 'bg-red-500' : remainingMs <= 5 * 60000 ? 'bg-amber-500' : 'bg-indigo-500'}`}
+          style={{ width: `${pct}%` }} />
+      </div>
     </div>
   )
 }

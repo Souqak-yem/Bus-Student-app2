@@ -9,6 +9,7 @@ import StudentLayout from './components/layout/StudentLayout'
 import Login from './pages/auth/Login'
 import ChangePassword from './pages/auth/ChangePassword'
 import InstallPWAPopup from './components/ui/InstallPWAPopup'
+import UpdateNotification from './components/ui/UpdateNotification'
 import StudentHome from './pages/student/Home'
 import StudentSubscriptions from './pages/student/Subscriptions'
 import StudentNotifications from './pages/student/Notifications'
@@ -43,6 +44,7 @@ import EmergencyBusDetail from './pages/admin/EmergencyBusDetail'
 import DriverDashboard from './pages/driver/Dashboard'
 import DriverReturnTrip from './pages/driver/ReturnTrip'
 import DriverSettings from './pages/driver/Settings'
+import Debug from './pages/Debug'
 
 function ProtectedRoute({ children, allowedRole }) {
   const { user, loading } = useAuth()
@@ -84,6 +86,8 @@ export default function App() {
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<Login />} />
         </Route>
+
+        <Route path="/debug" element={<Debug />} />
 
         <Route path="/settings/change-password" element={
           <ProtectedRoute><ChangePassword /></ProtectedRoute>
@@ -185,6 +189,7 @@ export default function App() {
         <Route path="*" element={<RoleRedirect />} />
       </Routes>
       <InstallPWAPopup />
+      <UpdateNotification />
     </>
   )
 }

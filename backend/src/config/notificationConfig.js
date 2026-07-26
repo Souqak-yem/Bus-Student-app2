@@ -55,6 +55,7 @@ export const NOTIFICATION_CONFIG = {
   // Saturday
   saturday_duty: { priority: PRIORITY.INFO, icon: 'CalendarCheck', route: '/driver' },
   saturday_student_added: { priority: PRIORITY.INFO, icon: 'UserPlus', route: '/driver' },
+  saturday_student_added_to_student: { priority: PRIORITY.INFO, icon: 'Bus', route: '/student' },
 
   // Generic info (fallback for ad-hoc notifications)
   info: { priority: PRIORITY.INFO, icon: 'Bell', route: null },

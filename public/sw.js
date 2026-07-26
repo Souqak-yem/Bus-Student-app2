@@ -1,7 +1,5 @@
 const CACHE = 'mashawerk-v1'
 const STATIC = [
-  '/',
-  '/index.html',
   '/manifest.json',
   '/app-icon.svg',
   '/full-logo.svg',
@@ -14,17 +12,29 @@ const STATIC = [
 ]
 
 self.addEventListener('install', (e) => {
+  console.log(`[SW] Installing ${CACHE}`)
   self.skipWaiting()
   e.waitUntil(
-    caches.open(CACHE).then((c) => c.addAll(STATIC))
+    caches.open(CACHE).then((c) => c.addAll(STATIC)).then(() => {
+      console.log(`[SW] Static assets cached in ${CACHE}`)
+    })
   )
 })
 
 self.addEventListener('activate', (e) => {
+  console.log(`[SW] Activating ${CACHE}`)
+  self.clients.claim()
   e.waitUntil(
-    caches.keys().then((keys) => Promise.all(
-      keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))
-    ))
+    caches.keys().then((keys) => {
+      const toDelete = keys.filter((k) => k !== CACHE)
+      console.log(`[SW] Deleting old caches: ${toDelete.join(', ') || '(none)'}`)
+      return Promise.all(toDelete.map((k) => caches.delete(k)))
+    }).then(() => {
+      console.log(`[SW] ${CACHE} is now active and controlling all clients`)
+      return self.clients.matchAll()
+    }).then((clients) => {
+      clients.forEach((c) => c.postMessage({ type: 'SW_ACTIVATED', cache: CACHE }))
+    })
   )
 })
 
@@ -32,15 +42,22 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url)
 
   if (url.pathname.startsWith('/api/') && e.request.method === 'GET') {
-    e.respondWith(networkFirst(e.request))
+    e.respondWith(networkFirst(e.request, url.pathname))
   } else if (url.pathname.startsWith('/api/')) {
     return
-  } else if (url.pathname.match(/\.(js|css|png|jpg|svg|wav|ico)$/)) {
-    e.respondWith(cacheFirst(e.request))
   } else if (url.pathname === '/' || url.pathname === '/index.html') {
-    e.respondWith(networkFirst(e.request))
+    e.respondWith(networkFirstNoCache(e.request, url.pathname))
+  } else if (url.pathname.match(/\.(js|css|png|jpg|svg|wav|ico)$/)) {
+    e.respondWith(cacheFirst(e.request, url.pathname))
   } else {
-    e.respondWith(cacheFirst(e.request))
+    e.respondWith(networkFirst(e.request, url.pathname))
+  }
+})
+
+self.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'SKIP_WAITING') {
+    console.log('[SW] SKIP_WAITING received, activating...')
+    self.skipWaiting()
   }
 })
 
@@ -91,14 +108,17 @@ self.addEventListener('notificationclick', (e) => {
   )
 })
 
-async function networkFirst(req) {
+async function networkFirst(req, path) {
   try {
     const res = await fetch(req)
     const cache = await caches.open(CACHE)
     cache.put(req, res.clone())
+    console.log(`[SW] NETWORK ✓ ${path}`)
     return res
   } catch {
-    const cached = await caches.match(req)
+    const cache = await caches.open(CACHE)
+    const cached = await cache.match(req)
+    console.log(`[SW] OFFLINE → CACHE ${path}`)
     return cached || new Response(JSON.stringify({ error: 'غير متصل' }), {
       status: 503,
       headers: { 'Content-Type': 'application/json' },
@@ -106,15 +126,44 @@ async function networkFirst(req) {
   }
 }
 
-async function cacheFirst(req) {
-  const cached = await caches.match(req)
-  if (cached) return cached
+async function networkFirstNoCache(req, path) {
   try {
-    const res = await fetch(req)
-    const cache = await caches.open(CACHE)
-    cache.put(req, res.clone())
+    const noStoreReq = new Request(req.url, {
+      method: req.method,
+      headers: req.headers,
+      mode: req.mode,
+      credentials: req.credentials,
+      redirect: req.redirect,
+      cache: 'no-store',
+    })
+    const res = await fetch(noStoreReq)
+    console.log(`[SW] NETWORK ✓ ${path} (no-store)`)
     return res
   } catch {
+    const cache = await caches.open(CACHE)
+    const cached = await cache.match(req)
+    console.log(`[SW] OFFLINE → CACHE FALLBACK ${path}`)
+    return cached || new Response(JSON.stringify({ error: 'غير متصل' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+}
+
+async function cacheFirst(req, path) {
+  const cache = await caches.open(CACHE)
+  const cached = await cache.match(req)
+  if (cached) {
+    console.log(`[SW] CACHE ✓ ${path}`)
+    return cached
+  }
+  try {
+    const res = await fetch(req)
+    cache.put(req, res.clone())
+    console.log(`[SW] NETWORK → CACHE ${path}`)
+    return res
+  } catch {
+    console.log(`[SW] FAILED ${path}`)
     return new Response('غير متصل', { status: 503 })
   }
 }

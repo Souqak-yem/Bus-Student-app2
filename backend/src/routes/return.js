@@ -14,6 +14,23 @@ function todayRange() {
   return { today, tomorrow }
 }
 
+const VALID_TRANSITIONS = {
+  AVAILABLE: ['LOADING', 'CANCELLED', 'BROKEN_DOWN', 'REPLACED'],
+  LOADING: ['BOARDING', 'AVAILABLE', 'CANCELLED', 'BROKEN_DOWN', 'REPLACED'],
+  BOARDING: ['BOARDING_TIME_ENDED', 'CANCELLED', 'BROKEN_DOWN', 'REPLACED'],
+  BOARDING_TIME_ENDED: ['DEPARTED', 'CANCELLED', 'BROKEN_DOWN', 'REPLACED'],
+  DEPARTED: ['ARRIVED', 'CANCELLED'],
+  ARRIVED: [],
+  CANCELLED: [],
+  BROKEN_DOWN: ['REPLACED', 'CANCELLED'],
+  REPLACED: [],
+}
+
+function canTransition(from, to) {
+  if (from === to) return true
+  return VALID_TRANSITIONS[from]?.includes(to) || false
+}
+
 router.get('/operation', async (req, res) => {
   try {
     const { today, tomorrow } = todayRange()
@@ -111,7 +128,7 @@ router.post('/active-buses', authorize('admin'), async (req, res) => {
     if (!bus.driver) return res.status(400).json({ error: 'الحافلة لا تملك سائقاً' })
 
     const existing = await prisma.activeBus.findFirst({
-      where: { operationId: op.id, busId, tripType: 'RETURN', status: { not: 'CANCELLED' } },
+      where: { operationId: op.id, busId, tripType: 'RETURN', status: { not: 'CANCELLED' }, returnCompletedAt: null },
     })
     if (existing) return res.status(400).json({ error: 'هذه الحافلة موجودة بالفعل في التشغيل' })
 
@@ -140,6 +157,10 @@ router.patch('/active-buses/:id/status', authorize('admin'), async (req, res) =>
       include: { loads: true },
     })
     if (!activeBus) return res.status(404).json({ error: 'الحافلة غير موجودة في التشغيل' })
+
+    if (!canTransition(activeBus.status, status)) {
+      return res.status(400).json({ error: `لا يمكن الانتقال من ${activeBus.status} إلى ${status}` })
+    }
 
     const updated = await prisma.activeBus.update({
       where: { id: req.params.id },
@@ -456,16 +477,22 @@ router.post('/active-buses/:id/reorder', authorize('admin'), async (req, res) =>
 router.post('/active-buses/:id/dispatch', authorize('admin'), async (req, res) => {
   try {
     const { line, studentIds } = req.body
-    const activeBus = await prisma.activeBus.findUnique({ where: { id: req.params.id } })
+    const activeBus = await prisma.activeBus.findUnique({ where: { id: req.params.id }, include: { loads: true, bus: { select: { id: true, busNumber: true } } } })
     if (!activeBus) return res.status(404).json({ error: 'الحافلة غير موجودة' })
+
+    const finalLine = line || activeBus.line
+    if (!['BOARDING_TIME_ENDED'].includes(activeBus.status)) {
+      return res.status(400).json({ error: 'لا يمكن الانطلاق إلا بعد انتهاء وقت الصعود (BOARDING_TIME_ENDED)' })
+    }
 
     await prisma.activeBus.update({
       where: { id: req.params.id },
-      data: { line, status: 'DEPARTED' },
+      data: { line: finalLine, status: 'DEPARTED' },
     })
 
     notifyAndBroadcastToBus(activeBus.busId, {
-      type: 'driver_return_dispatched', title: 'انطلقت رحلة العودة', message: `تم انطلاق رحلة العودة${line === 'JEBALI' ? ' (جبلي)' : line === 'BAHRY' ? ' (بحري)' : ''}`,
+      activeBusId: req.params.id,
+      type: 'driver_return_dispatched', title: 'انطلقت رحلة العودة', message: `تم انطلاق رحلة العودة${finalLine === 'JEBALI' ? ' (جبلي)' : finalLine === 'BAHRY' ? ' (بحري)' : ''}`,
       priority: 'INFO',
     })
 
@@ -481,10 +508,16 @@ router.post('/active-buses/:id/dispatch', authorize('admin'), async (req, res) =
 
     const studentIdsInBus = activeBus.loads?.map(l => l.studentId) || []
     if (studentIdsInBus.length > 0) {
-      await prisma.returnQueue.updateMany({
-        where: { operationId: activeBus.operationId, studentId: { in: studentIdsInBus } },
-        data: { status: 'DEPARTED' },
-      })
+      await Promise.all([
+        prisma.busLoad.updateMany({
+          where: { activeBusId: req.params.id },
+          data: { departedAt: new Date() },
+        }),
+        prisma.returnQueue.updateMany({
+          where: { operationId: activeBus.operationId, studentId: { in: studentIdsInBus } },
+          data: { status: 'DEPARTED' },
+        }),
+      ])
     }
 
     const dispatchLoads = activeBus.loads || []
@@ -500,7 +533,73 @@ router.post('/active-buses/:id/dispatch', authorize('admin'), async (req, res) =
       }
     }
 
-    res.json({ message: 'تم انطلاق الباص' })
+    res.json({ message: 'تم انطلاق الباص', status: 'DEPARTED', line: finalLine })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+router.post('/active-buses/:id/dispatch-by-driver', async (req, res) => {
+  try {
+    if (req.user.role !== 'driver' && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'غير مصرح' })
+    }
+    const activeBus = await prisma.activeBus.findUnique({
+      where: { id: req.params.id },
+      include: { loads: true, bus: { select: { id: true, busNumber: true } } },
+    })
+    if (!activeBus) return res.status(404).json({ error: 'الحافلة غير موجودة' })
+
+    if (req.user.role === 'driver' && String(activeBus.driverId) !== String(req.user.id)) {
+      return res.status(403).json({ error: 'ليس سائق هذا الباص' })
+    }
+
+    if (!['BOARDING_TIME_ENDED', 'BOARDING', 'LOADING'].includes(activeBus.status)) {
+      return res.status(400).json({ error: 'لا يمكن الانطلاق إلا إذا كان الباص في مرحلة الصعود أو ما قبلها' })
+    }
+
+    const now = new Date()
+    await prisma.activeBus.update({
+      where: { id: req.params.id },
+      data: { status: 'DEPARTED' },
+    })
+
+    notifyAndBroadcastToBus(activeBus.busId, {
+      activeBusId: req.params.id,
+      type: 'driver_return_dispatched',
+      title: '🚍 انطلقت رحلة العودة',
+      message: `انطلق باص العودة رقم ${activeBus.bus?.busNumber || ''} الآن.`,
+      priority: 'INFO',
+    })
+
+    const studentIdsInBus = activeBus.loads?.map(l => l.studentId) || []
+    if (studentIdsInBus.length > 0) {
+      await Promise.all([
+        prisma.busLoad.updateMany({
+          where: { activeBusId: req.params.id },
+          data: { departedAt: now },
+        }),
+        prisma.returnQueue.updateMany({
+          where: { operationId: activeBus.operationId, studentId: { in: studentIdsInBus } },
+          data: { status: 'DEPARTED' },
+        }),
+      ])
+    }
+
+    const dispatchLoads = activeBus.loads || []
+    for (const dl of dispatchLoads) {
+      const dispatchUser = await prisma.user.findUnique({ where: { studentId: dl.studentId }, select: { id: true } })
+      if (dispatchUser?.id) {
+        notifyStudent({
+          userId: dispatchUser.id, type: 'student_return_trip_started', title: 'انطلقت رحلة العودة',
+          message: 'انطلق باص العودة الآن.',
+          targetRoute: '/student',
+          dedupKey: `student_return_trip_started_${dl.studentId}_${now.getTime()}`,
+        })
+      }
+    }
+
+    res.json({ message: 'تم انطلاق الباص من قبل السائق', status: 'DEPARTED', activeBusId: req.params.id })
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -508,7 +607,13 @@ router.post('/active-buses/:id/dispatch', authorize('admin'), async (req, res) =
 
 router.patch('/load/:activeBusId/:studentId/dropoff', async (req, res) => {
   try {
+    if (req.user.role !== 'driver' && req.user.role !== 'admin') return res.status(403).json({ error: 'غير مصرح' })
     const { activeBusId, studentId } = req.params
+    const activeBus = await prisma.activeBus.findUnique({ where: { id: activeBusId }, select: { driverId: true, status: true } })
+    if (!activeBus) return res.status(404).json({ error: 'الحافلة غير موجودة' })
+    if (req.user.role === 'driver' && activeBus.driverId !== req.user.id) return res.status(403).json({ error: 'ليس سائق هذا الباص' })
+    if (activeBus.status !== 'DEPARTED') return res.status(400).json({ error: 'لا يمكن إنزال الطلاب إلا بعد انطلاق الباص' })
+
     const load = await prisma.busLoad.findFirst({
       where: { activeBusId, studentId },
     })
@@ -519,9 +624,9 @@ router.patch('/load/:activeBusId/:studentId/dropoff', async (req, res) => {
       data: { droppedOffAt: new Date() },
     })
 
-    const activeBus = await prisma.activeBus.findUnique({ where: { id: activeBusId }, select: { busId: true } })
-    if (activeBus) {
-      notifyAndBroadcastToBus(activeBus.busId, {
+    const busForNotify = await prisma.activeBus.findUnique({ where: { id: activeBusId }, select: { busId: true } })
+    if (busForNotify) {
+      notifyAndBroadcastToBus(busForNotify.busId, {
         type: 'driver_student_dropped_off', title: 'تم إنزال طالب', message: 'تم إنزال طالب من رحلة العودة',
         data: { activeBusId, studentId },
       })
@@ -544,10 +649,12 @@ router.patch('/load/:activeBusId/:studentId/dropoff', async (req, res) => {
 
 router.patch('/active-buses/:id/complete', async (req, res) => {
   try {
+    if (req.user.role !== 'driver' && req.user.role !== 'admin') return res.status(403).json({ error: 'غير مصرح' })
     const activeBus = await prisma.activeBus.findUnique({
       where: { id: req.params.id },
     })
     if (!activeBus) return res.status(404).json({ error: 'الحافلة غير موجودة' })
+    if (req.user.role === 'driver' && activeBus.driverId !== req.user.id) return res.status(403).json({ error: 'ليس سائق هذا الباص' })
     if (activeBus.returnCompletedAt) return res.status(400).json({ error: 'رحلة العودة منتهية بالفعل' })
 
     const updated = await prisma.activeBus.update({

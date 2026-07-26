@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Eye, EyeOff, LogIn, Bus, User } from 'lucide-react'
+import { Eye, EyeOff, LogIn, Bus, User, Copy, Check } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 export default function Login() {
@@ -10,8 +10,19 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [copied, setCopied] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
+
+  const versionText = `الإصدار: ${__APP_VERSION__}\nBuild: ${__BUILD_HASH__}\nالتاريخ: ${__BUILD_TIME__}`
+
+  const handleCopyVersion = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(versionText)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch { /* ignore */ }
+  }, [versionText])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -105,6 +116,14 @@ export default function Login() {
           </button>
         </form>
       </div>
+      <button
+        onClick={handleCopyVersion}
+        className="flex items-center justify-center gap-1.5 mx-auto mt-4 text-xs text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+        title="اضغط للنسخ"
+      >
+        <span>الإصدار {__APP_VERSION__} &middot; Build {__BUILD_HASH__}</span>
+        {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+      </button>
     </motion.div>
   )
 }

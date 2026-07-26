@@ -41,11 +41,56 @@ export default function DriverDashboard() {
   const [direction, setDirection] = useState(1)
   const [activeBusId, setActiveBusId] = useState(null)
   const [busRecordId, setBusRecordId] = useState(null)
+  const [selectedSaturdayBusId, setSelectedSaturdayBusId] = useState(null)
+  const [saturdayBuses, setSaturdayBuses] = useState([])
+  const [isSaturdayMode, setIsSaturdayMode] = useState(false)
 
   const today = new Date().toISOString().split('T')[0]
+  const todayObj = new Date()
+  const isSaturdayDate = todayObj.getDay() === 6
 
   const loadData = useCallback(async () => {
     try {
+      if (isSaturdayDate) {
+        const saturdayResult = await api.saturday.driverDashboard().catch(() => null)
+        setIsSaturdayMode(true)
+
+        if (!saturdayResult?.operationExists || saturdayResult?.buses?.length === 0) {
+          setNoOperation(true)
+          setLoading(false)
+          return
+        }
+
+        const buses = saturdayResult.buses || []
+        setSaturdayBuses(buses)
+
+        const currentBusId = selectedSaturdayBusId || buses[0]?.id
+        const selectedBus = buses.find(b => b.id === currentBusId) || buses[0]
+        setSelectedSaturdayBusId(selectedBus?.id)
+
+        if (selectedBus) {
+          const formattedStudents = selectedBus.loads.map(load => ({
+            student: load.student,
+            pickupTime: load.pickupTime,
+            assignment: { id: load.id }
+          }))
+          setStudents(formattedStudents)
+          setBusRecordId(selectedBus.bus?.id)
+          setActiveBusId(selectedBus.id)
+
+          const syntheticBusData = {
+            bus: selectedBus.bus,
+            driver: selectedBus.driver,
+            busStatus: selectedBus.status,
+            activeBusId: selectedBus.id,
+          }
+          setBusData(syntheticBusData)
+        }
+
+        setLoading(false)
+        return
+      }
+
       const op = await api.operations.getToday()
       if (!op.exists) {
         setNoOperation(true)
@@ -69,7 +114,6 @@ export default function DriverDashboard() {
       }
 
       setBusData(myBusData)
-      // sort students by pickupTime (assignment pickupTime first, then templatePickupTime)
       const toMinutes = (time) => {
         if (!time) return 24 * 60
         const [h, m] = String(time).split(':').map(Number)
@@ -85,7 +129,6 @@ export default function DriverDashboard() {
       setActiveBusId(myBusData.activeBusId)
       setBusRecordId(myBusData.bus.id)
 
-      // Restore trip status from tracking snapshot after refresh
       if (myBusData.busStatus === 'ARRIVED') {
         setTripStatus('completed')
       } else if (myBusData.busStatus === 'DEPARTED') {
@@ -116,7 +159,7 @@ export default function DriverDashboard() {
     } finally {
       setLoading(false)
     }
-  }, [user.id])
+  }, [user.id, isSaturdayDate, selectedSaturdayBusId])
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -319,13 +362,36 @@ export default function DriverDashboard() {
   const bus = busData.bus
   const driverName = busData.driver?.name || bus.driverName || 'غير محدد'
 
+  const handleSwitchSaturdayBus = (busId) => {
+    setSelectedSaturdayBusId(busId)
+    setCurrentIndex(0)
+    setTripStatus('idle')
+    setAttendance({})
+  }
+
   if (tripStatus === 'idle') {
     return (
       <div className="max-w-lg mx-auto">
         <div className="bg-white rounded-xl p-4">
+          {isSaturdayMode && saturdayBuses.length > 1 && (
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-slate-600 mb-2">اختر الباص:</label>
+              <select
+                value={selectedSaturdayBusId || ''}
+                onChange={(e) => handleSwitchSaturdayBus(e.target.value)}
+                className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-sm bg-white"
+              >
+                {saturdayBuses.map(b => (
+                  <option key={b.id} value={b.id}>
+                    باص {b.bus?.busNumber || b.bus?.plateNumber || 'بدون رقم'} - {b.studentCount || b.loads?.length || 0} طالب
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h1 className="text-lg font-bold text-slate-800">باص {bus.busNumber}</h1>
+              <h1 className="text-lg font-bold text-slate-800">باص {bus.busNumber}{isSaturdayMode ? ' (السبت)' : ''}</h1>
               <p className="text-xs text-slate-500">السائق: {driverName}</p>
             </div>
             <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium ${
@@ -364,6 +430,22 @@ export default function DriverDashboard() {
   if (tripStatus === 'cancelled') {
     return (
       <div className="max-w-lg mx-auto">
+        {isSaturdayMode && saturdayBuses.length > 1 && (
+          <div className="bg-white rounded-xl p-4 mb-2">
+            <label className="block text-xs font-bold text-slate-600 mb-2">اختر الباص:</label>
+            <select
+              value={selectedSaturdayBusId || ''}
+              onChange={(e) => handleSwitchSaturdayBus(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-sm bg-white"
+            >
+              {saturdayBuses.map(b => (
+                <option key={b.id} value={b.id}>
+                  باص {b.bus?.busNumber || b.bus?.plateNumber || 'بدون رقم'} - {b.studentCount || b.loads?.length || 0} طالب
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="bg-white rounded-xl p-4 text-center">
           <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-2">
             <X className="w-6 h-6 text-red-600" />
@@ -387,6 +469,22 @@ export default function DriverDashboard() {
     const absentCount = students.filter(s => attendance[s.student?.id]?.status === 'absent').length
     return (
       <div className="max-w-lg mx-auto">
+        {isSaturdayMode && saturdayBuses.length > 1 && (
+          <div className="bg-white rounded-xl p-4 mb-2">
+            <label className="block text-xs font-bold text-slate-600 mb-2">اختر الباص:</label>
+            <select
+              value={selectedSaturdayBusId || ''}
+              onChange={(e) => handleSwitchSaturdayBus(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-sm bg-white"
+            >
+              {saturdayBuses.map(b => (
+                <option key={b.id} value={b.id}>
+                  باص {b.bus?.busNumber || b.bus?.plateNumber || 'بدون رقم'} - {b.studentCount || b.loads?.length || 0} طالب
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="bg-white rounded-xl p-4 text-center">
           <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
             <Check className="w-6 h-6 text-green-600" />
@@ -427,10 +525,27 @@ export default function DriverDashboard() {
 
   return (
     <div className="max-w-lg mx-auto space-y-2 pb-4">
+      {/* Saturday bus selector */}
+      {isSaturdayMode && saturdayBuses.length > 1 && (
+        <div className="bg-white rounded-xl p-4">
+          <label className="block text-xs font-bold text-slate-600 mb-2">اختر الباص:</label>
+          <select
+            value={selectedSaturdayBusId || ''}
+            onChange={(e) => handleSwitchSaturdayBus(e.target.value)}
+            className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-sm bg-white"
+          >
+            {saturdayBuses.map(b => (
+              <option key={b.id} value={b.id}>
+                باص {b.bus?.busNumber || b.bus?.plateNumber || 'بدون رقم'} - {b.studentCount || b.loads?.length || 0} طالب
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       {/* Progress bar */}
       <div className="bg-white rounded-xl px-3 py-2">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-bold text-slate-800">باص {bus.busNumber}</span>
+          <span className="text-sm font-bold text-slate-800">باص {bus.busNumber}{isSaturdayMode ? ' (السبت)' : ''}</span>
           <div className="text-left">
             <p className="text-xs font-bold text-[var(--color-primary)]">
               {currentIndex + 1} / {students.length}

@@ -367,43 +367,8 @@ export default function SaturdayOperation() {
                             <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
                               الباص الأساسي: {bs.bus?.busNumber}
                             </div>
-      )}
-
-      <ConfirmModal
-        show={!!confirmRemoveStudent}
-        onClose={() => setConfirmRemoveStudent(null)}
-        onConfirm={confirmedRemoveStudent}
-        title="تأكيد حذف الطالب"
-        danger
-      >
-        حذف {confirmRemoveStudent?.name} من الباص؟
-      </ConfirmModal>
-
-      <ConfirmModal
-        show={!!confirmRemoveBus}
-        onClose={() => setConfirmRemoveBus(null)}
-        onConfirm={confirmedRemoveBus}
-        title="تأكيد حذف الباص"
-        danger
-      >
-        حذف الباص {confirmRemoveBus?.busNumber} من تشغيل السبت؟
-        <br />
-        <span className="text-xs text-gray-400">سيتم إعادة جميع طلابه إلى قائمة غير الموزعين.</span>
-      </ConfirmModal>
-
-      <ConfirmModal
-        show={showCloseConfirm}
-        onClose={() => setShowCloseConfirm(false)}
-        onConfirm={handleConfirmedClose}
-        title="إنهاء تشغيل السبت"
-        loading={closing}
-        danger
-      >
-        إنهاء تشغيل السبت؟
-        <br />
-        <span className="text-xs text-gray-400">لن يتمكن الطلاب من تعديل التوزيع بعد الإنهاء.</span>
-      </ConfirmModal>
-    </div>
+                          )}
+                        </div>
                         <button
                           onClick={() => setAddStudentModal(sub)}
                           className="btn-primary btn-sm shrink-0"
@@ -418,6 +383,41 @@ export default function SaturdayOperation() {
             </div>
           </div>
 
+          <ConfirmModal
+            show={!!confirmRemoveStudent}
+            onClose={() => setConfirmRemoveStudent(null)}
+            onConfirm={confirmedRemoveStudent}
+            title="تأكيد حذف الطالب"
+            danger
+          >
+            حذف {confirmRemoveStudent?.name} من الباص؟
+          </ConfirmModal>
+
+          <ConfirmModal
+            show={!!confirmRemoveBus}
+            onClose={() => setConfirmRemoveBus(null)}
+            onConfirm={confirmedRemoveBus}
+            title="تأكيد حذف الباص"
+            danger
+          >
+            حذف الباص {confirmRemoveBus?.busNumber} من تشغيل السبت؟
+            <br />
+            <span className="text-xs text-gray-400">سيتم إعادة جميع طلابه إلى قائمة غير الموزعين.</span>
+          </ConfirmModal>
+
+          <ConfirmModal
+            show={showCloseConfirm}
+            onClose={() => setShowCloseConfirm(false)}
+            onConfirm={handleConfirmedClose}
+            title="إنهاء تشغيل السبت"
+            loading={closing}
+            danger
+          >
+            إنهاء تشغيل السبت؟
+            <br />
+            <span className="text-xs text-gray-400">لن يتمكن الطلاب من تعديل التوزيع بعد الإنهاء.</span>
+          </ConfirmModal>
+
           <AddStudentModal
             student={addStudentModal}
             operation={operation}
@@ -426,6 +426,19 @@ export default function SaturdayOperation() {
             loading={assigningStudent}
             pickupTime={pickupTime}
             onPickupTimeChange={setPickupTime}
+          />
+
+          <CreateOperationDialog
+            show={showCreateDialog}
+            onClose={() => setShowCreateDialog(false)}
+            availableBuses={availableBuses}
+            loading={loadingAvailable}
+            selectedBusIds={selectedBusIds}
+            onToggle={toggleBus}
+            onSelectAll={selectAll}
+            creating={creating}
+            onCreate={handleCreate}
+            isAdding
           />
         </div>
       )}
@@ -528,13 +541,13 @@ function NoOperationView({
 
 function CreateOperationDialog({
   show, onClose, availableBuses, loading, selectedBusIds,
-  onToggle, onSelectAll, creating, onCreate,
+  onToggle, onSelectAll, creating, onCreate, isAdding,
 }) {
   return (
     <Modal
       show={show}
       onClose={onClose}
-      title="اختر باصات تشغيل السبت"
+      title={isAdding ? 'إضافة باصات للتشغيل' : 'اختر باصات تشغيل السبت'}
       wide
     >
       {loading ? (
@@ -598,9 +611,9 @@ function CreateOperationDialog({
           className="btn-primary flex-1 min-h-[44px]"
         >
           {creating ? (
-            <><RefreshCw size={16} className="animate-spin" /> جاري الإنشاء...</>
+            <><RefreshCw size={16} className="animate-spin" /> جاري الإضافة...</>
           ) : (
-            <><Play size={16} /> إنشاء التشغيل ({selectedBusIds.length} باصات)</>
+            <><Play size={16} /> {isAdding ? 'إضافة' : 'إنشاء التشغيل'} ({selectedBusIds.length} باصات)</>
           )}
         </button>
       </div>

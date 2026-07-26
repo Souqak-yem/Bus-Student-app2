@@ -259,3 +259,81 @@ export function offSaturdayUpdate() {
     socket.off('saturday:update')
   }
 }
+
+export function onReadinessUpdate(callback) {
+  if (socket) {
+    socket.off('readiness:update')
+    socket.on('readiness:update', callback)
+  }
+}
+
+export function offReadinessUpdate() {
+  if (socket) {
+    socket.off('readiness:update')
+  }
+}
+
+export function onAdminReadinessUpdate(callback) {
+  if (socket) {
+    socket.off('readiness:admin-update')
+    socket.on('readiness:admin-update', callback)
+  }
+}
+
+export function offAdminReadinessUpdate() {
+  if (socket) {
+    socket.off('readiness:admin-update')
+  }
+}
+
+export function onBoardingTimerUpdate(callback) {
+  if (socket) {
+    socket.off('boarding-timer:update')
+    socket.on('boarding-timer:update', callback)
+  }
+}
+
+export function offBoardingTimerUpdate() {
+  if (socket) {
+    socket.off('boarding-timer:update')
+  }
+}
+
+export function onAdminBoardingTimerUpdate(callback) {
+  if (socket) {
+    socket.off('boarding-timer:admin-update')
+    socket.on('boarding-timer:admin-update', callback)
+  }
+}
+
+export function offAdminBoardingTimerUpdate() {
+  if (socket) {
+    socket.off('boarding-timer:admin-update')
+  }
+}
+
+export function onReadinessStats(callback) {
+  if (socket) {
+    socket.off('readiness:stats')
+    socket.on('readiness:stats', callback)
+  }
+}
+
+export function offReadinessStats() {
+  if (socket) {
+    socket.off('readiness:stats')
+  }
+}
+
+export function onAdminReadinessStats(callback) {
+  if (socket) {
+    socket.off('readiness:admin-stats')
+    socket.on('readiness:admin-stats', callback)
+  }
+}
+
+export function offAdminReadinessStats() {
+  if (socket) {
+    socket.off('readiness:admin-stats')
+  }
+}

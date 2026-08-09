@@ -16,17 +16,19 @@ export default function StudentLayout() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[var(--color-primary)]/5 to-[var(--color-primary-dark)]/5">
-      <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-lg mx-auto px-3 py-2 flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Bus size={22} className="text-[var(--color-primary)]" />
+    <div className="min-h-screen surface-wash">
+      <header className="glass sticky top-0 z-20 border-b border-slate-200/70">
+        <div className="max-w-lg mx-auto px-3 py-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center shadow-[0_4px_14px_-6px_rgba(37,99,235,0.7)]">
+              <Bus size={19} className="text-white" />
+            </div>
             <h1 className="text-base font-bold text-slate-800">بوابة الطالب</h1>
           </div>
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto px-3 py-3 pb-20">
+      <main className="max-w-lg mx-auto px-3 py-3 pb-24">
         <Outlet />
       </main>
 
@@ -37,32 +39,35 @@ export default function StudentLayout() {
         ))}
       </AnimatePresence>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-10">
-        <div className="max-w-lg mx-auto flex justify-around items-center">
+      <nav className="fixed bottom-0 left-0 right-0 z-10 px-3 pb-3">
+        <div className="max-w-lg mx-auto glass border border-slate-200/80 rounded-2xl shadow-pop flex items-stretch px-1.5 py-1.5">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               end={item.end}
               className={({ isActive }) =>
-                `flex flex-col items-center py-1.5 px-3 min-h-[52px] justify-center transition-all ${
+                `relative flex flex-col items-center justify-center gap-0.5 flex-1 min-h-[52px] rounded-xl transition-all duration-200 ${
                   isActive
-                    ? 'text-[var(--color-primary)]'
+                    ? 'text-white'
                     : 'text-slate-400 hover:text-slate-600'
                 }`
               }
             >
               {({ isActive }) => (
                 <>
-                  <div className="relative">
-                    <item.icon size={22} />
+                  <span className={`absolute inset-x-2 top-1.5 bottom-1.5 rounded-xl transition-all duration-200 ${
+                    isActive ? 'gradient-primary shadow-[0_4px_14px_-6px_rgba(37,99,235,0.7)]' : 'opacity-0'
+                  }`} />
+                  <span className="relative flex items-center justify-center">
+                    <item.icon size={20} />
                     {item.badge > 0 && (
-                      <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold min-w-[16px] h-4 flex items-center justify-center rounded-full px-1">
+                      <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold min-w-[15px] h-3.5 flex items-center justify-center rounded-full px-1 shadow-sm">
                         {item.badge}
                       </span>
                     )}
-                  </div>
-                  <span className={`text-[10px] mt-0.5 font-medium ${isActive ? 'text-[var(--color-primary)]' : ''}`}>
+                  </span>
+                  <span className={`relative text-[10px] font-semibold mt-0.5 ${isActive ? 'text-white' : ''}`}>
                     {item.label}
                   </span>
                 </>

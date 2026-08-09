@@ -46,16 +46,17 @@ export const NOTIFICATION_CONFIG = {
   cart_submitted: { priority: PRIORITY.WARNING, icon: 'ShoppingCart', route: '/admin/subscriptions?tab=approvals' },
   cart_rejected: { priority: PRIORITY.WARNING, icon: 'Ban', route: '/student/subscriptions' },
 
+  // Student registration requests
+  student_registration_request: { priority: PRIORITY.WARNING, icon: 'UserPlus', route: '/admin/student-requests' },
+
   // Emergency Transfer
   emergency_transfer: { priority: PRIORITY.CRITICAL, icon: 'ArrowRight', route: '/admin/emergency' },
 
   // Sheets
   weekly_sheets_created: { priority: PRIORITY.INFO, icon: 'FileText', route: '/admin/reports/weekly-sheets' },
 
-  // Saturday
-  saturday_duty: { priority: PRIORITY.INFO, icon: 'CalendarCheck', route: '/driver' },
-  saturday_student_added: { priority: PRIORITY.INFO, icon: 'UserPlus', route: '/driver' },
-  saturday_student_added_to_student: { priority: PRIORITY.INFO, icon: 'Bus', route: '/student' },
+  // Daily subscriptions - unassigned
+  unassigned_daily_subscription: { priority: PRIORITY.WARNING, icon: 'AlertTriangle', route: '/admin/subscriptions/daily?tab=daily' },
 
   // Generic info (fallback for ad-hoc notifications)
   info: { priority: PRIORITY.INFO, icon: 'Bell', route: null },
@@ -104,6 +105,7 @@ export const NOTIFICATION_CONFIG = {
   student_subscription_expiring_soon: { priority: PRIORITY.WARNING, icon: 'Clock', route: '/student/subscriptions' },
   student_subscription_expired: { priority: PRIORITY.CRITICAL, icon: 'AlertTriangle', route: '/student/subscriptions' },
   student_payment_reminder: { priority: PRIORITY.WARNING, icon: 'DollarSign', route: '/student/subscriptions' },
+  student_home_delivery_price: { priority: PRIORITY.INFO, icon: 'DollarSign', route: '/student/notifications' },
   student_grace_period_started: { priority: PRIORITY.INFO, icon: 'Clock', route: '/student/subscriptions' },
   student_grace_period_ended: { priority: PRIORITY.CRITICAL, icon: 'AlertTriangle', route: '/student/subscriptions' },
   student_account_suspended: { priority: PRIORITY.CRITICAL, icon: 'Ban', route: '/student/subscriptions' },

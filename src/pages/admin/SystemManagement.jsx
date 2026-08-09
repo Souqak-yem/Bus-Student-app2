@@ -272,7 +272,7 @@ export default function AdminSystemManagement() {
             initial={{ scale: 0.95 }}
             animate={{ scale: 1 }}
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl shadow-xl border border-red-200 p-6 w-full max-w-md"
+            className="bg-white rounded-2xl shadow-xl border border-red-200 p-6 w-full max-w-[min(95vw,760px)] lg:max-w-[840px]"
           >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">

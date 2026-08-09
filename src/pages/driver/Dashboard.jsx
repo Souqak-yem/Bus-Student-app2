@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { api } from '../../lib/api'
 import { connectSocket, joinBusRoom, leaveBusRoom, onTrackingUpdate, offTrackingUpdate, onEmergencyReportUpdate, offEmergencyReportUpdate, joinDriverBusRoom, leaveDriverBusRoom, onDriverOperationUpdate, offDriverOperationUpdate } from '../../lib/socket'
 import { useNotifications } from '../../context/NotificationContext'
-import { AlertTriangle, MessageCircle, Phone, Send, Check, Clock, X, SkipForward, UserCheck, GraduationCap, MapPin, User } from 'lucide-react'
+import { AlertTriangle, MessageCircle, Phone, Send, Check, Clock, X, SkipForward, UserCheck, GraduationCap, MapPin, User, Bus } from 'lucide-react'
 
 const TrackingStatus = {
   PICKED_UP: 'PICKED_UP',
@@ -41,56 +41,11 @@ export default function DriverDashboard() {
   const [direction, setDirection] = useState(1)
   const [activeBusId, setActiveBusId] = useState(null)
   const [busRecordId, setBusRecordId] = useState(null)
-  const [selectedSaturdayBusId, setSelectedSaturdayBusId] = useState(null)
-  const [saturdayBuses, setSaturdayBuses] = useState([])
-  const [isSaturdayMode, setIsSaturdayMode] = useState(false)
 
   const today = new Date().toISOString().split('T')[0]
-  const todayObj = new Date()
-  const isSaturdayDate = todayObj.getDay() === 6
 
   const loadData = useCallback(async () => {
     try {
-      if (isSaturdayDate) {
-        const saturdayResult = await api.saturday.driverDashboard().catch(() => null)
-        setIsSaturdayMode(true)
-
-        if (!saturdayResult?.operationExists || saturdayResult?.buses?.length === 0) {
-          setNoOperation(true)
-          setLoading(false)
-          return
-        }
-
-        const buses = saturdayResult.buses || []
-        setSaturdayBuses(buses)
-
-        const currentBusId = selectedSaturdayBusId || buses[0]?.id
-        const selectedBus = buses.find(b => b.id === currentBusId) || buses[0]
-        setSelectedSaturdayBusId(selectedBus?.id)
-
-        if (selectedBus) {
-          const formattedStudents = selectedBus.loads.map(load => ({
-            student: load.student,
-            pickupTime: load.pickupTime,
-            assignment: { id: load.id }
-          }))
-          setStudents(formattedStudents)
-          setBusRecordId(selectedBus.bus?.id)
-          setActiveBusId(selectedBus.id)
-
-          const syntheticBusData = {
-            bus: selectedBus.bus,
-            driver: selectedBus.driver,
-            busStatus: selectedBus.status,
-            activeBusId: selectedBus.id,
-          }
-          setBusData(syntheticBusData)
-        }
-
-        setLoading(false)
-        return
-      }
-
       const op = await api.operations.getToday()
       if (!op.exists) {
         setNoOperation(true)
@@ -159,7 +114,7 @@ export default function DriverDashboard() {
     } finally {
       setLoading(false)
     }
-  }, [user.id, isSaturdayDate, selectedSaturdayBusId])
+  }, [user.id])
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -184,7 +139,7 @@ export default function DriverDashboard() {
         }
         loadData()
         if (payload.priority === 'CRITICAL' && payload.title) {
-          addNotification(payload.title, payload.message || '', 'warning')
+          addNotification(payload.title, payload.message || '', 'CRITICAL')
         }
       })
       return () => {
@@ -319,6 +274,24 @@ export default function DriverDashboard() {
   const studentPhone = currentStudent?.phone
   const studentWhatsapp = currentStudent?.whatsapp
 
+  const getStudentAddress = (item) => {
+    const student = item?.student
+    if (!student) return 'غير محدد'
+    if (student.transportMode === 'HOME') {
+      return student.homeAddress || student.address || student.pickupLocation || 'غير محدد'
+    }
+    return student.pickupLocation || student.address || student.homeAddress || 'غير محدد'
+  }
+
+  const getPickupTime = (item) => {
+    return item?.pickupTime || item?.templatePickupTime || null
+  }
+
+  const getTransportLabel = (student) => {
+    if (!student) return 'غير محدد'
+    return student.transportMode === 'HOME' ? 'توصيل منزلي' : 'توصيل خط'
+  }
+
   const completedCount = students.filter(s => attendance[s.student?.id]?.status === 'present').length
   const lateCount = students.filter(s => attendance[s.student?.id]?.status === 'late').length
   const absentCount = students.filter(s => attendance[s.student?.id]?.status === 'absent').length
@@ -328,7 +301,10 @@ export default function DriverDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <div className="w-14 h-14 rounded-2xl gradient-primary text-white flex items-center justify-center animate-pulse shadow-card">
+          <Bus className="w-7 h-7" />
+        </div>
         <div className="text-slate-400 text-sm">جاري التحميل...</div>
       </div>
     )
@@ -337,7 +313,7 @@ export default function DriverDashboard() {
   if (noOperation) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-10 max-w-sm text-center">
+        <div className="card p-10 max-w-sm text-center fade-in-up">
           <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-5">
             <svg className="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -352,7 +328,7 @@ export default function DriverDashboard() {
   if (noBus || !busData) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-10 max-w-sm text-center">
+        <div className="card p-10 max-w-sm text-center fade-in-up">
           <p className="text-base text-slate-500">لا توجد حافلة مخصصة لك في تشغيل اليوم.</p>
         </div>
       </div>
@@ -362,36 +338,13 @@ export default function DriverDashboard() {
   const bus = busData.bus
   const driverName = busData.driver?.name || bus.driverName || 'غير محدد'
 
-  const handleSwitchSaturdayBus = (busId) => {
-    setSelectedSaturdayBusId(busId)
-    setCurrentIndex(0)
-    setTripStatus('idle')
-    setAttendance({})
-  }
-
   if (tripStatus === 'idle') {
     return (
       <div className="max-w-lg mx-auto">
-        <div className="bg-white rounded-xl p-4">
-          {isSaturdayMode && saturdayBuses.length > 1 && (
-            <div className="mb-4">
-              <label className="block text-xs font-bold text-slate-600 mb-2">اختر الباص:</label>
-              <select
-                value={selectedSaturdayBusId || ''}
-                onChange={(e) => handleSwitchSaturdayBus(e.target.value)}
-                className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-sm bg-white"
-              >
-                {saturdayBuses.map(b => (
-                  <option key={b.id} value={b.id}>
-                    باص {b.bus?.busNumber || b.bus?.plateNumber || 'بدون رقم'} - {b.studentCount || b.loads?.length || 0} طالب
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+        <div className="card p-4 fade-in-up">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h1 className="text-lg font-bold text-slate-800">باص {bus.busNumber}{isSaturdayMode ? ' (السبت)' : ''}</h1>
+              <h1 className="text-lg font-bold text-slate-800">باص {bus.busNumber}</h1>
               <p className="text-xs text-slate-500">السائق: {driverName}</p>
             </div>
             <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium ${
@@ -407,9 +360,41 @@ export default function DriverDashboard() {
               <p className="text-[10px] text-slate-500">الطلاب</p>
             </div>
           </div>
+
+          <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50/60 p-2 sm:p-3">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm font-bold text-slate-700">كشف مبدئي</h2>
+              <span className="text-[10px] font-medium text-slate-500">{students.length} طالب</span>
+            </div>
+            <div className="space-y-2 max-h-[34vh] sm:max-h-[48vh] overflow-y-auto pr-1">
+              {students.map((item, index) => (
+                <div key={item.student?.id || index} className="rounded-lg border border-slate-200 bg-white p-2 sm:p-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-slate-800">{index + 1}. {item.student?.name || 'طالب'}</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
+                        <div className="flex min-w-0 items-center gap-1">
+                          <Clock size={11} className="shrink-0" />
+                          <span>{formatTime(getPickupTime(item)) || '--'}</span>
+                        </div>
+                        <div className="flex min-w-0 items-center gap-1 truncate">
+                          <MapPin size={11} className="shrink-0 text-slate-400" />
+                          <span className="truncate">{getStudentAddress(item)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium ${item.student?.transportMode === 'HOME' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {getTransportLabel(item.student)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <button
             onClick={handleStartTrip}
-            className="w-full bg-[var(--color-primary)] text-white py-4 rounded-xl font-bold text-base hover:brightness-110 transition-all min-h-[52px]"
+            className="w-full gradient-primary text-white py-4 rounded-xl font-bold text-base hover:brightness-110 transition-all min-h-[52px] shadow-[0_8px_24px_-6px_rgba(37,99,235,0.55)] active:scale-[0.98]"
           >
             بدء الرحلة
           </button>
@@ -430,25 +415,9 @@ export default function DriverDashboard() {
   if (tripStatus === 'cancelled') {
     return (
       <div className="max-w-lg mx-auto">
-        {isSaturdayMode && saturdayBuses.length > 1 && (
-          <div className="bg-white rounded-xl p-4 mb-2">
-            <label className="block text-xs font-bold text-slate-600 mb-2">اختر الباص:</label>
-            <select
-              value={selectedSaturdayBusId || ''}
-              onChange={(e) => handleSwitchSaturdayBus(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-sm bg-white"
-            >
-              {saturdayBuses.map(b => (
-                <option key={b.id} value={b.id}>
-                  باص {b.bus?.busNumber || b.bus?.plateNumber || 'بدون رقم'} - {b.studentCount || b.loads?.length || 0} طالب
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        <div className="bg-white rounded-xl p-4 text-center">
-          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-2">
-            <X className="w-6 h-6 text-red-600" />
+        <div className="card p-4 text-center fade-in-up">
+          <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-2 ring-1 ring-red-100">
+            <X className="w-7 h-7 text-red-600" />
           </div>
           <h2 className="text-base font-bold text-slate-800 mb-1">تم إلغاء الرحلة</h2>
           <p className="text-sm text-slate-500">تم إلغاء رحلة اليوم لهذا الباص من قبل الإدارة</p>
@@ -469,37 +438,21 @@ export default function DriverDashboard() {
     const absentCount = students.filter(s => attendance[s.student?.id]?.status === 'absent').length
     return (
       <div className="max-w-lg mx-auto">
-        {isSaturdayMode && saturdayBuses.length > 1 && (
-          <div className="bg-white rounded-xl p-4 mb-2">
-            <label className="block text-xs font-bold text-slate-600 mb-2">اختر الباص:</label>
-            <select
-              value={selectedSaturdayBusId || ''}
-              onChange={(e) => handleSwitchSaturdayBus(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-sm bg-white"
-            >
-              {saturdayBuses.map(b => (
-                <option key={b.id} value={b.id}>
-                  باص {b.bus?.busNumber || b.bus?.plateNumber || 'بدون رقم'} - {b.studentCount || b.loads?.length || 0} طالب
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        <div className="bg-white rounded-xl p-4 text-center">
-          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
-            <Check className="w-6 h-6 text-green-600" />
+        <div className="card p-4 text-center fade-in-up">
+          <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-2 ring-1 ring-green-100">
+            <Check className="w-7 h-7 text-green-600" />
           </div>
           <h2 className="text-base font-bold text-slate-800 mb-3">انتهت رحلة اليوم</h2>
           <div className="grid grid-cols-3 gap-2">
-            <div className="bg-green-50 rounded-lg p-2">
+            <div className="bg-green-50 rounded-xl p-2">
               <p className="text-lg font-bold text-green-700">{completedCount}</p>
               <p className="text-[10px] text-green-600">حاضر</p>
             </div>
-            <div className="bg-orange-50 rounded-lg p-2">
+            <div className="bg-orange-50 rounded-xl p-2">
               <p className="text-lg font-bold text-orange-700">{lateCount}</p>
               <p className="text-[10px] text-orange-600">متأخر</p>
             </div>
-            <div className="bg-red-50 rounded-lg p-2">
+            <div className="bg-red-50 rounded-xl p-2">
               <p className="text-lg font-bold text-red-700">{absentCount}</p>
               <p className="text-[10px] text-red-600">غائب</p>
             </div>
@@ -525,27 +478,10 @@ export default function DriverDashboard() {
 
   return (
     <div className="max-w-lg mx-auto space-y-2 pb-4">
-      {/* Saturday bus selector */}
-      {isSaturdayMode && saturdayBuses.length > 1 && (
-        <div className="bg-white rounded-xl p-4">
-          <label className="block text-xs font-bold text-slate-600 mb-2">اختر الباص:</label>
-          <select
-            value={selectedSaturdayBusId || ''}
-            onChange={(e) => handleSwitchSaturdayBus(e.target.value)}
-            className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-sm bg-white"
-          >
-            {saturdayBuses.map(b => (
-              <option key={b.id} value={b.id}>
-                باص {b.bus?.busNumber || b.bus?.plateNumber || 'بدون رقم'} - {b.studentCount || b.loads?.length || 0} طالب
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
       {/* Progress bar */}
-      <div className="bg-white rounded-xl px-3 py-2">
+      <div className="card px-3 py-2.5">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-bold text-slate-800">باص {bus.busNumber}{isSaturdayMode ? ' (السبت)' : ''}</span>
+          <span className="text-sm font-bold text-slate-800">باص {bus.busNumber}</span>
           <div className="text-left">
             <p className="text-xs font-bold text-[var(--color-primary)]">
               {currentIndex + 1} / {students.length}
@@ -554,8 +490,8 @@ export default function DriverDashboard() {
           </div>
         </div>
         {/* Progress bar */}
-        <div className="w-full bg-slate-100 rounded-full h-1.5 mt-1.5">
-          <div className="bg-[var(--color-primary)] h-1.5 rounded-full transition-all duration-300"
+        <div className="progress-track h-1.5 mt-2">
+          <div className="progress-fill"
             style={{ width: `${((currentIndex + 1) / students.length) * 100}%` }} />
         </div>
       </div>
@@ -568,7 +504,7 @@ export default function DriverDashboard() {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: direction * -60 }}
           transition={{ duration: 0.2 }}
-          className="bg-white rounded-xl p-3"
+          className="card p-3.5 shadow-pop"
         >
           {/* Header */}
           <div className="mb-2">
@@ -586,7 +522,7 @@ export default function DriverDashboard() {
           <div className="flex items-center justify-center gap-2 mb-3">
             <div className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1">
               <Clock size={12} className="text-slate-500" />
-              <span className="text-xs text-slate-700">{formatTime(students[currentIndex]?.pickupTime) || '--'}</span>
+              <span className="text-xs text-slate-700">{formatTime(getPickupTime(students[currentIndex])) || '--'}</span>
             </div>
             <div className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 max-w-[50%]">
               <MapPin size={12} className="text-slate-500 shrink-0" />
@@ -631,21 +567,21 @@ export default function DriverDashboard() {
           {/* Status buttons - sticky at bottom */}
           <div className="space-y-1.5">
             <button onClick={() => handleMarkStatus('present')} disabled={submitting}
-              className="w-full bg-green-600 text-white py-3 rounded-xl font-bold text-sm hover:brightness-110 transition-all disabled:opacity-50 min-h-[48px]">
+              className="w-full gradient-success text-white py-3 rounded-xl font-bold text-sm hover:brightness-110 transition-all disabled:opacity-50 min-h-[48px] shadow-[0_6px_16px_-6px_rgba(22,163,74,0.55)] active:scale-[0.98]">
               <Check size={18} className="inline ml-1 -mt-0.5" /> تم الصعود
             </button>
             <div className="flex gap-1.5">
               <button onClick={() => handleMarkStatus('late')} disabled={submitting}
-                className="flex-1 bg-orange-500 text-white py-3 rounded-xl font-bold text-sm hover:brightness-110 transition-all disabled:opacity-50 min-h-[48px]">
+                className="flex-1 gradient-warning text-white py-3 rounded-xl font-bold text-sm hover:brightness-110 transition-all disabled:opacity-50 min-h-[48px] shadow-[0_6px_16px_-6px_rgba(245,158,11,0.55)] active:scale-[0.98]">
                 <Clock size={16} className="inline ml-1 -mt-0.5" /> متأخر
               </button>
               <button onClick={() => handleMarkStatus('absent')} disabled={submitting}
-                className="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold text-sm hover:brightness-110 transition-all disabled:opacity-50 min-h-[48px]">
+                className="flex-1 gradient-danger text-white py-3 rounded-xl font-bold text-sm hover:brightness-110 transition-all disabled:opacity-50 min-h-[48px] shadow-[0_6px_16px_-6px_rgba(220,38,38,0.5)] active:scale-[0.98]">
                 <X size={16} className="inline ml-1 -mt-0.5" /> غائب
               </button>
             </div>
             <button onClick={handleSkip} disabled={submitting}
-              className="w-full bg-slate-200 text-slate-600 py-2.5 rounded-xl font-bold text-xs hover:bg-slate-300 transition-all disabled:opacity-50 min-h-[44px]">
+              className="w-full bg-slate-200 text-slate-600 py-2.5 rounded-xl font-bold text-xs hover:bg-slate-300 transition-all disabled:opacity-50 min-h-[44px] active:scale-[0.98]">
               <SkipForward size={14} className="inline ml-1 -mt-0.5" /> تجاوز
             </button>
           </div>
@@ -660,7 +596,7 @@ export default function DriverDashboard() {
       </AnimatePresence>
 
       {/* Student list */}
-      <div className="bg-white rounded-xl p-3">
+      <div className="card p-3">
         <h3 className="text-xs font-bold text-slate-700 mb-1.5">قائمة الطلاب ({students.length})</h3>
         <div className="space-y-0.5">
           {students.map((s, i) => {
@@ -675,7 +611,7 @@ export default function DriverDashboard() {
             else if (isCurrent) { dotClass = 'bg-yellow-500'; label = 'الحالي' }
 
             return (
-              <div key={s.student?.id || i} className={`flex items-center gap-1.5 py-1 px-2 rounded-lg text-xs ${isCurrent ? 'bg-yellow-50' : ''}`}>
+              <div key={s.student?.id || i} className={`flex items-center gap-1.5 py-1 px-2 rounded-lg text-xs ${isCurrent ? 'bg-yellow-50 ring-1 ring-yellow-200/70' : ''}`}>
                 <span className={`w-2 h-2 rounded-full shrink-0 ${dotClass}`} />
                 <span className="flex-1 truncate text-slate-700">{s.student?.name}</span>
                 <span className="text-[10px] text-slate-400">{label}</span>
@@ -705,7 +641,7 @@ function EmergencyReportCard({ reportStatus, onReport }) {
 
   if (!reportStatus) {
     return (
-      <button onClick={onReport} className="w-full mt-3 flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-red-200 bg-red-50/50 text-red-600 text-sm font-semibold hover:bg-red-50 transition-all">
+      <button onClick={onReport} className="w-full mt-3 flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-red-200 bg-red-50/50 text-red-600 text-sm font-semibold hover:bg-red-50 transition-all active:scale-[0.98]">
         <AlertTriangle className="w-4 h-4" />
         الإبلاغ عن مشكلة
       </button>
@@ -721,7 +657,7 @@ function EmergencyReportCard({ reportStatus, onReport }) {
   const s = labels[reportStatus.status] || labels.PENDING_REVIEW
 
   return (
-    <div className={`mt-3 p-3 rounded-xl border-2 ${s.border} ${s.bg}`}>
+    <div className={`mt-3 p-3 rounded-xl border-2 shadow-sm ${s.border} ${s.bg}`}>
       <div className="flex items-center gap-2">
         <AlertTriangle className={`w-4 h-4 ${s.textColor}`} />
         <span className={`text-xs font-bold ${s.textColor}`}>بلاغ: {s.text}</span>
@@ -745,25 +681,26 @@ function ReportModal({ visible, reason, notes, submitting, onReasonChange, onNot
     { value: 'OTHER', label: 'أخرى' },
   ]
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40" onClick={onClose}>
-      <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-5" onClick={e => e.stopPropagation()}>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="modal-overlay" onClick={onClose}>
+      <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} className="modal-content p-5 sm:max-w-sm" onClick={e => e.stopPropagation()}>
+        <div className="w-10 h-1 rounded-full bg-slate-200 mb-3 mx-auto sm:hidden" />
         <h2 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-red-500" />
           الإبلاغ عن مشكلة
         </h2>
         <div className="mb-3">
           <label className="text-xs text-slate-600 mb-1 block">نوع المشكلة</label>
-          <select value={reason} onChange={e => onReasonChange(e.target.value)} className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-xs bg-white appearance-none">
+          <select value={reason} onChange={e => onReasonChange(e.target.value)} className="select-field w-full text-xs">
             {reasons.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
           </select>
         </div>
         <div className="mb-4">
           <label className="text-xs text-slate-600 mb-1 block">ملاحظات إضافية (اختياري)</label>
-          <textarea value={notes} onChange={e => onNotesChange(e.target.value)} rows={3} className="w-full border border-slate-200 rounded-lg py-2 px-3 text-xs resize-none" placeholder="أضف تفاصيل..." />
+          <textarea value={notes} onChange={e => onNotesChange(e.target.value)} rows={3} className="textarea-field w-full text-xs" placeholder="أضف تفاصيل..." />
         </div>
         <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-slate-200 text-xs text-slate-600 font-medium">إلغاء</button>
-          <button onClick={onSubmit} disabled={submitting} className="flex-1 py-2.5 rounded-lg bg-red-600 text-white text-xs font-bold disabled:opacity-50 min-h-[44px]">
+          <button onClick={onClose} className="btn-ghost flex-1 py-2.5 rounded-xl text-xs text-slate-600 font-medium">إلغاء</button>
+          <button onClick={onSubmit} disabled={submitting} className="btn-danger flex-1 py-2.5 rounded-xl text-xs font-bold disabled:opacity-50 min-h-[44px] justify-center">
             {submitting ? 'جاري الإرسال...' : 'إرسال البلاغ'}
           </button>
         </div>

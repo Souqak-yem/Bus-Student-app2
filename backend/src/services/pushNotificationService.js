@@ -1,23 +1,63 @@
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import webpush from 'web-push'
 import { prisma } from '../lib/prisma.js'
 
-const PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY
-const PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY
+const currentDir = path.dirname(fileURLToPath(import.meta.url))
+const VAPID_FILE = path.resolve(currentDir, '../../.vapid.json')
 
-if (PUBLIC_KEY && PRIVATE_KEY) {
+let VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY
+let VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY
+
+function ensureVapidKeys() {
+  if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails(
+      process.env.VAPID_MAILTO || 'mailto:admin@mashawerk.app',
+      VAPID_PUBLIC_KEY,
+      VAPID_PRIVATE_KEY
+    )
+    return
+  }
+
+  try {
+    if (fs.existsSync(VAPID_FILE)) {
+      const saved = JSON.parse(fs.readFileSync(VAPID_FILE, 'utf8'))
+      if (saved?.publicKey && saved?.privateKey) {
+        VAPID_PUBLIC_KEY = saved.publicKey
+        VAPID_PRIVATE_KEY = saved.privateKey
+        webpush.setVapidDetails(
+          process.env.VAPID_MAILTO || 'mailto:admin@mashawerk.app',
+          VAPID_PUBLIC_KEY,
+          VAPID_PRIVATE_KEY
+        )
+        return
+      }
+    }
+  } catch {}
+
+  const generated = webpush.generateVAPIDKeys()
+  VAPID_PUBLIC_KEY = generated.publicKey
+  VAPID_PRIVATE_KEY = generated.privateKey
+  try {
+    fs.writeFileSync(VAPID_FILE, JSON.stringify({ publicKey: VAPID_PUBLIC_KEY, privateKey: VAPID_PRIVATE_KEY }, null, 2))
+  } catch {}
+
   webpush.setVapidDetails(
     process.env.VAPID_MAILTO || 'mailto:admin@mashawerk.app',
-    PUBLIC_KEY,
-    PRIVATE_KEY
+    VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY
   )
 }
 
+ensureVapidKeys()
+
 export function getVapidPublicKey() {
-  return PUBLIC_KEY
+  return VAPID_PUBLIC_KEY
 }
 
 export function hasVapidKeys() {
-  return !!(PUBLIC_KEY && PRIVATE_KEY)
+  return !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY)
 }
 
 export async function sendPushToUser(userId, payload) {
@@ -59,21 +99,17 @@ export async function sendPushToUser(userId, payload) {
 }
 
 export async function saveSubscription(userId, subscription, userAgent) {
-  const existing = await prisma.pushSubscription.findUnique({
+  return prisma.pushSubscription.upsert({
     where: { endpoint: subscription.endpoint },
-  })
-
-  if (existing) {
-    return prisma.pushSubscription.update({
-      where: { id: existing.id },
-      data: { p256dh: subscription.keys.p256dh, auth: subscription.keys.auth, userAgent, userId },
-    })
-  }
-
-  return prisma.pushSubscription.create({
-    data: {
+    create: {
       userId,
       endpoint: subscription.endpoint,
+      p256dh: subscription.keys.p256dh,
+      auth: subscription.keys.auth,
+      userAgent,
+    },
+    update: {
+      userId,
       p256dh: subscription.keys.p256dh,
       auth: subscription.keys.auth,
       userAgent,

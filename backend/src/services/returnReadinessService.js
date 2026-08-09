@@ -549,6 +549,8 @@ export async function getReturnDashboardForStudent(studentId) {
     }
   }
 
+  const readinessStats = await getReturnReadinessStats(load.activeBus.id)
+
   return {
     operationExists: true,
     busLoadId: load.id,
@@ -562,6 +564,7 @@ export async function getReturnDashboardForStudent(studentId) {
       onBoardAt: load.onBoardAt ? load.onBoardAt.toISOString() : null,
       updatedAt: load.readinessUpdatedAt ? load.readinessUpdatedAt.toISOString() : null,
       assignedAt: load.assignedAt.toISOString(),
+      droppedOffAt: load.droppedOffAt ? load.droppedOffAt.toISOString() : null,
     },
     timer: load.activeBus.boardingTimer
       ? {
@@ -572,6 +575,7 @@ export async function getReturnDashboardForStudent(studentId) {
       }
       : null,
     busStatus: load.activeBus.status,
+    readinessStats,
   }
 }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Bus, Users, Clock, RefreshCw, Search, Check, Trash2, Play, Calendar, AlertCircle, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
+import { Bus, Users, Clock, RefreshCw, Search, Check, Trash2, Play, Calendar, AlertCircle, ChevronDown, ChevronUp, AlertTriangle, MapPin } from 'lucide-react'
 import { api } from '../../lib/api'
 import Modal from '../../components/ui/Modal'
 import PageHeader from '../../components/ui/PageHeader'
@@ -28,13 +28,31 @@ export default function AdminDailyOperation() {
   const [exceptionsLoading, setExceptionsLoading] = useState(false)
   const [showExceptions, setShowExceptions] = useState(true)
   const [exceptionStudentForBus, setExceptionStudentForBus] = useState(null)
-  const [showStartWarning, setShowStartWarning] = useState(false)
   const [showConfirm, setShowConfirm] = useState(null)
 
-  useEffect(() => {
-    onDailyExceptionsUpdate(() => { loadExceptions() })
-    return () => offDailyExceptionsUpdate()
+  const load = useCallback(async () => {
+    try {
+      const data = await api.operations.getToday()
+      if (data?.buses) {
+        setOperation(data)
+        setBuses(data.buses)
+      } else {
+        const fallback = await api.operations.getToday()
+        setOperation(fallback)
+        setBuses(fallback?.buses || [])
+      }
+      loadExceptions()
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
   }, [])
+
+  useEffect(() => {
+    onDailyExceptionsUpdate(() => { load() })
+    return () => offDailyExceptionsUpdate()
+  }, [load])
 
   async function loadExceptions() {
     setExceptionsLoading(true)
@@ -65,39 +83,12 @@ export default function AdminDailyOperation() {
   }
 
   function handleGenerateWithCheck() {
-    if (exceptions?.unassignedCount > 0) {
-      setShowStartWarning(true)
-    } else {
-      handleGenerate()
-    }
+    handleGenerate()
   }
 
   function handleAddBusesWithCheck() {
-    if (exceptions?.unassignedCount > 0) {
-      setShowStartWarning(true)
-    } else {
-      handleAddBuses()
-    }
+    handleAddBuses()
   }
-
-  const load = useCallback(async () => {
-    try {
-      const data = await api.operations.getToday()
-      if (data?.buses) {
-        setOperation(data)
-        setBuses(data.buses)
-      } else {
-        const fallback = await api.operations.getToday()
-        setOperation(fallback)
-        setBuses(fallback?.buses || [])
-      }
-      loadExceptions()
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
 
   useEffect(() => { load() }, [load])
 
@@ -189,6 +180,7 @@ export default function AdminDailyOperation() {
   const totalStudents = buses.reduce((s, b) => s + (b.studentCount || b.students?.length || 0), 0)
   const departedCount = buses.filter(b => b.completionStatus === 'IN_PROGRESS' || b.students?.some?.(s => s.status === 'in_progress')).length
   const waitingCount = buses.filter(b => b.completionStatus === 'PENDING' || b.completionStatus === 'NO_STUDENTS').length
+  const unassignedStudents = operation?.eligibleStudents || []
 
   if (loading) {
     return (
@@ -257,18 +249,15 @@ export default function AdminDailyOperation() {
       <ResponsiveKpiGrid className="mb-6">
         <KpiCard title="الباصات العاملة" value={buses.length} icon={Bus} color="primary" />
         <KpiCard title="الطلاب" value={totalStudents} icon={Users} color="info" />
+        <KpiCard title="غير موزعين" value={unassignedStudents.length} icon={AlertTriangle} color="warning" subtitle="بحاجة للتوزيع على باص" />
         <KpiCard title="باصات منطلقة" value={departedCount} icon={Bus} color="success" />
         <KpiCard title="باصات في الانتظار" value={waitingCount} icon={Clock} color="warning" />
-        {exceptionsLoading && <><SkeletonCard /><SkeletonCard /></>}
         {!exceptionsLoading && exceptions && (
-          <>
-            <KpiCard title="غير موزعين اشتراك يومي" value={exceptions.unassignedCount} icon={AlertTriangle} color="warning" subtitle="بحاجة لإضافتهم لباص" />
-            <KpiCard title="إجازات اليوم" value={exceptions.todayOffStudents?.length || 0} icon={Clock} color="info" subtitle={exceptions.overrideCount > 0 ? `${exceptions.overrideCount} تجاوز` : 'بدون تجاوزات'} />
-          </>
+          <KpiCard title="إجازات اليوم" value={exceptions.todayOffStudents?.length || 0} icon={Clock} color="info" subtitle={exceptions.overrideCount > 0 ? `${exceptions.overrideCount} تجاوز` : 'بدون تجاوزات'} />
         )}
       </ResponsiveKpiGrid>
 
-      {!exceptionsLoading && exceptions && (exceptions.unassignedCount > 0 || exceptions.overrideCount > 0) && (
+      {!exceptionsLoading && exceptions && exceptions.overrideCount > 0 && (
         <div className="mb-4">
           <button
             onClick={() => setShowExceptions(prev => !prev)}
@@ -277,159 +266,191 @@ export default function AdminDailyOperation() {
             <AlertTriangle size={18} className="text-amber-600" />
             <span className="font-semibold text-amber-800 flex-1">
               استثناءات اليوم
-              {exceptions.unassignedCount > 0 && <span className="mr-2 text-sm font-normal">({exceptions.unassignedCount} غير موزعين)</span>}
-              {exceptions.overrideCount > 0 && <span className="mr-2 text-sm font-normal">· {exceptions.overrideCount} تجاوز إجازة</span>}
+              <span className="mr-2 text-sm font-normal">· {exceptions.overrideCount} تجاوز إجازة</span>
             </span>
             {showExceptions ? <ChevronUp size={16} className="text-amber-600" /> : <ChevronDown size={16} className="text-amber-600" />}
           </button>
         </div>
       )}
 
-      {showExceptions && !exceptionsLoading && exceptions && (exceptions.dailySubscriptions?.length > 0 || exceptions.todayOffStudents?.length > 0) && (
+      {showExceptions && !exceptionsLoading && exceptions && exceptions.todayOffStudents?.length > 0 && (
         <div className="mb-6 space-y-4">
-          {exceptions.dailySubscriptions?.length > 0 && (
-            <Section title={`الطلاب ذوو الاشتراك اليومي - غير موزعين (${exceptions.dailySubscriptions.length})`}>
-              <div className="divide-y divide-[var(--color-border)]">
-                {exceptions.dailySubscriptions.map(sub => (
-                  <div key={sub.studentId} className="flex items-center justify-between py-3 px-1 max-sm:flex-col max-sm:items-start max-sm:gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">{sub.student.name}</span>
-                        {sub.isOffDay && <StatusBadge status="in_progress" label="تجاوز إجازة" />}
-                      </div>
-                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-[var(--color-text-muted)] mt-0.5">
-                        <span>{sub.student.zone}</span>
-                        {sub.pickupTime && <span>الوقت: {sub.pickupTime}</span>}
-                        {sub.defaultBus && <span>الباص الافتراضي: {sub.defaultBus.busNumber}</span>}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleExceptionSelectBus(sub.studentId)}
-                      className="btn-primary btn-sm shrink-0"
-                    >
-                      <Bus size={14} /> توزيع على باص
-                    </button>
+          <Section title={`طلاب الإجازات اليوم (${exceptions.todayOffStudents.length})`}>
+            <div className="divide-y divide-[var(--color-border)]">
+              {exceptions.todayOffStudents.map(s => (
+                <div key={s.id} className="flex items-center justify-between py-3 px-1">
+                  <div>
+                    <span className="font-semibold">{s.name}</span>
+                    <span className="mr-3 text-xs text-[var(--color-text-muted)]">{s.zone}</span>
+                    {s.phone && <span className="mr-3 text-xs text-[var(--color-text-muted)]">{s.phone}</span>}
                   </div>
-                ))}
-              </div>
-            </Section>
-          )}
+                  <StatusBadge status="pending" label="إجازة" />
+                </div>
+              ))}
+            </div>
+          </Section>
+        </div>
+      )}
 
-          {exceptions.todayOffStudents?.length > 0 && (
-            <Section title={`طلاب الإجازات اليوم (${exceptions.todayOffStudents.length})`}>
-              <div className="divide-y divide-[var(--color-border)]">
-                {exceptions.todayOffStudents.map(s => (
-                  <div key={s.id} className="flex items-center justify-between py-3 px-1">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-4">
+          <div className="relative mb-4 w-full max-w-full">
+            <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+            <input
+              type="text" placeholder="بحث باص أو سائق..."
+              value={search} onChange={(e) => setSearch(e.target.value)}
+              className="input-field pr-9 py-2"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {filtered.map((bd, idx) => (
+              <motion.div
+                key={bd.bus?.id || idx}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.03 }}
+                className="card p-4"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                      bd.completionStatus === 'IN_PROGRESS' ? 'bg-[var(--color-success-light)] text-green-600' :
+                      bd.completionStatus === 'COMPLETED' ? 'bg-blue-100 text-blue-600' :
+                      'bg-[var(--color-primary-lighter)] text-[var(--color-primary-dark)]'
+                    }`}>
+                      <Bus size={24} />
+                    </div>
                     <div>
-                      <span className="font-semibold">{s.name}</span>
-                      <span className="mr-3 text-xs text-[var(--color-text-muted)]">{s.zone}</span>
-                      {s.phone && <span className="mr-3 text-xs text-[var(--color-text-muted)]">{s.phone}</span>}
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-bold">{bd.bus?.busNumber}</span>
+                        <StatusBadge status={bd.bus?.status === 'active' ? 'active' : 'maintenance'} />
+                      </div>
+                      <div className="flex items-center gap-3 mt-0.5 text-sm text-[var(--color-text-muted)]">
+                        <span><Users size={14} className="inline" /> {bd.studentCount}/{bd.bus?.capacity}</span>
+                        {bd.driver?.name && <span>{bd.driver.name}</span>}
+                      </div>
                     </div>
-                    <StatusBadge status="pending" label="إجازة" />
                   </div>
-                ))}
-              </div>
-            </Section>
+                  <StatusBadge
+                    status={
+                      bd.completionStatus === 'IN_PROGRESS' ? 'in_progress' :
+                      bd.completionStatus === 'COMPLETED' ? 'completed' :
+                      bd.completionStatus === 'NO_STUDENTS' ? 'pending' :
+                      'scheduled'
+                    }
+                    label={
+                      bd.completionStatus === 'IN_PROGRESS' ? 'قيد التشغيل' :
+                      bd.completionStatus === 'COMPLETED' ? 'مكتملة' :
+                      bd.completionStatus === 'NO_STUDENTS' ? 'بدون طلاب' :
+                      'مجدولة'
+                    }
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <div className="flex justify-between text-xs text-[var(--color-text-muted)] mb-1">
+                    <span>نسبة الامتلاء</span>
+                    <span>{bd.fillPercent || 0}%</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-[var(--color-border-light)] overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${Math.min(bd.fillPercent || 0, 100)}%`,
+                        backgroundColor: (bd.fillPercent || 0) >= 90 ? '#DC2626' :
+                          (bd.fillPercent || 0) >= 70 ? '#D97706' : '#16A34A'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedBus(bd.bus?.id)}
+                    className="btn-primary btn-sm flex-1"
+                  >
+                    <Play size={14} /> فتح الرحلة
+                  </button>
+                  <button
+                    onClick={() => handleRemoveBus(bd.bus?.id, bd.bus?.busNumber)}
+                    className="btn-ghost btn-sm text-[var(--color-danger)] hover:bg-red-50"
+                    title="إزالة من تشغيل اليوم"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {filtered.length === 0 && (
+            <div className="text-center py-12">
+              <AlertCircle size={32} className="mx-auto mb-2 text-[var(--color-text-muted)]" strokeWidth={1.5} />
+              <p className="text-sm text-[var(--color-text-muted)]">لا توجد نتائج للبحث</p>
+            </div>
           )}
         </div>
-      )}
 
-      <div className="relative mb-4 max-w-sm">
-        <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-        <input
-          type="text" placeholder="بحث باص أو سائق..."
-          value={search} onChange={(e) => setSearch(e.target.value)}
-          className="input-field pr-9 py-2"
-        />
-      </div>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold flex items-center gap-2">
+              <Users size={18} />
+              غير موزعين ({unassignedStudents.length})
+            </h3>
+          </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {filtered.map((bd, idx) => (
-          <motion.div
-            key={bd.bus?.id || idx}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.03 }}
-            className="card p-4"
-          >
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                  bd.completionStatus === 'IN_PROGRESS' ? 'bg-[var(--color-success-light)] text-green-600' :
-                  bd.completionStatus === 'COMPLETED' ? 'bg-blue-100 text-blue-600' :
-                  'bg-[var(--color-primary-lighter)] text-[var(--color-primary-dark)]'
-                }`}>
-                  <Bus size={24} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg font-bold">{bd.bus?.busNumber}</span>
-                    <StatusBadge status={bd.bus?.status === 'active' ? 'active' : 'maintenance'} />
-                  </div>
-                  <div className="flex items-center gap-3 mt-0.5 text-sm text-[var(--color-text-muted)]">
-                    <span><Users size={14} className="inline" /> {bd.studentCount}/{bd.bus?.capacity}</span>
-                    {bd.driver?.name && <span>{bd.driver.name}</span>}
-                  </div>
-                </div>
+          {unassignedStudents.length === 0 && (
+            <div className="card p-6 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-green-50 flex items-center justify-center mx-auto mb-3">
+                <Check size={24} className="text-green-600" strokeWidth={1.5} />
               </div>
-              <StatusBadge
-                status={
-                  bd.completionStatus === 'IN_PROGRESS' ? 'in_progress' :
-                  bd.completionStatus === 'COMPLETED' ? 'completed' :
-                  bd.completionStatus === 'NO_STUDENTS' ? 'pending' :
-                  'scheduled'
-                }
-                label={
-                  bd.completionStatus === 'IN_PROGRESS' ? 'قيد التشغيل' :
-                  bd.completionStatus === 'COMPLETED' ? 'مكتملة' :
-                  bd.completionStatus === 'NO_STUDENTS' ? 'بدون طلاب' :
-                  'مجدولة'
-                }
-              />
+              <p className="text-sm text-[var(--color-text-muted)]">جميع الطلاب موزعون</p>
             </div>
+          )}
 
-            <div className="mb-3">
-              <div className="flex justify-between text-xs text-[var(--color-text-muted)] mb-1">
-                <span>نسبة الامتلاء</span>
-                <span>{bd.fillPercent || 0}%</span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-[var(--color-border-light)] overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{
-                    width: `${Math.min(bd.fillPercent || 0, 100)}%`,
-                    backgroundColor: (bd.fillPercent || 0) >= 90 ? '#DC2626' :
-                      (bd.fillPercent || 0) >= 70 ? '#D97706' : '#16A34A'
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setSelectedBus(bd.bus?.id)}
-                className="btn-primary btn-sm flex-1"
+          <div className="space-y-2 max-h-[70vh] overflow-y-auto scrollbar-thin pl-1">
+            {unassignedStudents.map((s, idx) => (
+              <motion.div
+                key={s.studentId}
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.02 }}
+                className="card p-3"
               >
-                <Play size={14} /> فتح الرحلة
-              </button>
-              <button
-                onClick={() => handleRemoveBus(bd.bus?.id, bd.bus?.busNumber)}
-                className="btn-ghost btn-sm text-[var(--color-danger)] hover:bg-red-50"
-                title="إزالة من تشغيل اليوم"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-
-      {filtered.length === 0 && (
-        <div className="text-center py-12">
-          <AlertCircle size={32} className="mx-auto mb-2 text-[var(--color-text-muted)]" strokeWidth={1.5} />
-          <p className="text-sm text-[var(--color-text-muted)]">لا توجد نتائج للبحث</p>
+                <div className="flex items-start gap-2">
+                  <div className="w-8 h-8 rounded-full bg-[var(--color-primary-lighter)] flex items-center justify-center text-xs font-bold text-[var(--color-primary-dark)] shrink-0">
+                    {s.student?.name?.[0] || '?'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium mb-0.5">{s.student?.name}</div>
+                    <div className="text-xs text-[var(--color-text-muted)] flex items-center gap-1">
+                      <MapPin size={10} />
+                      <span>{s.student?.zone}</span>
+                    </div>
+                    {s.suggestedBusNumber && (
+                      <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                        الباص المقترح: {s.suggestedBusNumber}
+                      </div>
+                    )}
+                    {s.pickupTime && (
+                      <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                        الوقت: {s.pickupTime}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => handleExceptionSelectBus(s.studentId)}
+                    className="btn-primary btn-sm shrink-0"
+                  >
+                    <Bus size={12} /> توزيع
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </div>
-      )}
+      </div>
 
       <CreateOperationDialog
         show={showCreateDialog}
@@ -460,7 +481,7 @@ export default function AdminDailyOperation() {
       <Modal
         show={!!exceptionStudentForBus}
         onClose={() => setExceptionStudentForBus(null)}
-        title="اختر باص لتوزيع الطالب"
+        title={`توزيع ${unassignedStudents.find(s => s.studentId === exceptionStudentForBus)?.student?.name || 'الطالب'} على باص`}
         footer={
           <button onClick={() => setExceptionStudentForBus(null)} className="btn-ghost min-h-[44px]">إلغاء</button>
         }
@@ -491,39 +512,6 @@ export default function AdminDailyOperation() {
               </div>
             </button>
           ))}
-        </div>
-      </Modal>
-
-      <Modal
-        show={showStartWarning}
-        onClose={() => setShowStartWarning(false)}
-        title={
-          <div className="flex items-center gap-2">
-            <AlertTriangle size={20} className="text-amber-600" />
-            <span>استثناءات اليوم</span>
-          </div>
-        }
-        footer={
-          <div className="flex items-center justify-between w-full">
-            <span className="text-xs text-[var(--color-text-muted)]">
-              {exceptions?.unassignedCount || 0} طالب غير موزع
-            </span>
-            <div className="flex gap-2">
-              <button onClick={() => setShowStartWarning(false)} className="btn-ghost min-h-[44px]">
-                العودة للتوزيع
-              </button>
-              <button onClick={() => { setShowStartWarning(false); handleGenerate() }} className="btn-primary min-h-[44px] bg-amber-600 hover:bg-amber-700">
-                المتابعة على أي حال
-              </button>
-            </div>
-          </div>
-        }
-      >
-        <div className="space-y-3">
-          <p className="text-sm text-slate-700">
-            يوجد <strong className="text-amber-700">{exceptions?.unassignedCount || 0}</strong> من أصحاب الاشتراكات اليومية لم يتم توزيعهم على أي باص.
-          </p>
-          <p className="text-xs text-slate-500">هل تريد المتابعة؟</p>
         </div>
       </Modal>
     </div>

@@ -17,7 +17,7 @@ export default function KpiCard({ title, value, subtitle, trend, trendValue, ico
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-[var(--color-border)] p-2 sm:p-3 lg:p-4">
+      <div className="card p-2 sm:p-3 lg:p-4">
         <div className="flex items-start justify-between mb-2">
           <div className="skeleton h-3 w-16 rounded" />
           <div className="skeleton h-7 sm:h-9 w-7 sm:w-9 rounded-xl" />
@@ -33,9 +33,10 @@ export default function KpiCard({ title, value, subtitle, trend, trendValue, ico
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -2, transition: { duration: 0.2 } }}
-      className={`bg-white rounded-xl shadow-sm border border-[var(--color-border)] p-2 sm:p-3 lg:p-4 ${onClick ? 'cursor-pointer' : ''}`}
+      className={`card p-2 sm:p-3 lg:p-4 relative overflow-hidden transition-shadow duration-200 hover:shadow-pop ${onClick ? 'cursor-pointer' : ''}`}
       onClick={onClick}
     >
+      <span className="absolute inset-x-0 top-0 h-1 opacity-60" style={{ background: c.text }} />
       <div className="flex items-start justify-between mb-1.5 sm:mb-2">
         <span className="text-[10px] sm:text-xs lg:text-sm text-[var(--color-text-secondary)] font-medium leading-tight">{title}</span>
         <div className="w-6 sm:w-8 lg:w-9 h-6 sm:h-8 lg:h-9 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0" style={{ background: c.bg }}>

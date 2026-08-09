@@ -37,14 +37,24 @@ export async function computeFinancialStatus(studentId, checkDate = new Date()) 
     }
   }
 
-  const activeSub = await prisma.subscription.findFirst({
+  const activeSubs = await prisma.subscription.findMany({
     where: {
       studentId,
       status: 'active',
       endDate: { gte: today },
     },
     orderBy: { endDate: 'desc' },
+    include: {
+      executionDates: { where: { executionDate: today }, take: 1 },
+    },
   })
+
+  let activeSub = null
+  for (const sub of activeSubs) {
+    if (sub.type === 'DAILY' && sub.executionDates.length === 0) continue
+    activeSub = sub
+    break
+  }
 
   if (activeSub) {
     if (activeSub.paymentStatus === 'paid' || activeSub.paymentStatus === 'partial') {
@@ -95,6 +105,7 @@ export async function getStudentsByFinancialStatus(targetStatus, checkDate = new
     where: { status: 'active' },
     include: {
       busStudents: { where: { isActive: true }, include: { bus: { select: { id: true, busNumber: true, plateNumber: true } } } },
+      destination: true,
       subscriptions: {
         orderBy: { endDate: 'desc' },
         take: 1,
@@ -129,6 +140,7 @@ export async function getStudentsByFinancialStatus(targetStatus, checkDate = new
       zone: s.zone,
       major: s.major,
       institutionName: s.institutionName,
+      destinationName: s.destination?.name || s.institutionName || null,
       status: s.status,
       bus: s.busStudents[0]?.bus || null,
       subscription,

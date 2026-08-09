@@ -20,7 +20,6 @@ const pageTitles = {
   '/admin/manage/settings': 'الإعدادات',
   '/admin/manage/system': 'إدارة النظام',
   '/admin/subscriptions': 'الاشتراكات',
-  '/admin/saturday/operation': 'تشغيل السبت',
   '/admin': 'لوحة التحكم',
 }
 
@@ -79,7 +78,7 @@ export default function TopNavbar({ onMenuToggle, unreadCount: _unreadCount }) {
         )}
       </AnimatePresence>
 
-      <header className="h-14 sm:h-16 bg-white border-b border-[var(--color-border)] flex items-center justify-between px-3 sm:px-4 lg:px-6 shrink-0">
+      <header className="h-14 sm:h-16 glass sticky top-0 z-30 border-b border-[var(--color-border)] flex items-center justify-between px-3 sm:px-4 lg:px-6 shrink-0 backdrop-blur-md">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button onClick={onMenuToggle} className="p-2 sm:p-2.5 rounded-xl hover:bg-[var(--color-border-light)] lg:hidden">
             <Menu size={20} />

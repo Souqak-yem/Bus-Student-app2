@@ -81,9 +81,13 @@ export function getIO() {
 }
 
 export function broadcastTrackingUpdate(activeBusId, data) {
-  if (io) {
-    io.to(`bus:${activeBusId}`).emit('tracking:update', data)
-  }
+  if (!io) return
+  const payload = { ...data, timestamp: new Date().toISOString() }
+  try {
+    // Debug log to help trace why students may not receive updates
+    console.debug('[broadcastTrackingUpdate] emitting to', `bus:${activeBusId}`, 'payload keys:', Object.keys(payload))
+  } catch (e) {}
+  io.to(`bus:${activeBusId}`).emit('tracking:update', payload)
 }
 
 export function broadcastNotification(userId, notification) {
@@ -111,27 +115,21 @@ export function broadcastReportUpdate(driverId, update) {
 }
 
 export function broadcastDriverOperationUpdate(busId, data) {
-  if (io) {
-    io.to(`driver_bus:${busId}`).emit('driver:operation-update', data)
-  }
+  if (!io) return
+  const payload = { ...data, timestamp: new Date().toISOString() }
+  io.to(`driver_bus:${busId}`).emit('driver:operation-update', payload)
 }
 
 export function broadcastDailyExceptionsUpdate(data) {
-  if (io) {
-    io.emit('dailyExceptions:update', data)
-  }
-}
-
-export function broadcastSaturdayUpdate(data) {
-  if (io) {
-    io.emit('saturday:update', data)
-  }
+  if (!io) return
+  const payload = { ...data, timestamp: new Date().toISOString() }
+  io.emit('dailyExceptions:update', payload)
 }
 
 export function broadcastStudentUpdate(studentId, data) {
-  if (io) {
-    io.to(`user:${studentId}`).emit('student:update', data)
-  }
+  if (!io) return
+  const payload = { ...data, timestamp: new Date().toISOString() }
+  io.to(`user:${studentId}`).emit('student:update', payload)
 }
 
 export function broadcastNotificationRead(userId, notificationId) {
@@ -236,14 +234,16 @@ export async function notifyStudentsOnBus(busId, { type, title, message, priorit
 
 export function broadcastReadinessUpdate(activeBusId, data) {
   if (!io) return
-  io.to(`bus:${activeBusId}`).emit('readiness:update', { activeBusId, ...data, timestamp: new Date().toISOString() })
-  io.emit('readiness:admin-update', { activeBusId, ...data, timestamp: new Date().toISOString() })
+  const payload = { activeBusId, ...data, timestamp: new Date().toISOString() }
+  io.to(`bus:${activeBusId}`).emit('readiness:update', payload)
+  io.emit('readiness:admin-update', payload)
 }
 
 export function broadcastBoardingTimerUpdate(activeBusId, data) {
   if (!io) return
-  io.to(`bus:${activeBusId}`).emit('boarding-timer:update', { activeBusId, ...data, timestamp: new Date().toISOString() })
-  io.emit('boarding-timer:admin-update', { activeBusId, ...data, timestamp: new Date().toISOString() })
+  const payload = { activeBusId, ...data, timestamp: new Date().toISOString() }
+  io.to(`bus:${activeBusId}`).emit('boarding-timer:update', payload)
+  io.emit('boarding-timer:admin-update', payload)
 }
 
 export function broadcastReturnReadinessStats(activeBusId, stats) {

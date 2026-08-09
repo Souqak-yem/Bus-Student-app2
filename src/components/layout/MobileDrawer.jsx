@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Bus, CalendarCheck, ClipboardList,
   FileText, DollarSign, Settings, LogOut, X, AlertTriangle,
-  CreditCard, MapPin, CalendarRange, Sun, Shield,
+  CreditCard, MapPin, CalendarRange, Shield, MessageSquare,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
@@ -19,7 +19,6 @@ const navGroups = [
     items: [
       { to: '/admin/operations/today', label: 'تشغيل اليوم', icon: CalendarCheck },
       { to: '/admin/operations/return', label: 'رحلات العودة', icon: ClipboardList },
-      { to: '/admin/saturday/operation', label: 'تشغيل السبت', icon: Sun },
       { to: '/admin/emergency', label: 'مركز الطوارئ', icon: AlertTriangle },
     ],
   },
@@ -28,6 +27,7 @@ const navGroups = [
     items: [
       { to: '/admin/buses', label: 'الباصات', icon: Bus },
       { to: '/admin/students', label: 'الطلاب', icon: Users },
+      { to: '/admin/student-requests', label: 'طلبات التسجيل', icon: MessageSquare },
       { to: '/admin/destinations', label: 'الوجهات', icon: MapPin },
     ],
   },
@@ -116,7 +116,7 @@ export default function MobileDrawer({ open, onClose }) {
                           className={({ isActive }) =>
                             `flex items-center gap-3 px-3 sm:px-4 py-3 rounded-xl text-sm sm:text-base transition-all duration-150 ${
                               isActive
-                                ? 'bg-[var(--color-primary-lighter)] text-[var(--color-primary-dark)] font-semibold'
+                                ? 'gradient-primary text-white font-semibold shadow-[0_4px_14px_-4px_rgba(37,99,235,0.6)]'
                                 : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-border-light)]'
                             }`
                           }

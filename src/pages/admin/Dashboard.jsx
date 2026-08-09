@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import {
   Bus, Users, CalendarCheck, FileText, ArrowLeftRight, DollarSign, Clock, AlertTriangle,
   Megaphone, CheckSquare, TrendingUp, ClipboardList, Percent, UserPlus, Plus, RefreshCw,
-  Ban,
+  Ban, MessageSquare,
 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { formatCurrency } from '../../lib/format'
@@ -131,6 +131,15 @@ export default function AdminDashboard() {
           loading={loading}
         />
         <KpiCard
+          title="طلبات التسجيل الجديدة"
+          value={loading ? null : stats?.pendingStudentRegistrations}
+          icon={MessageSquare}
+          color="warning"
+          subtitle="قيد المراجعة"
+          loading={loading}
+          onClick={() => navigate('/admin/student-requests')}
+        />
+        <KpiCard
           title="إيرادات اليوم"
           value={loading ? null : formatCurrency(stats?.todayRevenue ?? 0)}
           icon={DollarSign}
@@ -153,10 +162,10 @@ export default function AdminDashboard() {
         />
         <KpiCard
           title="متأخرون عن السداد"
-          value={loading ? null : finStats?.overdue ?? 0}
+          value={loading ? null : finStats?.counts?.OVERDUE ?? 0}
           icon={Ban}
           color="danger"
-          subtitle={finStats?.overdue > 0 ? 'بحاجة للمتابعة' : 'لا يوجد'}
+          subtitle={finStats?.counts?.OVERDUE > 0 ? 'بحاجة للمتابعة' : 'لا يوجد'}
           loading={loading}
           onClick={() => navigate('/admin/financial-control')}
         />

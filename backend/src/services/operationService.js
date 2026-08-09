@@ -4,7 +4,7 @@ import { getLocalDate, formatLocalDate } from '../utils/dateUtils.js'
 import { canStudentOperateOnDate } from './studentService.js'
 import { getStudentOperationStage, Stage } from './operationStage.js'
 import { getStudentIdsToExclude, computeFinancialStatus } from './financialService.js'
-import { notifyStudent, notifyStudentsOnBus } from './socketService.js'
+import { notifyStudent } from './socketService.js'
 
 async function findUserIdByStudentId(studentId) {
   const user = await prisma.user.findUnique({ where: { studentId }, select: { id: true } })
@@ -23,76 +23,21 @@ export async function generateTodayOperations(userId, busIds) {
   })
 
   if (existingOperation) {
-    const existingCount = await prisma.assignment.count({
-      where: { date: today, period: 'MORNING', isGenerated: true }
+    const existingBuses = await prisma.activeBus.count({
+      where: { operationId: existingOperation.id, tripType: 'RETURN', status: { not: 'CANCELLED' } }
     })
-    if (existingCount > 0) {
+    if (existingBuses > 0) {
       throw new Error('تم إنشاء عمليات اليوم مسبقًا')
     }
   }
 
   const buses = await prisma.bus.findMany({
     where: { id: { in: busIds }, status: 'active' },
-    include: {
-      driver: true,
-      templateStudents: {
-        where: { isActive: true },
-        include: { student: true },
-        orderBy: { pickupTime: 'asc' },
-      },
-      outgoingTransfers: {
-        where: { isActive: true, startDate: { lte: today }, endDate: { gte: today } }
-      },
-      incomingTransfers: {
-        where: { isActive: true, startDate: { lte: today }, endDate: { gte: today } }
-      }
-    }
+    include: { driver: true }
   })
 
   if (buses.length === 0) {
     throw new Error('لا توجد باصات نشطة مطابقة للاختيار')
-  }
-
-  const excludedIds = await getStudentIdsToExclude()
-
-  const assignments = []
-
-  for (const bus of buses) {
-    const busOutgoing = new Set(bus.outgoingTransfers.map(t => t.studentId))
-    let sortOrder = 0
-
-    for (const bs of bus.templateStudents) {
-      if (busOutgoing.has(bs.studentId)) continue
-      if (excludedIds.has(bs.studentId)) continue
-      const canOperate = await canStudentOperateOnDate(bs.studentId, today)
-      if (!canOperate) continue
-      assignments.push({
-        studentId: bs.studentId,
-        busId: bus.id,
-        date: today,
-        period: 'MORNING',
-        line: 'JEBALI',
-        pickupTime: bs.pickupTime,
-        status: 'scheduled',
-        isGenerated: true,
-        sortOrder: sortOrder++
-      })
-    }
-
-    for (const t of bus.incomingTransfers) {
-      if (excludedIds.has(t.studentId)) continue
-      assignments.push({
-        studentId: t.studentId,
-        busId: bus.id,
-        date: today,
-        period: 'MORNING',
-        line: 'JEBALI',
-        pickupTime: null,
-        status: 'scheduled',
-        isGenerated: true,
-        sortOrder: sortOrder++
-      })
-    }
   }
 
   return await prisma.$transaction(async (tx) => {
@@ -103,14 +48,8 @@ export async function generateTodayOperations(userId, busIds) {
       })
     }
 
-    let createdCount = 0
-    if (assignments.length > 0) {
-      const result = await tx.assignment.createMany({
-        data: assignments,
-        skipDuplicates: true
-      })
-      createdCount = result.count
-    }
+    let addedBuses = 0
+    let assignmentsCreated = 0
 
     for (const bus of buses) {
       const existing = await tx.activeBus.findFirst({
@@ -127,6 +66,50 @@ export async function generateTodayOperations(userId, busIds) {
             capacitySnapshot: bus.capacity,
           }
         })
+        addedBuses++
+      }
+
+      const financiallyExcluded = await getStudentIdsToExclude()
+      const templateStudents = await tx.busStudent.findMany({
+        where: { busId: bus.id, isActive: true },
+        orderBy: [{ pickupTime: 'asc' }, { createdAt: 'asc' }],
+      })
+
+      let currentCount = await tx.assignment.count({
+        where: { date: today, period: 'MORNING', busId: bus.id }
+      })
+      const maxOrder = await tx.assignment.aggregate({
+        where: { date: today, period: 'MORNING', busId: bus.id },
+        _max: { sortOrder: true }
+      })
+      let nextSortOrder = (maxOrder._max.sortOrder ?? -1) + 1
+
+      for (const ts of templateStudents) {
+        if (currentCount >= bus.capacity) break
+        if (financiallyExcluded.has(ts.studentId)) continue
+        if (await hasActiveDailySubscriptionForDate(ts.studentId, today)) continue
+        if (!await canStudentOperateOnDate(ts.studentId, today)) continue
+
+        const existingAssignment = await tx.assignment.findUnique({
+          where: { studentId_date_period: { studentId: ts.studentId, date: today, period: 'MORNING' } }
+        })
+        if (existingAssignment) continue
+
+        await tx.assignment.create({
+          data: {
+            studentId: ts.studentId,
+            busId: bus.id,
+            date: today,
+            period: 'MORNING',
+            line: 'JEBALI',
+            pickupTime: ts.pickupTime || undefined,
+            status: 'scheduled',
+            isGenerated: true,
+            sortOrder: nextSortOrder++,
+          }
+        })
+        currentCount++
+        assignmentsCreated++
       }
     }
 
@@ -135,34 +118,76 @@ export async function generateTodayOperations(userId, busIds) {
       action: 'GENERATE_OPERATION',
       entityType: 'DailyOperation',
       entityId: operation.id,
-      newValue: { date: formatLocalDate(today), buses: buses.length, created: assignments.length },
-      reason: 'إنشاء عمليات اليوم'
+      newValue: { date: formatLocalDate(today), buses: buses.length, created: assignmentsCreated },
+      reason: 'إنشاء عمليات اليوم مع توزيع تلقائي لطلاب القالب الأسبوعي/الافتراضي'
+    })
+
+    const totalAssigned = await tx.assignment.count({
+      where: { date: today, period: 'MORNING' }
     })
 
     return {
       operationId: operation.id,
       busesProcessed: buses.length,
-      assignmentsCreated: createdCount,
-      totalAssigned: assignments.length
+      assignmentsCreated,
+      totalAssigned,
+      addedBuses,
     }
   })
+}
+
+async function getTodayOperationBusIds() {
+  const today = getLocalDate()
+  const assignmentBusIds = await prisma.assignment.findMany({
+    where: { date: today, period: 'MORNING' },
+    select: { busId: true },
+    distinct: ['busId']
+  })
+  const op = await prisma.dailyOperation.findUnique({ where: { operationDate: today } })
+  const busIds = new Set(assignmentBusIds.map(b => b.busId))
+  if (op) {
+    const activeBusIds = await prisma.activeBus.findMany({
+      where: { operationId: op.id, tripType: 'RETURN', status: { not: 'CANCELLED' } },
+      select: { busId: true },
+      distinct: ['busId']
+    })
+    for (const ab of activeBusIds) busIds.add(ab.busId)
+  }
+  return busIds
+}
+
+async function hasDailySubscriptionForDate(studentId, date, tx = prisma) {
+  const count = await tx.dailyExecutionDate.count({
+    where: {
+      subscription: { studentId, type: 'DAILY', status: 'active' },
+      executionDate: date,
+    },
+  })
+  return count > 0
+}
+
+async function hasActiveDailySubscriptionForDate(studentId, date, tx = prisma) {
+  const count = await tx.subscription.count({
+    where: {
+      studentId,
+      type: 'DAILY',
+      status: 'active',
+      startDate: { lte: date },
+      endDate: { gte: date },
+    },
+  })
+  return count > 0
 }
 
 export async function getAvailableBuses() {
   const today = getLocalDate()
 
-  const busesInOperation = await prisma.assignment.findMany({
-    where: { date: today, period: 'MORNING' },
-    select: { busId: true },
-    distinct: ['busId']
-  })
-
-  const excludedIds = busesInOperation.map(b => b.busId)
+  const excludedIds = await getTodayOperationBusIds()
 
   const buses = await prisma.bus.findMany({
     where: {
       status: 'active',
-      NOT: { id: { in: excludedIds } }
+      NOT: { id: { in: [...excludedIds] } }
     },
     include: {
       driver: { select: { id: true, name: true, phone: true } },
@@ -187,6 +212,7 @@ export async function getAvailableBuses() {
     for (const bs of b.templateStudents) {
       if (busOutgoing.has(bs.studentId)) continue
       if (financiallyExcluded.has(bs.studentId)) continue
+      if (await hasActiveDailySubscriptionForDate(bs.studentId, today)) continue
       const canOperate = await canStudentOperateOnDate(bs.studentId, today)
       if (canOperate) eligibleCount++
     }
@@ -258,6 +284,32 @@ export async function getTodayOperation() {
     })
   }
 
+  // Include operation buses that have no assignments yet (created via generate/add-buses)
+  const returnActiveBuses = operation ? await prisma.activeBus.findMany({
+    where: { operationId: operation.id, tripType: 'RETURN', status: { not: 'CANCELLED' } },
+    include: {
+      bus: {
+        select: {
+          id: true, busNumber: true, plateNumber: true, capacity: true, vehicleType: true, status: true,
+          driver: { select: { id: true, name: true, phone: true } },
+          _count: { select: { templateStudents: true } },
+        }
+      }
+    },
+  }) : []
+
+  for (const ab of returnActiveBuses) {
+    if (!busMap.has(ab.busId)) {
+      busMap.set(ab.busId, {
+        bus: ab.bus,
+        driver: ab.bus.driver,
+        templateStudentCount: ab.bus._count.templateStudents,
+        students: [],
+        line: 'JEBALI',
+      })
+    }
+  }
+
   const activeBuses = operation ? await prisma.activeBus.findMany({
     where: { operationId: operation.id, tripType: { not: 'RETURN' } },
     select: { id: true, busId: true, status: true }
@@ -283,11 +335,139 @@ export async function getTodayOperation() {
     }
   })
 
+  const eligibleStudents = operation ? await computeEligibleStudents([...busMap.keys()], today) : []
+
   return {
-    exists: operation !== null && assignments.length > 0,
+    exists: operation !== null,
     operation,
     buses,
+    eligibleStudents,
   }
+}
+
+const ELIGIBLE_STUDENT_SELECT = {
+  id: true, name: true, zone: true, phone: true, offDays: true, institutionName: true,
+  destination: { select: { id: true, name: true } },
+}
+
+async function computeEligibleStudents(busIds, today) {
+  const unassigned = new Set()
+  const result = []
+
+  const buses = await prisma.bus.findMany({
+    where: { id: { in: busIds } },
+    include: {
+      templateStudents: {
+        where: { isActive: true },
+        include: { student: { select: ELIGIBLE_STUDENT_SELECT } },
+        orderBy: { pickupTime: 'asc' },
+      },
+      incomingTransfers: {
+        where: { isActive: true, startDate: { lte: today }, endDate: { gte: today } },
+        include: { student: { select: ELIGIBLE_STUDENT_SELECT } },
+      },
+      outgoingTransfers: {
+        where: { isActive: true, startDate: { lte: today }, endDate: { gte: today } },
+        select: { studentId: true },
+      },
+    },
+  })
+
+  const excludedIds = await getStudentIdsToExclude()
+
+  const assignedAssignments = await prisma.assignment.findMany({
+    where: { date: today, period: 'MORNING' },
+    select: { studentId: true },
+  })
+  const assignedIds = new Set(assignedAssignments.map(a => a.studentId))
+
+  for (const bus of buses) {
+    const busOutgoing = new Set(bus.outgoingTransfers.map(t => t.studentId))
+
+    for (const bs of bus.templateStudents) {
+      if (unassigned.has(bs.studentId)) continue
+      if (busOutgoing.has(bs.studentId)) continue
+      if (excludedIds.has(bs.studentId)) continue
+      if (assignedIds.has(bs.studentId)) continue
+      if (await hasActiveDailySubscriptionForDate(bs.studentId, today)) continue
+      const canOperate = await canStudentOperateOnDate(bs.studentId, today)
+      if (!canOperate) continue
+      unassigned.add(bs.studentId)
+      result.push({
+        studentId: bs.studentId,
+        student: bs.student,
+        suggestedBusId: bus.id,
+        suggestedBusNumber: bus.busNumber,
+        pickupTime: bs.pickupTime,
+        source: 'template',
+      })
+    }
+
+    for (const t of bus.incomingTransfers) {
+      if (unassigned.has(t.studentId)) continue
+      if (excludedIds.has(t.studentId)) continue
+      if (assignedIds.has(t.studentId)) continue
+      const canOperate = await canStudentOperateOnDate(t.studentId, today)
+      if (!canOperate) continue
+      unassigned.add(t.studentId)
+      result.push({
+        studentId: t.studentId,
+        student: t.student,
+        suggestedBusId: bus.id,
+        suggestedBusNumber: bus.busNumber,
+        pickupTime: null,
+        source: 'transfer',
+      })
+    }
+  }
+
+  // Active daily subscriptions for today that are not yet covered
+  const dailySubs = await prisma.subscription.findMany({
+    where: {
+      type: 'DAILY',
+      status: 'active',
+      startDate: { lte: today },
+      endDate: { gte: today },
+    },
+    include: {
+      student: { select: ELIGIBLE_STUDENT_SELECT },
+      executionDates: { where: { executionDate: today }, take: 1 },
+    },
+  })
+
+  const dailySubStudentIds = dailySubs
+    .filter(s => s.executionDates.length > 0)
+    .filter(s => !assignedIds.has(s.studentId))
+    .filter(s => !unassigned.has(s.studentId))
+    .map(s => s.studentId)
+
+  let busStudentMap = new Map()
+  if (dailySubStudentIds.length > 0) {
+    const busStudents = await prisma.busStudent.findMany({
+      where: { studentId: { in: dailySubStudentIds }, isActive: true },
+      include: { bus: { select: { id: true, busNumber: true } } },
+    })
+    busStudentMap = new Map(busStudents.map(bs => [bs.studentId, bs]))
+  }
+
+  for (const sub of dailySubs) {
+    if (sub.executionDates.length === 0) continue
+    if (assignedIds.has(sub.studentId)) continue
+    if (unassigned.has(sub.studentId)) continue
+    if (excludedIds.has(sub.studentId)) continue
+    const bs = busStudentMap.get(sub.studentId)
+    unassigned.add(sub.studentId)
+    result.push({
+      studentId: sub.studentId,
+      student: sub.student,
+      suggestedBusId: bs?.bus?.id || null,
+      suggestedBusNumber: bs?.bus?.busNumber || null,
+      pickupTime: bs?.pickupTime || null,
+      source: 'daily',
+    })
+  }
+
+  return result
 }
 
 export async function getBusOperationDetail(busId) {
@@ -603,7 +783,15 @@ export async function addBusesToOperation(userId, busIds) {
       select: { busId: true },
       distinct: ['busId']
     })
-    const existingSet = new Set(existingBusIds.map(b => b.busId))
+    const existingActiveBusIds = await tx.activeBus.findMany({
+      where: { operationId: operation.id, tripType: 'RETURN', status: { not: 'CANCELLED' } },
+      select: { busId: true },
+      distinct: ['busId']
+    })
+    const existingSet = new Set([
+      ...existingBusIds.map(b => b.busId),
+      ...existingActiveBusIds.map(ab => ab.busId),
+    ])
     const newBusIds = busIds.filter(id => !existingSet.has(id))
 
     if (newBusIds.length === 0) {
@@ -612,72 +800,11 @@ export async function addBusesToOperation(userId, busIds) {
 
     const buses = await tx.bus.findMany({
       where: { id: { in: newBusIds }, status: 'active' },
-      include: {
-        driver: true,
-        templateStudents: {
-          where: { isActive: true },
-          include: { student: true }
-        },
-        outgoingTransfers: {
-          where: { isActive: true, startDate: { lte: today }, endDate: { gte: today } }
-        },
-        incomingTransfers: {
-          where: { isActive: true, startDate: { lte: today }, endDate: { gte: today } }
-        }
-      }
+      include: { driver: true }
     })
 
-    const excludedIds = await getStudentIdsToExclude()
-
-    const assignments = []
-
-    for (const bus of buses) {
-      const busOutgoing = new Set(bus.outgoingTransfers.map(t => t.studentId))
-      let sortOrder = 0
-
-      for (const bs of bus.templateStudents) {
-        if (busOutgoing.has(bs.studentId)) continue
-        if (excludedIds.has(bs.studentId)) continue
-        const canOperate = await canStudentOperateOnDate(bs.studentId, today, tx)
-        if (!canOperate) continue
-        assignments.push({
-          studentId: bs.studentId,
-          busId: bus.id,
-          date: today,
-          period: 'MORNING',
-          line: 'JEBALI',
-          pickupTime: bs.pickupTime,
-          status: 'scheduled',
-          isGenerated: false,
-          sortOrder: sortOrder++
-        })
-      }
-
-      for (const t of bus.incomingTransfers) {
-        assignments.push({
-          studentId: t.studentId,
-          busId: bus.id,
-          date: today,
-          period: 'MORNING',
-          line: 'JEBALI',
-          pickupTime: null,
-          status: 'scheduled',
-          isGenerated: false,
-          sortOrder: sortOrder++
-        })
-      }
-    }
-
-    let createdCount = 0
-    if (assignments.length > 0) {
-      const result = await tx.assignment.createMany({
-        data: assignments,
-        skipDuplicates: true
-      })
-      createdCount = result.count
-    }
-
     // Create ActiveBus for return
+    let addedBuses = 0
     for (const bus of buses) {
       const existingActive = await tx.activeBus.findFirst({
         where: { operationId: operation.id, busId: bus.id, tripType: 'RETURN', status: { not: 'CANCELLED' } }
@@ -693,6 +820,50 @@ export async function addBusesToOperation(userId, busIds) {
             capacitySnapshot: bus.capacity,
           }
         })
+        addedBuses++
+      }
+
+      const financiallyExcluded = await getStudentIdsToExclude()
+      const templateStudents = await tx.busStudent.findMany({
+        where: { busId: bus.id, isActive: true },
+        orderBy: [{ pickupTime: 'asc' }, { createdAt: 'asc' }],
+      })
+
+      let currentCount = await tx.assignment.count({
+        where: { date: today, period: 'MORNING', busId: bus.id }
+      })
+      const maxOrder = await tx.assignment.aggregate({
+        where: { date: today, period: 'MORNING', busId: bus.id },
+        _max: { sortOrder: true }
+      })
+      let nextSortOrder = (maxOrder._max.sortOrder ?? -1) + 1
+
+      for (const ts of templateStudents) {
+        if (currentCount >= bus.capacity) break
+        if (financiallyExcluded.has(ts.studentId)) continue
+        if (await hasActiveDailySubscriptionForDate(ts.studentId, today)) continue
+        if (!await canStudentOperateOnDate(ts.studentId, today)) continue
+
+        const existingAssignment = await tx.assignment.findUnique({
+          where: { studentId_date_period: { studentId: ts.studentId, date: today, period: 'MORNING' } }
+        })
+        if (existingAssignment) continue
+
+        await tx.assignment.create({
+          data: {
+            studentId: ts.studentId,
+            busId: bus.id,
+            date: today,
+            period: 'MORNING',
+            line: 'JEBALI',
+            pickupTime: ts.pickupTime || undefined,
+            status: 'scheduled',
+            isGenerated: true,
+            sortOrder: nextSortOrder++,
+          }
+        })
+        currentCount++
+        assignmentsCreated++
       }
     }
 
@@ -701,44 +872,19 @@ export async function addBusesToOperation(userId, busIds) {
       action: 'ADD_BUSES_TO_OPERATION',
       entityType: 'DailyOperation',
       entityId: operation.id,
-      newValue: { date: formatLocalDate(today), busesAdded: buses.length, created: assignments.length },
-      reason: 'إضافة باصات إلى تشغيل اليوم'
+      newValue: { date: formatLocalDate(today), busesAdded: buses.length, created: assignmentsCreated },
+      reason: 'إضافة باصات إلى تشغيل اليوم مع توزيع تلقائي لطلاب القالب الأسبوعي/الافتراضي'
     })
 
     const result = {
       operationId: operation.id,
       busesAdded: buses.length,
-      assignmentsCreated: createdCount
+      assignmentsCreated,
+      addedBuses,
     }
 
     return result
   })
-
-  notifyAddedStudents(busIds)
-}
-
-async function notifyAddedStudents(busIds) {
-  try {
-    const today = getLocalDate()
-    const assignments = await prisma.assignment.findMany({
-      where: { date: today, period: 'MORNING', busId: { in: busIds } },
-      select: { studentId: true },
-    })
-    const seen = new Set()
-    for (const a of assignments) {
-      if (seen.has(a.studentId)) continue
-      seen.add(a.studentId)
-      const userId = await findUserIdByStudentId(a.studentId)
-      if (userId) {
-        notifyStudent({
-          userId, type: 'student_added_to_trip', title: 'تمت إضافتك لرحلة اليوم',
-          message: 'تمت إضافة رحلتك لتشغيل اليوم',
-          targetRoute: '/student',
-          dedupKey: `student_added_to_trip_${a.studentId}`,
-        })
-      }
-    }
-  } catch (e) { /* best-effort */ }
 }
 
 export async function removeBusFromOperation(busId, userId) {

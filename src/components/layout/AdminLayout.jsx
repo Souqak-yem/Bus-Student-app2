@@ -84,7 +84,7 @@ export default function AdminLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface)] flex flex-col lg:flex-row">
+    <div className="min-h-screen surface-wash flex flex-col lg:flex-row">
       {/* Desktop sidebar — always visible lg+ */}
       <div className="hidden lg:block">
         <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
@@ -128,8 +128,8 @@ export default function AdminLayout() {
           )}
         </AnimatePresence>
 
-        <main className="flex-1 px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-6 overflow-x-hidden">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 px-3 sm:px-4 lg:px-6 xl:px-8 py-3 sm:py-4 lg:py-6 overflow-x-hidden">
+          <div className="w-full max-w-[1600px] mx-auto">
             <AnimatePresence mode="wait">
               <motion.div
                 key={location.pathname.split('/').slice(0, 3).join('/')}
@@ -137,6 +137,7 @@ export default function AdminLayout() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.2 }}
+                className="w-full"
               >
                 <Outlet />
               </motion.div>

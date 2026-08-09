@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002/api";
 
 function getToken() {
   return localStorage.getItem("token");
@@ -14,14 +14,23 @@ async function request(endpoint, options = {}) {
 
   const res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
 
-  if (res.status === 401) {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    window.location.href = "/login";
-    throw new Error("غير مصرح به");
+  const text = await res.text();
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = { error: text || "حدث خطأ" };
   }
 
-  const data = await res.json();
+  if (res.status === 401) {
+    if (endpoint !== "/auth/login") {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
+    }
+    throw new Error(data.error || "غير مصرح به");
+  }
+
   if (!res.ok) throw new Error(data.error || "حدث خطأ");
   return data;
 }
@@ -49,6 +58,7 @@ export const api = {
     get: (id) => api.get(`/users/${id}`),
     create: (data) => api.post("/users", data),
     update: (id, data) => api.put(`/users/${id}`, data),
+    delete: (id) => api.delete(`/users/${id}`),
     resetPassword: (id) => api.post(`/users/${id}/reset-password`),
     forceChangePassword: (id) => api.post(`/users/${id}/force-change-password`),
     generateUsername: (id) => api.post(`/users/${id}/generate-username`),
@@ -106,28 +116,28 @@ export const api = {
 
   return: {
     operation: {
-      get: () => api.get("/return/operation"),
-      create: (data) => api.post("/return/operation", data),
-      close: (id) => api.patch(`/return/operation/${id}/close`, {}),
+      get: () => api.get('/return/operation'),
+      create: (data) => api.post('/return/operation', data),
+      close: (id) => api.patch(`/return/operation/${id}/close`),
     },
     queue: {
-      list: () => api.get("/return/queue"),
-      add: (studentId, notes) =>
-        api.post("/return/queue", { studentId, notes }),
+      list: () => api.get('/return/queue'),
+      add: (studentId, notes) => api.post('/return/queue', { studentId, notes }),
       remove: (id) => api.delete(`/return/queue/${id}`),
     },
     activeBuses: {
-      list: () => api.get("/return/active-buses"),
-      add: (busId) => api.post("/return/active-buses", { busId }),
-      updateStatus: (id, status) =>
-        api.patch(`/return/active-buses/${id}/status`, { status }),
+      list: () => api.get('/return/active-buses'),
+      add: (busId) => api.post('/return/active-buses', { busId }),
+      updateStatus: (id, status) => api.patch(`/return/active-buses/${id}/status`, { status }),
       remove: (id) => api.delete(`/return/active-buses/${id}`),
     },
     loads: {
       add: (activeBusId, studentId, exceptionReason) =>
-        api.post("/return/load", { activeBusId, studentId, exceptionReason }),
+        api.post('/return/load', { activeBusId, studentId, exceptionReason }),
       remove: (activeBusId, studentId) =>
         api.delete(`/return/load/${activeBusId}/${studentId}`),
+      transfer: (studentId, fromActiveBusId, toActiveBusId, exceptionReason) =>
+        api.post('/return/load/transfer', { studentId, fromActiveBusId, toActiveBusId, exceptionReason }),
       dropoff: (activeBusId, studentId) =>
         api.patch(`/return/load/${activeBusId}/${studentId}/dropoff`, {}),
     },
@@ -139,7 +149,7 @@ export const api = {
       api.post(`/return/active-buses/${activeBusId}/dispatch-by-driver`, {}),
     complete: (activeBusId) =>
       api.patch(`/return/active-buses/${activeBusId}/complete`, {}),
-    departed: () => api.get("/return/departed"),
+    departed: () => api.get('/return/departed'),
   },
 
   busStudents: {
@@ -228,24 +238,17 @@ export const api = {
   },
 
   operations: {
-    generate: (busIds) => api.post("/operations/generate", { busIds }),
-    getToday: () => api.get("/operations/today"),
-    getAvailableBuses: () => api.get("/operations/today/available-buses"),
+    generate: (busIds) => api.post('/operations/generate', { busIds }),
+    getToday: () => api.get('/operations/today'),
+    getAvailableBuses: () => api.get('/operations/today/available-buses'),
     getBusDetail: (busId) => api.get(`/operations/today/bus/${busId}`),
-    updateBusLine: (busId, line) =>
-      api.patch(`/operations/today/bus/${busId}/line`, { line }),
-    addStudent: (busId, studentId) =>
-      api.post(`/operations/today/bus/${busId}/assignments`, { studentId }),
-    removeStudent: (busId, assignmentId) =>
-      api.delete(`/operations/today/bus/${busId}/assignments/${assignmentId}`),
-    updateAssignment: (busId, assignmentId, data) =>
-      api.put(
-        `/operations/today/bus/${busId}/assignments/${assignmentId}`,
-        data,
-      ),
+    updateBusLine: (busId, line) => api.patch(`/operations/today/bus/${busId}/line`, { line }),
+    addStudent: (busId, studentId, pickupTime) => api.post(`/operations/today/bus/${busId}/assignments`, { studentId, pickupTime }),
+    removeStudent: (busId, assignmentId) => api.delete(`/operations/today/bus/${busId}/assignments/${assignmentId}`),
+    updateAssignment: (busId, assignmentId, data) => api.put(`/operations/today/bus/${busId}/assignments/${assignmentId}`, data),
     updateStatus: (id, status) =>
       api.patch(`/assignments/${id}/status`, { status }),
-    addBuses: (busIds) => api.post("/operations/today/add-buses", { busIds }),
+    addBuses: (busIds) => api.post('/operations/today/add-buses', { busIds }),
     removeBus: (busId) => api.delete(`/operations/today/bus/${busId}`),
     transferStudent: (fromBusId, toBusId, studentId) =>
       api.post(`/operations/today/bus/${fromBusId}/transfer`, { toBusId, studentId }),
@@ -253,8 +256,11 @@ export const api = {
       api.post(`/operations/today/bus/${fromBusId}/transfer-all`, { toBusId }),
     bulkPickupTime: (busId, adjustment, minutes) =>
       api.patch(`/operations/today/bus/${busId}/bulk-pickup-time`, { adjustment, minutes }),
-    completeMorning: (busId) => api.post(`/operations/today/bus/${busId}/complete-morning`),
-    cancelTrip: (busId) => api.post(`/operations/today/bus/${busId}/cancel`),
+    completeMorning: (busId) =>
+      api.post(`/operations/today/bus/${busId}/complete-morning`),
+    cancelTrip: (busId) =>
+      api.post(`/operations/today/bus/${busId}/cancel`),
+    close: () => api.post('/operations/today/close'),
     getHistory: () => api.get("/operations/history"),
   },
 
@@ -307,10 +313,16 @@ export const api = {
     getDashboard: () => api.get("/student-portal/dashboard"),
     getAssignments: () => api.get("/student-portal/assignments"),
     getSubscriptions: () => api.get("/student-portal/subscriptions"),
+    getWeeklySchedule: () => api.get("/student-portal/weekly-schedule"),
     getPricing: () => api.get("/student-portal/pricing"),
     getPricingByDestination: (destinationId) => api.get(`/student-portal/pricing-by-destination?destinationId=${destinationId}`),
     joinReturnQueue: () => api.post("/student-portal/return-queue/join"),
     notifyNext: () => api.post("/student-portal/notify-next"),
+    register: (data) => api.post("/student-portal/register", data),
+    getRegistrationData: () => api.get("/student-portal/registration-data"),
+    requests: (params) => api.get(`/student-portal/requests?${new URLSearchParams(params)}`),
+    approveRequest: (id, data) => api.post(`/student-portal/requests/${id}/approve`, data),
+    rejectRequest: (id, reason) => api.post(`/student-portal/requests/${id}/reject`, { reason }),
     subscriptionRequest: (data) => api.post("/student-portal/subscription-request", data),
     campaignPrice: (campaignId) => api.get(`/student-portal/campaign-price/${campaignId}`),
   },
@@ -333,6 +345,7 @@ export const api = {
     markAllRead: () => api.patch("/notifications/read-all"),
     deleteNotification: (id) => api.delete(`/notifications/${id}`),
     deleteAll: () => api.delete("/notifications"),
+    checkUnassignedDaily: () => api.post("/notifications/check-unassigned-daily"),
   },
 
   messageTemplates: {
@@ -355,20 +368,6 @@ export const api = {
     vapidKey: () => api.get("/push/vapid-public-key"),
     subscribe: (subscription, userAgent) => api.post("/push/subscribe", { subscription, userAgent }),
     unsubscribe: (endpoint) => api.post("/push/unsubscribe", { endpoint }),
-  },
-
-  saturday: {
-    subscriptions: () => api.get('/saturday/subscriptions'),
-    operation: () => api.get('/saturday/operation'),
-    availableBuses: () => api.get('/saturday/available-buses'),
-    create: (busIds) => api.post('/saturday/create', { busIds }),
-    addStudent: (busId, studentId, pickupTime) => api.post(`/saturday/buses/${busId}/students`, { studentId, pickupTime }),
-    removeStudent: (busId, studentId) => api.delete(`/saturday/buses/${busId}/students/${studentId}`),
-    updatePickupTime: (busId, studentId, pickupTime) => api.patch(`/saturday/buses/${busId}/students/${studentId}/pickup-time`, { pickupTime }),
-    close: () => api.post('/saturday/close'),
-    removeBus: (busId) => api.delete(`/saturday/buses/${busId}`),
-    studentDashboard: () => api.get('/saturday/student/dashboard'),
-    driverDashboard: () => api.get('/saturday/driver/dashboard'),
   },
 
   busStudentOrder: {

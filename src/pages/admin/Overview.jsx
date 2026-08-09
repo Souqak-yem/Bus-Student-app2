@@ -186,8 +186,8 @@ export default function AdminOverview() {
       </div>
 
       {showResetModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => { setShowResetModal(false); setResetConfirmText('') }}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => { setShowResetModal(false); setResetConfirmText('') }}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-[min(95vw,780px)] lg:max-w-[900px] shadow-xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-red-600">مسح جميع البيانات</h3>
               <button onClick={() => { setShowResetModal(false); setResetConfirmText('') }} className="p-1 rounded-lg hover:bg-[var(--color-border-light)]">

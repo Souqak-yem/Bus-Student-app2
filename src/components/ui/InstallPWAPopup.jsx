@@ -146,51 +146,36 @@ export default function InstallPWAPopup() {
             </button>
 
             <div className="px-5 pt-5 pb-3 text-center">
-              <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-3 shadow-lg shadow-blue-500/20">
-                <Smartphone size={26} className="text-white" />
+              <div className="w-14 h-14 mx-auto rounded-2xl bg-white flex items-center justify-center mb-3 shadow-lg shadow-slate-200/80">
+                <img src="/full-logo.svg" alt="شعار التطبيق" className="w-10 h-10 object-contain" />
               </div>
               <h3 className="text-base font-bold text-slate-800">ثبّت تطبيق مواصلاتك</h3>
-              <p className="text-xs text-slate-500 mt-1">سرعة أكبر، إشعارات فورية، تجربة أفضل</p>
+              <p className="text-xs text-slate-500 mt-1">سرعة أكبر، إشعارات فورية، وتجربة أفضل</p>
             </div>
 
             <div className="px-5 pb-5">
               {deviceType === 'android' && (
                 <div className="space-y-3">
-                  {deferredPrompt ? (
-                    <button
-                      onClick={handleInstall}
-                      disabled={installing}
-                      className="w-full py-3 rounded-xl bg-gradient-to-l from-blue-600 to-blue-500 text-white font-semibold text-sm shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all active:scale-[0.98]"
-                    >
-                      {installing ? (
-                        <span className="flex items-center justify-center gap-2">
-                          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          جاري التثبيت...
-                        </span>
-                      ) : (
-                        <span className="flex items-center justify-center gap-2">
-                          <Download size={16} />
-                          تثبيت التطبيق
-                        </span>
-                      )}
-                    </button>
-                  ) : (
-                    <div className="space-y-2">
-                      <p className="text-xs text-slate-500 text-center">اتبع الخطوات التالية:</p>
-                      {[
-                        { icon: '⋮', text: 'اضغط على قائمة المتصفح (ثلاث نقاط)' },
-                        { icon: <Plus size={12} />, text: 'اختر "تثبيت التطبيق"' },
-                        { icon: '✓', text: 'اضغط "تثبيت" للتأكيد' },
-                      ].map((s, i) => (
-                        <div key={i} className="flex items-center gap-3 bg-white/60 rounded-xl px-3 py-2.5 border border-white/40">
-                          <span className="w-7 h-7 rounded-full bg-blue-50 text-blue-600 text-xs font-bold flex items-center justify-center shrink-0">
-                            {s.icon}
-                          </span>
-                          <span className="text-xs text-slate-700">{s.text}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <button
+                    onClick={handleInstall}
+                    disabled={!deferredPrompt || installing}
+                    className="w-full py-3 rounded-xl bg-gradient-to-l from-blue-600 to-blue-500 text-white font-semibold text-sm shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all active:scale-[0.98] disabled:opacity-60"
+                  >
+                    {installing ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        جاري التثبيت...
+                      </span>
+                    ) : (
+                      'تثبيت التطبيق'
+                    )}
+                  </button>
+                  <button
+                    onClick={dismiss}
+                    className="w-full py-3 rounded-xl border border-slate-200 bg-white text-slate-700 font-medium text-sm hover:bg-slate-50 transition-all"
+                  >
+                    تثبيت لاحقاً
+                  </button>
                 </div>
               )}
 
@@ -210,13 +195,6 @@ export default function InstallPWAPopup() {
                   <p className="text-xs text-slate-500">افتح هذا الموقع على هاتفك المحمول لتثبيت التطبيق</p>
                 </div>
               )}
-
-              <button
-                onClick={dismiss}
-                className="w-full mt-4 py-2 text-xs text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                ليس الآن
-              </button>
             </div>
           </div>
         </div>

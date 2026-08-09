@@ -122,7 +122,7 @@ export default function AdminTransfers() {
       <AnimatePresence>
         {showForm && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="modal-overlay" onClick={() => { setShowForm(false); setForm(emptyForm) }}>
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="modal-content max-w-lg" onClick={(e) => e.stopPropagation()}>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="modal-content max-w-[min(95vw,860px)] lg:max-w-[980px]" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between p-5 border-b border-[var(--color-border)]">
                 <h2 className="text-lg font-bold">تحويل طالب</h2>
                 <button onClick={() => { setShowForm(false); setForm(emptyForm) }} className="p-2 rounded-lg hover:bg-[var(--color-border-light)]"><X size={20} /></button>

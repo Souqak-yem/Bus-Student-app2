@@ -188,7 +188,7 @@ export default function AdminTrips() {
       {/* Form Modal */}
       {showForm && (
         <div className="modal-overlay" onClick={() => { setShowForm(false); setEditing(null) }}>
-          <div className="modal-content max-w-2xl p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content max-w-[min(95vw,1160px)] lg:max-w-[1200px] p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">إنشاء رحلة جديدة</h2>
               <button onClick={() => { setShowForm(false); setEditing(null) }} className="p-1 rounded hover:bg-[var(--color-border-light)]"><X size={18} /></button>

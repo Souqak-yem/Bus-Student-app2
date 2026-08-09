@@ -82,7 +82,7 @@ router.patch('/today/bus/:busId/line', authorize('admin'), async (req, res) => {
 
 router.post('/today/bus/:busId/assignments', authorize('admin'), async (req, res) => {
   try {
-    const { studentId } = req.body
+    const { studentId, pickupTime } = req.body
     if (!studentId) return res.status(400).json({ error: 'الطالب مطلوب' })
     const assignment = await addStudentToOperation(req.params.busId, studentId, req.user.id)
     const student = await prisma.student.findUnique({ where: { id: studentId }, select: { name: true } })
@@ -167,6 +167,10 @@ router.delete('/today/bus/:busId', authorize('admin'), async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
+})
+
+router.post('/today/close', authorize('admin'), async (req, res) => {
+  res.status(400).json({ error: 'لا يوجد دعم لإغلاق تشغيل اليوم' })
 })
 
 router.patch('/today/bus/:busId/bulk-pickup-time', authorize('admin'), async (req, res) => {

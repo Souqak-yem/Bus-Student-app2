@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react'
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { useState, useCallback, useEffect } from 'react'
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import Onboarding from './components/Onboarding'
 import AuthLayout from './components/layout/AuthLayout'
@@ -7,6 +7,7 @@ import AdminLayout from './components/layout/AdminLayout'
 import DriverLayout from './components/layout/DriverLayout'
 import StudentLayout from './components/layout/StudentLayout'
 import Login from './pages/auth/Login'
+import Register from './pages/auth/Register'
 import ChangePassword from './pages/auth/ChangePassword'
 import InstallPWAPopup from './components/ui/InstallPWAPopup'
 import UpdateNotification from './components/ui/UpdateNotification'
@@ -16,6 +17,7 @@ import StudentNotifications from './pages/student/Notifications'
 import StudentSettings from './pages/student/Settings'
 import AdminDashboard from './pages/admin/Dashboard'
 import AdminStudents from './pages/admin/Students'
+import AdminStudentRequests from './pages/admin/StudentRequests'
 import AdminBuses from './pages/admin/buses/Buses'
 import BusDetails from './pages/admin/buses/BusDetails'
 import AdminDailyOperation from './pages/admin/DailyOperation'
@@ -33,7 +35,6 @@ import AdminUsers from './pages/admin/Users'
 import AdminOperations from './pages/admin/Operations'
 import SubscriptionsPage from './pages/admin/Subscriptions'
 import DailySubscriptionManagement from './pages/admin/DailySubscriptionManagement'
-import SaturdayOperation from './pages/admin/SaturdayOperation'
 import AdminReports from './pages/admin/Reports'
 import AdminManage from './pages/admin/Manage'
 import AdminControl from './pages/admin/Control'
@@ -76,6 +77,21 @@ export default function App() {
     setShowOnboarding(false)
   }, [])
 
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    function handleServiceWorkerMessage(event) {
+      if (!event.data || event.data.type !== 'SW_NAVIGATE' || !event.data.url) return
+      const origin = window.location.origin
+      if (!event.data.url.startsWith(origin)) return
+      const path = event.data.url.slice(origin.length) || '/'
+      navigate(path, { replace: false, state: { fromNotification: true } })
+    }
+
+    window.addEventListener('message', handleServiceWorkerMessage)
+    return () => window.removeEventListener('message', handleServiceWorkerMessage)
+  }, [navigate])
+
   if (showOnboarding) {
     return <Onboarding onComplete={handleOnboardingComplete} />
   }
@@ -85,6 +101,7 @@ export default function App() {
       <Routes>
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
         </Route>
 
         <Route path="/debug" element={<Debug />} />
@@ -102,6 +119,7 @@ export default function App() {
           }
         >
           <Route index element={<AdminDashboard />} />
+          <Route path="student-requests" element={<AdminStudentRequests />} />
           <Route path="students" element={<AdminStudents />} />
           <Route path="buses" element={<AdminBuses />} />
           <Route path="buses/:id" element={<BusDetails />} />
@@ -114,7 +132,6 @@ export default function App() {
           </Route>
           <Route path="subscriptions" element={<SubscriptionsPage />} />
           <Route path="subscriptions/daily" element={<DailySubscriptionManagement />} />
-          <Route path="saturday/operation" element={<SaturdayOperation />} />
           <Route path="finance/pricing" element={<Navigate to="/admin/subscriptions?tab=pricing" replace />} />
           <Route path="finance/campaigns" element={<Navigate to="/admin/subscriptions?tab=campaigns" replace />} />
           <Route path="finance/approvals" element={<Navigate to="/admin/subscriptions?tab=approvals" replace />} />

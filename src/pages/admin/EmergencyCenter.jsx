@@ -277,7 +277,7 @@ export default function EmergencyCenter() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl p-5 max-h-[85vh] overflow-y-auto shadow-xl w-full max-w-lg"
+              className="bg-white rounded-2xl p-5 max-h-[85vh] overflow-y-auto shadow-xl w-full max-w-[min(95vw,960px)] lg:max-w-3xl"
               onClick={e => e.stopPropagation()}
             >
               <h3 className="text-base font-bold mb-4">رفض بلاغ السائق</h3>

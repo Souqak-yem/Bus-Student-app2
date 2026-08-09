@@ -11,8 +11,10 @@ export default function ConfirmModal({ show, onClose, onConfirm, title, children
           <button
             onClick={onConfirm}
             disabled={loading}
-            className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 text-white ${
-              danger ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
+            className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50 text-white active:scale-[0.98] ${
+              danger
+                ? 'gradient-danger shadow-[0_4px_12px_-4px_rgba(239,68,68,0.5)]'
+                : 'gradient-primary shadow-[0_4px_12px_-4px_rgba(37,99,235,0.5)]'
             }`}
           >
             {loading ? 'جاري...' : confirmText}
@@ -20,7 +22,7 @@ export default function ConfirmModal({ show, onClose, onConfirm, title, children
           <button
             onClick={onClose}
             disabled={loading}
-            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
           >
             {cancelText}
           </button>

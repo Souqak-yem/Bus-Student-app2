@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, Bus, CalendarCheck, ClipboardList,
   FileText, DollarSign, Settings, LogOut, Menu, X, AlertTriangle,
-  CreditCard, MapPin, CalendarRange, Sun, Shield,
+  CreditCard, MapPin, CalendarRange, Shield, MessageSquare,
 } from 'lucide-react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
@@ -19,7 +19,6 @@ const navGroups = [
     items: [
       { to: '/admin/operations/today', label: 'تشغيل اليوم', icon: CalendarCheck },
       { to: '/admin/operations/return', label: 'رحلات العودة', icon: ClipboardList },
-      { to: '/admin/saturday/operation', label: 'تشغيل السبت', icon: Sun },
       { to: '/admin/emergency', label: 'مركز الطوارئ', icon: AlertTriangle },
     ],
   },
@@ -28,6 +27,7 @@ const navGroups = [
     items: [
       { to: '/admin/buses', label: 'الباصات', icon: Bus },
       { to: '/admin/students', label: 'الطلاب', icon: Users },
+      { to: '/admin/student-requests', label: 'طلبات التسجيل', icon: MessageSquare },
       { to: '/admin/destinations', label: 'الوجهات', icon: MapPin },
     ],
   },
@@ -73,7 +73,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         style={{ direction: 'rtl' }}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-4 h-20 border-b border-[var(--color-border)] shrink-0">
+        <div className="flex items-center gap-3 px-4 h-20 border-b border-[var(--color-border)] shrink-0 bg-gradient-to-l from-[var(--color-primary)]/[0.05] to-transparent">
           <img src="/full-logo.svg" alt="شعار" className="w-12 h-12 lg:w-14 lg:h-14 object-contain flex-shrink-0" />
           <AnimatePresence>
             {!collapsed && (
@@ -96,7 +96,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         {!collapsed && (
           <div className="px-4 py-3 border-b border-[var(--color-border)] shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full gradient-accent flex items-center justify-center text-white text-sm font-bold">
+              <div className="w-9 h-9 rounded-full gradient-primary flex items-center justify-center text-white text-sm font-bold shadow-[0_4px_10px_-4px_rgba(37,99,235,0.55)]">
                 {user?.name?.[0] || 'م'}
               </div>
               <div className="min-w-0">
@@ -127,7 +127,7 @@ export default function Sidebar({ collapsed, onToggle }) {
                       className={({ isActive }) =>
                         `flex items-center gap-3 px-3 rounded-xl text-sm transition-all duration-150 min-h-[44px] ${
                           isActive
-                            ? 'bg-[var(--color-primary-lighter)] text-[var(--color-primary-dark)] font-medium'
+                            ? 'gradient-primary text-white font-semibold shadow-[0_4px_14px_-4px_rgba(37,99,235,0.6)]'
                             : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-border-light)] hover:text-[var(--color-text)]'
                         } ${collapsed ? 'justify-center px-3' : ''}`
                       }

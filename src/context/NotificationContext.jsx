@@ -30,6 +30,7 @@ export function NotificationProvider({ children }) {
 
   const playSoundRef = useRef(null)
   const lastSoundIdRef = useRef(null)
+  const unassignedCheckedRef = useRef(null)
 
   const playNotificationSound = useCallback((priority, notifId) => {
     if (lastSoundIdRef.current === notifId) return
@@ -69,13 +70,21 @@ export function NotificationProvider({ children }) {
     }
   }, [user, refreshUnreadCount])
 
+  // On admin login, check for unassigned daily subscriptions and notify
+  useEffect(() => {
+    if (!user || user.role !== 'admin') return
+    if (unassignedCheckedRef.current === user.id) return
+    unassignedCheckedRef.current = user.id
+    api.notifications.checkUnassignedDaily().catch((err) => console.error('[Unassigned check] failed:', err))
+  }, [user])
+
   useEffect(() => {
     if (!user) return
 
     const token = localStorage.getItem('token')
     if (token) {
-      const sock = connectSocket(token)
-      if (sock.connected) joinNotificationRoom()
+      connectSocket(token)
+      joinNotificationRoom()
     }
 
     const handleNewNotification = (notification) => {

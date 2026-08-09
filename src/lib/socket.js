@@ -1,6 +1,8 @@
 import { io } from 'socket.io-client'
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002/api'
+const defaultSocketUrl = API_URL.replace(/\/api\/?$/, '')
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || defaultSocketUrl
 let socket = null
 let reconnectCallbacks = []
 
@@ -10,6 +12,13 @@ export function getSocket() {
 
 export function connectSocket(token) {
   if (socket?.connected) return socket
+  if (socket) {
+    socket.auth = { token }
+    socket.connect()
+    console.debug('[socket] reconnecting to', SOCKET_URL)
+    return socket
+  }
+  console.debug('[socket] connecting to', SOCKET_URL)
   socket = io(SOCKET_URL, {
     auth: { token },
     transports: ['websocket', 'polling'],
@@ -21,7 +30,11 @@ export function connectSocket(token) {
   socket.on('connect_error', (err) => {
     console.error('Socket connection error:', err.message)
   })
+  socket.on('connect', () => {
+    console.debug('[socket] connected', socket.id)
+  })
   socket.on('reconnect', () => {
+    console.debug('[socket] reconnected', socket.id)
     reconnectCallbacks.forEach(cb => cb())
   })
   return socket
@@ -43,167 +56,167 @@ export function onReconnect(callback) {
 }
 
 export function joinBusRoom(activeBusId) {
-  if (socket?.connected) {
+  if (socket) {
     socket.emit('tracking:join', activeBusId)
   }
 }
 
 export function leaveBusRoom(activeBusId) {
-  if (socket?.connected) {
+  if (socket) {
     socket.emit('tracking:leave', activeBusId)
   }
 }
 
 export function onTrackingUpdate(callback) {
   if (socket) {
-    socket.off('tracking:update')
     socket.on('tracking:update', callback)
   }
 }
 
-export function offTrackingUpdate() {
+export function offTrackingUpdate(callback) {
   if (socket) {
-    socket.off('tracking:update')
+    if (callback) socket.off('tracking:update', callback)
+    else socket.off('tracking:update')
   }
 }
 
 export function onNotificationNew(callback) {
   if (socket) {
-    socket.off('notification:new')
     socket.on('notification:new', callback)
   }
 }
 
-export function offNotificationNew() {
+export function offNotificationNew(callback) {
   if (socket) {
-    socket.off('notification:new')
+    if (callback) socket.off('notification:new', callback)
+    else socket.off('notification:new')
   }
 }
 
 export function joinNotificationRoom() {
-  if (socket?.connected) {
+  if (socket) {
     socket.emit('notification:join')
   }
 }
 
 export function onEmergencyReport(callback) {
   if (socket) {
-    socket.off('emergency:new-report')
     socket.on('emergency:new-report', callback)
   }
 }
 
-export function offEmergencyReport() {
+export function offEmergencyReport(callback) {
   if (socket) {
-    socket.off('emergency:new-report')
+    if (callback) socket.off('emergency:new-report', callback)
+    else socket.off('emergency:new-report')
   }
 }
 
 export function onEmergencyReportUpdate(callback) {
   if (socket) {
-    socket.off('emergency:report-update')
     socket.on('emergency:report-update', callback)
   }
 }
 
-export function offEmergencyReportUpdate() {
+export function offEmergencyReportUpdate(callback) {
   if (socket) {
-    socket.off('emergency:report-update')
+    if (callback) socket.off('emergency:report-update', callback)
+    else socket.off('emergency:report-update')
   }
 }
 
 export function onUnreadCount(callback) {
   if (socket) {
-    socket.off('notification:unread-count')
     socket.on('notification:unread-count', callback)
   }
 }
 
-export function offUnreadCount() {
+export function offUnreadCount(callback) {
   if (socket) {
-    socket.off('notification:unread-count')
+    if (callback) socket.off('notification:unread-count', callback)
+    else socket.off('notification:unread-count')
   }
 }
 
 export function onNotificationRead(callback) {
   if (socket) {
-    socket.off('notification:read')
     socket.on('notification:read', callback)
   }
 }
 
-export function offNotificationRead() {
+export function offNotificationRead(callback) {
   if (socket) {
-    socket.off('notification:read')
+    if (callback) socket.off('notification:read', callback)
+    else socket.off('notification:read')
   }
 }
 
 export function onNotificationReadAll(callback) {
   if (socket) {
-    socket.off('notification:read-all')
     socket.on('notification:read-all', callback)
   }
 }
 
-export function offNotificationReadAll() {
+export function offNotificationReadAll(callback) {
   if (socket) {
-    socket.off('notification:read-all')
+    if (callback) socket.off('notification:read-all', callback)
+    else socket.off('notification:read-all')
   }
 }
 
 export function onNotificationDeleted(callback) {
   if (socket) {
-    socket.off('notification:deleted')
     socket.on('notification:deleted', callback)
   }
 }
 
-export function offNotificationDeleted() {
+export function offNotificationDeleted(callback) {
   if (socket) {
-    socket.off('notification:deleted')
+    if (callback) socket.off('notification:deleted', callback)
+    else socket.off('notification:deleted')
   }
 }
 
 export function onNotificationDeletedAll(callback) {
   if (socket) {
-    socket.off('notification:deleted-all')
     socket.on('notification:deleted-all', callback)
   }
 }
 
-export function offNotificationDeletedAll() {
+export function offNotificationDeletedAll(callback) {
   if (socket) {
-    socket.off('notification:deleted-all')
+    if (callback) socket.off('notification:deleted-all', callback)
+    else socket.off('notification:deleted-all')
   }
 }
 
 export function onMissedNotifications(callback) {
   if (socket) {
-    socket.off('notification:missed-list')
     socket.on('notification:missed-list', callback)
   }
 }
 
-export function offMissedNotifications() {
+export function offMissedNotifications(callback) {
   if (socket) {
-    socket.off('notification:missed-list')
+    if (callback) socket.off('notification:missed-list', callback)
+    else socket.off('notification:missed-list')
   }
 }
 
 export function emitGetMissedNotifications(since) {
-  if (socket?.connected) {
+  if (socket) {
     socket.emit('notification:get-missed', since)
   }
 }
 
 export function joinDriverBusRoom(busId) {
-  if (socket?.connected) {
+  if (socket) {
     socket.emit('driver_bus:join', busId)
   }
 }
 
 export function leaveDriverBusRoom(busId) {
-  if (socket?.connected) {
+  if (socket) {
     socket.emit('driver_bus:leave', busId)
   }
 }
@@ -244,19 +257,6 @@ export function onDailyExceptionsUpdate(callback) {
 export function offDailyExceptionsUpdate() {
   if (socket) {
     socket.off('dailyExceptions:update')
-  }
-}
-
-export function onSaturdayUpdate(callback) {
-  if (socket) {
-    socket.off('saturday:update')
-    socket.on('saturday:update', callback)
-  }
-}
-
-export function offSaturdayUpdate() {
-  if (socket) {
-    socket.off('saturday:update')
   }
 }
 

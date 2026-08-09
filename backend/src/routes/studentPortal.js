@@ -1,14 +1,274 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
-import { authenticate } from '../middleware/auth.js'
+import { authenticate, authorize } from '../middleware/auth.js'
 import { expireSubscriptions, hasActiveSameTypeSubscription, createSubscriptionNotification, setExecutionDates } from '../services/subscriptionService.js'
 import { createAndBroadcast } from '../services/notificationService.js'
-import { getLocalDate, formatLocalDate, resolveDailyExecutionDates } from '../utils/dateUtils.js'
+import { getLocalDate, formatLocalDate, resolveDailyExecutionDates, snapToSaturday } from '../utils/dateUtils.js'
 import { getStudentOperationStage, Stage } from '../services/operationStage.js'
 import { calculateFinalSubscriptionPrice } from '../services/pricingService.js'
+import { generateStudentUsername, ensureUniqueUsername, hashPassword } from '../services/authService.js'
+import { generateRandomPassword } from '../utils/secrets.js'
 
 const router = Router()
+
+async function findPendingRegistration(phone, whatsapp) {
+  const where = { status: 'PENDING' }
+  if (phone && whatsapp) {
+    where.OR = [
+      { phone },
+      { whatsapp },
+    ]
+  } else if (phone) {
+    where.phone = phone
+  } else if (whatsapp) {
+    where.whatsapp = whatsapp
+  }
+  return prisma.studentRegistrationRequest.findFirst({ where })
+}
+
+router.get('/registration-data', async (req, res) => {
+  try {
+    const [zones, destinations] = await Promise.all([
+      prisma.pricingArea.findMany({ where: { isActive: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
+      prisma.destination.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }], select: { id: true, name: true } }),
+    ])
+    res.json({ zones, destinations })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+router.post('/register', async (req, res) => {
+  try {
+    const {
+      name,
+      phone,
+      whatsapp,
+      parentName,
+      parentPhone,
+      parentRelation,
+      address,
+      zone,
+      destinationId,
+      major,
+      level,
+      institutionName,
+      offDays,
+      transportMode,
+      pickupLocation,
+      homeAddress,
+    } = req.body
+
+    if (!name || !phone || !whatsapp || !parentName || !parentPhone || !parentRelation || !address || !zone || !major || !level || !transportMode) {
+      return res.status(400).json({ error: 'جميع الحقول الأساسية مطلوبة' })
+    }
+
+    if (transportMode === 'LINE' && !pickupLocation) {
+      return res.status(400).json({ error: 'نقطة الانتظار مطلوبة عند اختيار التوصيل على الخط' })
+    }
+    if (transportMode === 'HOME' && !homeAddress) {
+      return res.status(400).json({ error: 'عنوان المنزل مطلوب عند اختيار التوصيل المنزلي' })
+    }
+
+    const existingRequest = await findPendingRegistration(phone, whatsapp)
+    if (existingRequest) {
+      return res.status(400).json({ error: 'يوجد طلب تسجيل قيد الانتظار بنفس رقم الجوال أو الواتساب' })
+    }
+
+    const existingStudent = await prisma.student.findFirst({
+      where: {
+        OR: [{ phone }, { whatsapp }],
+      },
+    })
+    if (existingStudent) {
+      return res.status(400).json({ error: 'يوجد طالب مسجل مسبقاً بنفس رقم الجوال أو الواتساب' })
+    }
+
+    const request = await prisma.studentRegistrationRequest.create({
+      data: {
+        name,
+        phone,
+        whatsapp,
+        parentName,
+        parentPhone,
+        parentRelation,
+        address,
+        zone,
+        destinationId: destinationId || null,
+        major,
+        level,
+        institutionName: institutionName || '',
+        offDays: Array.isArray(offDays) ? offDays : [],
+        transportMode,
+        pickupLocation: transportMode === 'LINE' ? pickupLocation : null,
+        homeAddress: transportMode === 'HOME' ? homeAddress : null,
+      },
+    })
+
+    const adminUsers = await prisma.user.findMany({ where: { role: 'admin' }, select: { id: true } })
+    await Promise.all(adminUsers.map((admin) =>
+      createAndBroadcast({
+        userId: admin.id,
+        type: 'student_registration_request',
+        title: 'طلب تسجيل جديد',
+        message: `طلب تسجيل طالب جديد من ${name}`,
+        dedupKey: `student_registration_request_${admin.id}_${request.id}`,
+      })
+    ))
+
+    res.status(201).json({ message: 'تم إرسال طلب التسجيل. سيتم مراجعته من قبل الإدارة.' })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 router.use(authenticate)
+
+router.get('/requests', authorize('admin'), async (req, res) => {
+  try {
+    const { status, search } = req.query
+    const where = {}
+    if (status) where.status = status
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search } },
+        { whatsapp: { contains: search } },
+        { parentName: { contains: search, mode: 'insensitive' } },
+      ]
+    }
+
+    const requests = await prisma.studentRegistrationRequest.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: { destination: true, reviewedBy: { select: { id: true, name: true } } },
+    })
+    res.json(requests)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+router.post('/requests/:id/approve', authorize('admin'), async (req, res) => {
+  try {
+    const request = await prisma.studentRegistrationRequest.findUnique({
+      where: { id: req.params.id },
+    })
+    if (!request) return res.status(404).json({ error: 'الطلب غير موجود' })
+    if (request.status !== 'PENDING') return res.status(400).json({ error: 'الطلب غير متاح للموافقة' })
+
+    const parseOptionalPrice = (value) => {
+      if (value === undefined || value === null || value === '') return undefined
+      const num = Number(value)
+      return Number.isNaN(num) ? undefined : num
+    }
+
+    const homeDeliveryFeeDaily = parseOptionalPrice(req.body.homeDeliveryFeeDaily)
+    const homeDeliveryFeeThreeWeeks = parseOptionalPrice(req.body.homeDeliveryFeeThreeWeeks)
+    const homeDeliveryFeeFourWeeks = parseOptionalPrice(req.body.homeDeliveryFeeFourWeeks)
+
+    const createdAt = new Date()
+    let credentials = { username: '', password: '' }
+    const result = await prisma.$transaction(async (tx) => {
+      const createdStudent = await tx.student.create({
+        data: {
+          name: request.name,
+          phone: request.phone,
+          whatsapp: request.whatsapp,
+          parentName: request.parentName,
+          parentPhone: request.parentPhone,
+          parentRelation: request.parentRelation,
+          address: request.address,
+          zone: request.zone,
+          destinationId: request.destinationId,
+          major: request.major,
+          level: request.level,
+          institutionName: request.institutionName,
+          offDays: request.offDays || [],
+          transportMode: request.transportMode,
+          pickupLocation: request.transportMode === 'LINE' ? request.pickupLocation : null,
+          homeAddress: request.transportMode === 'HOME' ? request.homeAddress : null,
+          homeDeliveryActive: request.transportMode === 'HOME',
+          homeDeliveryFeeDaily: homeDeliveryFeeDaily != null ? homeDeliveryFeeDaily : 0,
+          homeDeliveryFeeThreeWeeks: homeDeliveryFeeThreeWeeks != null ? homeDeliveryFeeThreeWeeks : 0,
+          homeDeliveryFeeFourWeeks: homeDeliveryFeeFourWeeks != null ? homeDeliveryFeeFourWeeks : 0,
+        },
+      })
+
+      const baseUsername = generateStudentUsername(request.name)
+      const username = await ensureUniqueUsername(baseUsername)
+      const password = request.phone || generateRandomPassword()
+      const hashedPassword = await hashPassword(password)
+      const createdUser = await tx.user.create({
+        data: {
+          username,
+          password: hashedPassword,
+          name: request.name,
+          phone: request.phone,
+          role: 'student',
+          mustChangePassword: true,
+          studentId: createdStudent.id,
+        },
+      })
+
+      await tx.studentRegistrationRequest.update({
+        where: { id: request.id },
+        data: {
+          status: 'APPROVED',
+          reviewedAt: createdAt,
+          reviewedById: req.user.id,
+        },
+      })
+
+      return { student: createdStudent, user: createdUser, credentials: { username, password } }
+    })
+
+    if (request.transportMode === 'HOME' && (homeDeliveryFeeDaily || homeDeliveryFeeThreeWeeks || homeDeliveryFeeFourWeeks)) {
+      const dailyText = homeDeliveryFeeDaily ? homeDeliveryFeeDaily : ''
+      const threeText = homeDeliveryFeeThreeWeeks ? homeDeliveryFeeThreeWeeks : ''
+      const fourText = homeDeliveryFeeFourWeeks ? homeDeliveryFeeFourWeeks : ''
+      await createAndBroadcast({
+        userId: result.user.id,
+        type: 'student_home_delivery_price',
+        title: 'تم تحديد سعر التوصيل المنزلي الخاص بك',
+        message: `تم تحديد سعر التوصيل المنزلي الخاص بك وهو كالتالي: اليومي (${dailyText}) 3 أسابيع (${threeText}) 4 أسابيع (${fourText})`,
+        targetRoute: '/student/notifications',
+      })
+    }
+
+    res.json({ student: result.student, credentials: result.credentials })
+  } catch (error) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'اسم المستخدم الناتج موجود بالفعل، حاول مرة أخرى' })
+    }
+    res.status(500).json({ error: error.message })
+  }
+})
+
+router.post('/requests/:id/reject', authorize('admin'), async (req, res) => {
+  try {
+    const { reason } = req.body
+    const request = await prisma.studentRegistrationRequest.findUnique({
+      where: { id: req.params.id },
+    })
+    if (!request) return res.status(404).json({ error: 'الطلب غير موجود' })
+    if (request.status !== 'PENDING') return res.status(400).json({ error: 'الطلب غير متاح للرفض' })
+
+    const rejected = await prisma.studentRegistrationRequest.update({
+      where: { id: request.id },
+      data: {
+        status: 'REJECTED',
+        rejectionReason: reason || null,
+        reviewedAt: new Date(),
+        reviewedById: req.user.id,
+      },
+    })
+
+    res.json(rejected)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
 
 function todayRange() {
   const today = getLocalDate()
@@ -101,7 +361,7 @@ router.get('/dashboard', async (req, res) => {
           const returnLoad = await prisma.busLoad.findFirst({
             where: {
               studentId,
-              activeBus: { operationId: op.id, status: { not: 'CANCELLED' }, tripType: 'RETURN', returnCompletedAt: null },
+              activeBus: { operationId: op.id, status: { not: 'CANCELLED' }, tripType: 'RETURN' },
             },
             include: {
               activeBus: {
@@ -112,6 +372,7 @@ router.get('/dashboard', async (req, res) => {
                 },
               },
             },
+            orderBy: { assignedAt: 'desc' },
           })
           if (returnLoad) {
             returnBusInfo = {
@@ -469,6 +730,76 @@ router.get('/subscriptions', async (req, res) => {
       orderBy: { startDate: 'desc' },
     })
     res.json(subscriptions)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Current week (Saturday→Thursday) with off days and daily subscription coverage
+router.get('/weekly-schedule', async (req, res) => {
+  try {
+    await expireSubscriptions()
+
+    if (req.user.role !== 'student') {
+      return res.status(403).json({ error: 'غير مصرح' })
+    }
+
+    const studentId = await resolveStudentId(req.user)
+    if (!studentId) return res.status(404).json({ error: 'الطالب غير موجود' })
+
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      select: { offDays: true },
+    })
+    if (!student) return res.status(404).json({ error: 'الطالب غير موجود' })
+
+    const offDays = Array.isArray(student.offDays) ? student.offDays : []
+
+    const weekStart = getLocalDate(snapToSaturday(new Date()))
+    if (new Date().getDay() === 5) {
+      weekStart.setDate(weekStart.getDate() + 7)
+    }
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekStart.getDate() + 6)
+
+    const activeSubs = await prisma.subscription.findMany({
+      where: {
+        studentId,
+        type: 'DAILY',
+        status: 'active',
+        startDate: { lte: weekEnd },
+        endDate: { gte: weekStart },
+      },
+      select: { executionDates: { select: { executionDate: true } } },
+    })
+
+    const coveredDates = new Set()
+    for (const sub of activeSubs) {
+      for (const ed of sub.executionDates) {
+        coveredDates.add(ed.executionDate.toISOString().slice(0, 10))
+      }
+    }
+
+    const dayNames = ['SATURDAY', 'SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY']
+    const dayLabels = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس']
+
+    const days = dayNames.map((dayName, i) => {
+      const date = new Date(weekStart)
+      date.setDate(weekStart.getDate() + i)
+      const isOffDay = dayName === 'SATURDAY' || offDays.includes(dayName)
+      const hasDaily = coveredDates.has(date.toISOString().slice(0, 10))
+      return {
+        date: formatLocalDate(date),
+        dayName,
+        dayLabel: dayLabels[i],
+        dayNumber: date.getDate(),
+        isOffDay,
+        hasDaily,
+        status: hasDaily ? 'subscribed' : isOffDay ? 'off' : 'work',
+      }
+    })
+
+    res.json({ weekStart: formatLocalDate(weekStart), weekEnd: formatLocalDate(weekEnd), days })
   } catch (error) {
     res.status(500).json({ error: error.message })
   }

@@ -140,6 +140,50 @@ router.patch('/:id/status', authorize('admin'), async (req, res) => {
   }
 })
 
+router.delete('/:id', authorize('admin'), async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, username: true, role: true, name: true, status: true },
+    })
+
+    if (!user) {
+      return res.status(404).json({ error: 'المستخدم غير موجود' })
+    }
+
+    if (user.role === 'admin') {
+      return res.status(400).json({ error: 'لا يمكن حذف حساب المدير الرئيسي' })
+    }
+
+    if (user.role === 'driver') {
+      const linkedBuses = await prisma.bus.count({ where: { driverId: user.id } })
+      const linkedActiveBuses = await prisma.activeBus.count({ where: { driverId: user.id } })
+
+      if (linkedBuses > 0 || linkedActiveBuses > 0) {
+        return res.status(400).json({ error: 'لا يمكن حذف السائق لأنه مرتبط بحافلات أو عمليات نشطة. أوقف الربط أولاً أو اجعل الحساب غير نشط.' })
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      if (user.role === 'driver') {
+        await tx.bus.updateMany({
+          where: { driverId: user.id },
+          data: { driverId: null, driverName: null },
+        })
+      }
+
+      await tx.user.delete({ where: { id: user.id } })
+    })
+
+    await authAudit('USER_DELETED', req.user.id, { username: user.username, role: user.role })
+
+    res.json({ message: 'تم حذف المستخدم بنجاح' })
+  } catch (error) {
+    if (error.code === 'P2025') return res.status(404).json({ error: 'المستخدم غير موجود' })
+    res.status(500).json({ error: error.message })
+  }
+})
+
 router.post('/:id/reset-password', authorize('admin'), async (req, res) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.params.id } })

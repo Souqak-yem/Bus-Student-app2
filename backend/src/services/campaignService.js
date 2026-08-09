@@ -3,24 +3,20 @@ import { prisma } from '../lib/prisma.js'
 const validSubscriptionStatuses = ['active', 'expired']
 
 export async function isNewStudent(studentId) {
-  const hasSubscription = await prisma.subscription.findFirst({
+  // Consider student NOT new only if they have a prior *weekly* subscription.
+  // Weekly plans are represented by THREE_WEEKS and FOUR_WEEKS in the schema.
+  const weeklyPlans = ['THREE_WEEKS', 'FOUR_WEEKS']
+
+  const hasWeeklySubscription = await prisma.subscription.findFirst({
     where: {
       studentId,
       status: { in: validSubscriptionStatuses },
+      plan: { in: weeklyPlans },
     },
   })
-  if (hasSubscription) return false
+  if (hasWeeklySubscription) return false
 
-  const hasApprovedEnrollment = await prisma.campaignEnrollment.findFirst({
-    where: { studentId, receiptStatus: 'APPROVED' },
-  })
-  if (hasApprovedEnrollment) return false
-
-  const hasApprovedCart = await prisma.cart.findFirst({
-    where: { studentId, status: 'APPROVED' },
-  })
-  if (hasApprovedCart) return false
-
+  // If no prior weekly subscription found, treat as new (even if they bought daily/monthly)
   return true
 }
 

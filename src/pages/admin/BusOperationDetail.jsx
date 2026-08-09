@@ -17,6 +17,7 @@ export default function BusOperationDetail({ busId, onClose, onRefresh }) {
   const [addSearch, setAddSearch] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [showTransfer, setShowTransfer] = useState(null)
+  const [transferStudentId, setTransferStudentId] = useState('')
   const [transferBusId, setTransferBusId] = useState('')
   const [transferring, setTransferring] = useState(false)
   const [showBulk, setShowBulk] = useState(false)
@@ -112,11 +113,11 @@ export default function BusOperationDetail({ busId, onClose, onRefresh }) {
   }
 
   async function handleTransfer() {
-    if (!transferBusId || !showTransfer) return
+    if (!transferBusId || !transferStudentId) return
     setTransferring(true)
     try {
-      await api.operations.transferStudent(busId, transferBusId, showTransfer)
-      setShowTransfer(null); setTransferBusId(''); load(); onRefresh()
+      await api.operations.transferStudent(busId, transferBusId, transferStudentId)
+      setShowTransfer(null); setTransferStudentId(''); setTransferBusId(''); load(); onRefresh()
     } catch (err) { alert(err.message) } finally { setTransferring(false) }
   }
 
@@ -258,12 +259,12 @@ export default function BusOperationDetail({ busId, onClose, onRefresh }) {
                 <Clock size={14} /> تعديل وقت الجميع (مؤقت)
               </button>
               {detail.todayActiveBuses?.length > 0 && (
-                <button onClick={() => setShowTransfer('SELECT')} className="btn-ghost btn-sm text-[var(--color-info)]">
+                <button onClick={() => { setShowTransfer('SELECT'); setTransferStudentId(''); setTransferBusId('') }} className="btn-ghost btn-sm text-[var(--color-info)]">
                   <ArrowLeftRight size={14} /> نقل طالب إلى باص آخر
                 </button>
               )}
               {detail.todayActiveBuses?.length > 0 && (
-                <button onClick={() => setShowTransfer('ALL')} className="btn-ghost btn-sm text-[var(--color-info)]">
+                <button onClick={() => { setShowTransfer('ALL'); setTransferStudentId(''); setTransferBusId('') }} className="btn-ghost btn-sm text-[var(--color-info)]">
                   <ArrowUpDown size={14} /> نقل جميع الطلاب من هذا الباص
                 </button>
               )}
@@ -387,7 +388,7 @@ export default function BusOperationDetail({ busId, onClose, onRefresh }) {
                               <div className="flex items-center gap-2">
                                 {detail.todayActiveBuses?.length > 0 && (
                                   <button
-                                    onClick={() => { setShowTransfer(item.student.id); setTransferBusId('') }}
+                                    onClick={() => { setShowTransfer(item.student.id); setTransferStudentId(item.student.id); setTransferBusId('') }}
                                     className="text-xs px-3 py-1.5 rounded-lg text-blue-600 hover:bg-blue-50 flex items-center gap-1"
                                   >
                                     <ArrowLeftRight size={10} /> نقل
@@ -486,7 +487,7 @@ export default function BusOperationDetail({ busId, onClose, onRefresh }) {
                           <div className="flex items-center gap-1">
                             {detail.todayActiveBuses?.length > 0 && (
                               <button
-                                onClick={() => { setShowTransfer(item.student.id); setTransferBusId('') }}
+                                onClick={() => { setShowTransfer(item.student.id); setTransferStudentId(item.student.id); setTransferBusId('') }}
                                 className="text-xs px-1.5 py-1 rounded-lg text-blue-600 hover:bg-blue-50"
                                 title="نقل إلى باص آخر"
                               >
@@ -513,9 +514,45 @@ export default function BusOperationDetail({ busId, onClose, onRefresh }) {
         </motion.div>
       </motion.div>
 
+      {/* Select student for transfer */}
+      {showTransfer === 'SELECT' && (
+        <Modal
+          show={true}
+          title="اختر الطالب للنقل"
+          onClose={() => setShowTransfer(null)}
+          footer={
+            <div className="flex items-center justify-end gap-2 w-full">
+              <button onClick={() => setShowTransfer(null)} className="btn-ghost btn-sm">إلغاء</button>
+            </div>
+          }
+        >
+          <p className="text-sm text-[var(--color-text-muted)] mb-3">اختر طالباً من هذه الرحلة لتحديد باص الهدف.</p>
+          <div className="space-y-2 max-h-72 overflow-y-auto">
+            {detail.students?.length === 0 ? (
+              <p className="text-xs text-[var(--color-text-muted)] text-center">لا يوجد طلاب في هذه الرحلة.</p>
+            ) : detail.students.map(item => (
+              <button
+                key={item.student.id}
+                onClick={() => { setShowTransfer(item.student.id); setTransferStudentId(item.student.id); setTransferBusId('') }}
+                className="w-full text-right px-3 py-2.5 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-[var(--color-border-light)] transition"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="font-medium">{item.student.name}</p>
+                    <p className="text-xs text-[var(--color-text-muted)]">{item.student.institutionName || item.student.major || item.student.phone || 'بدون تفاصيل'}</p>
+                  </div>
+                  <span className="text-[var(--color-primary)] text-xs">اختيار</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
+
       {/* Transfer dialog */}
       {showTransfer && showTransfer !== 'SELECT' && (
         <Modal
+          show={true}
           title="نقل طالب إلى باص آخر"
           onClose={() => setShowTransfer(null)}
           footer={
@@ -533,13 +570,18 @@ export default function BusOperationDetail({ busId, onClose, onRefresh }) {
                     return
                   }
                   handleTransfer()
-                }} disabled={!transferBusId || transferring} className="btn-primary btn-sm">
+                }} disabled={(!transferBusId || (showTransfer !== 'ALL' && !transferStudentId)) || transferring} className="btn-primary btn-sm">
                   {transferring ? 'جاري...' : 'نقل'}
                 </button>
               </div>
             </div>
           }
         >
+          {showTransfer !== 'ALL' && transferStudentId && (
+            <div className="mb-3 px-3 py-2 rounded-xl bg-[var(--color-border-light)] text-sm">
+              <span className="font-medium">الطالب:</span> {detail.students?.find(item => item.student.id === transferStudentId)?.student.name || 'غير محدد'}
+            </div>
+          )}
           <p className="text-sm text-[var(--color-text-muted)] mb-3">اختر الباص الهدف:</p>
           <div className="space-y-1 max-h-48 overflow-y-auto">
             {detail.todayActiveBuses?.map(b => (
@@ -569,6 +611,7 @@ export default function BusOperationDetail({ busId, onClose, onRefresh }) {
       {/* Cancel confirmation modal */}
       {showCancelConfirm && (
         <Modal
+          show={true}
           title={<span className="text-red-600">تأكيد إلغاء الرحلة</span>}
           onClose={() => setShowCancelConfirm(false)}
           footer={
@@ -588,6 +631,7 @@ export default function BusOperationDetail({ busId, onClose, onRefresh }) {
       {/* Bulk pickup modal */}
       {showBulk && (
         <Modal
+          show={true}
           title="تعديل وقت جميع الطلاب"
           onClose={() => setShowBulk(false)}
           footer={

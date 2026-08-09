@@ -33,12 +33,16 @@ export async function subscribeToPush() {
   }
 
   const { key, available } = await getVapidPublicKey()
-  if (!available) {
+  if (!available || !key) {
     return { success: false, reason: 'vapid-not-configured' }
   }
 
-  const registration = await navigator.serviceWorker.ready
-  const existingSubscription = await registration.pushManager.getSubscription()
+  let registration = await navigator.serviceWorker.getRegistration('/sw.js')
+  if (!registration) {
+    registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+  }
+  const readyRegistration = await navigator.serviceWorker.ready
+  const existingSubscription = await readyRegistration.pushManager.getSubscription()
 
   if (existingSubscription) {
     const subJson = existingSubscription.toJSON()
@@ -52,7 +56,7 @@ export async function subscribeToPush() {
     return { success: true, subscribed: true }
   }
 
-  const subscription = await registration.pushManager.subscribe({
+  const subscription = await readyRegistration.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(key),
   })

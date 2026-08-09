@@ -7,7 +7,7 @@ export default function MobileCard({ children, className = '', index = 0, ...pro
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.02 }}
-      className={cls}
+      className={`${cls} lg:min-h-full`}
       {...props}
     >
       {children}

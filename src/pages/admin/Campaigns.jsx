@@ -4,6 +4,7 @@ import { Megaphone, Plus, X, Calendar, Users, Search, Edit2, Trash2, CheckCircle
 import { api } from '../../lib/api'
 import PageHeader from '../../components/ui/PageHeader'
 import MobileCard from '../../components/ui/MobileCard'
+import DiscountExpiryBadge from '../../components/ui/DiscountExpiryBadge'
 import { SkeletonCard } from '../../components/ui/Skeleton'
 import ConfirmModal from '../../components/ui/ConfirmModal'
 
@@ -123,12 +124,12 @@ export default function AdminCampaigns() {
           <button onClick={() => setShowForm(true)} className="btn-primary">حملة جديدة</button>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
           {filtered.map((c, idx) => {
             const status = getStatus(c)
             const StatusIcon = status.icon
             return (
-              <MobileCard key={c.id} index={idx} className="bg-white border border-slate-200 p-3 rounded-xl">
+              <MobileCard key={c.id} index={idx} className="bg-white border border-slate-200 p-3 rounded-xl h-full lg:flex-col lg:justify-between">
                 {/* Top: title + status */}
                 <div className="flex items-center justify-between w-full mb-2">
                   <h3 className="text-sm font-bold text-slate-800 truncate ml-2">{c.title}</h3>
@@ -151,6 +152,9 @@ export default function AdminCampaigns() {
                     <Users size={12} className="text-slate-400" />
                     {c.approvedEnrollmentsCount ?? 0} طالب
                   </span>
+                  {c.hasEarlyDiscount && c.discountExpiry && (
+                    <DiscountExpiryBadge expiry={c.discountExpiry} />
+                  )}
                 </div>
                 {/* Description if any */}
                 {c.description && (
@@ -176,7 +180,7 @@ export default function AdminCampaigns() {
       <AnimatePresence>
         {showForm && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="modal-overlay" onClick={() => { setShowForm(false); setEditing(null); setForm(emptyForm) }}>
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="modal-content max-w-lg" onClick={(e) => e.stopPropagation()}>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="modal-content max-w-[min(95vw,860px)] lg:max-w-[980px]" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between p-5 border-b border-[var(--color-border)]">
                 <h2 className="text-lg font-bold">{editing ? 'تعديل حملة' : 'حملة جديدة'}</h2>
                 <button onClick={() => { setShowForm(false); setEditing(null); setForm(emptyForm) }} className="p-1.5 rounded-lg hover:bg-[var(--color-border-light)]"><X size={20} /></button>

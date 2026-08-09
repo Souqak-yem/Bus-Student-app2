@@ -99,10 +99,28 @@ self.addEventListener('notificationclick', (e) => {
 
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      const existingClient = windowClients.find((c) => c.url === urlToOpen)
-      if (existingClient) {
-        return existingClient.focus()
+      if (windowClients.length === 0) {
+        return clients.openWindow(urlToOpen)
       }
+
+      const exactClient = windowClients.find((c) => c.url === urlToOpen)
+      if (exactClient) {
+        return exactClient.focus()
+      }
+
+      const sameOriginClient = windowClients.find((c) => c.url.startsWith(self.location.origin))
+      if (sameOriginClient) {
+        if (typeof sameOriginClient.navigate === 'function') {
+          return sameOriginClient.navigate(urlToOpen).then(() => sameOriginClient.focus())
+        }
+
+        const shouldPostMessage = !sameOriginClient.url.includes(targetRoute)
+        if (shouldPostMessage) {
+          sameOriginClient.postMessage({ type: 'SW_NAVIGATE', url: urlToOpen })
+        }
+        return sameOriginClient.focus()
+      }
+
       return clients.openWindow(urlToOpen)
     })
   )

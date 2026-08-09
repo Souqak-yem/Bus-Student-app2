@@ -474,26 +474,48 @@ export default function AdminApprovals() {
             ) : (
               <div className="space-y-4">
                 {filteredDailySubscriptions.length > 0 && (
-                  <div className="space-y-2">
-                    {filteredDailySubscriptions.map((row, idx) => (
-                      <DailyRequestCard key={row.id} row={row} index={idx}
-                        actionLoading={actionLoading}
-                        onApprove={() => handleApproveDaily(row.id)}
-                        onReject={() => openReject(row.id, 'daily')}
-                        onViewReceipt={(img) => { setSelectedReceipt(img); setZoomLevel(1) }} />
-                    ))}
-                  </div>
+                  <>
+                    <div className="space-y-2 lg:hidden">
+                      {filteredDailySubscriptions.map((row, idx) => (
+                        <DailyRequestCard key={row.id} row={row} index={idx}
+                          actionLoading={actionLoading}
+                          onApprove={() => handleApproveDaily(row.id)}
+                          onReject={() => openReject(row.id, 'daily')}
+                          onViewReceipt={(img) => { setSelectedReceipt(img); setZoomLevel(1) }} />
+                      ))}
+                    </div>
+                    <div className="hidden lg:grid lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+                      {filteredDailySubscriptions.map((row, idx) => (
+                        <DailyRequestDesktopRow key={row.id} row={row} index={idx}
+                          actionLoading={actionLoading}
+                          onApprove={() => handleApproveDaily(row.id)}
+                          onReject={() => openReject(row.id, 'daily')}
+                          onViewReceipt={(img) => { setSelectedReceipt(img); setZoomLevel(1) }} />
+                      ))}
+                    </div>
+                  </>
                 )}
                 {dailyCarts.length > 0 && (
-                  <div className="space-y-2">
-                    {dailyCarts.map((cart, idx) => (
-                      <CartCard key={cart.id} cart={cart} index={idx}
-                        actionLoading={actionLoading}
-                        onApprove={handleApproveCart}
-                        onReject={(id) => { setRejectTarget(id); setRejectType('cart'); setRejectReason(''); setShowRejectModal(true) }}
-                        onViewReceipt={(img) => { setSelectedReceipt(img); setZoomLevel(1) }} />
-                    ))}
-                  </div>
+                  <>
+                    <div className="space-y-2 lg:hidden">
+                      {dailyCarts.map((cart, idx) => (
+                        <CartCard key={cart.id} cart={cart} index={idx}
+                          actionLoading={actionLoading}
+                          onApprove={handleApproveCart}
+                          onReject={(id) => { setRejectTarget(id); setRejectType('cart'); setRejectReason(''); setShowRejectModal(true) }}
+                          onViewReceipt={(img) => { setSelectedReceipt(img); setZoomLevel(1) }} />
+                      ))}
+                    </div>
+                    <div className="hidden lg:grid lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+                      {dailyCarts.map((cart, idx) => (
+                        <CartDesktopRow key={cart.id} cart={cart} index={idx}
+                          actionLoading={actionLoading}
+                          onApprove={handleApproveCart}
+                          onReject={(id) => { setRejectTarget(id); setRejectType('cart'); setRejectReason(''); setShowRejectModal(true) }}
+                          onViewReceipt={(img) => { setSelectedReceipt(img); setZoomLevel(1) }} />
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
             )}
@@ -533,15 +555,26 @@ export default function AdminApprovals() {
                   />
                 )}
                 {weeklyCarts.length > 0 && (
-                  <div className="space-y-2">
-                    {weeklyCarts.map((cart, idx) => (
-                      <CartCard key={cart.id} cart={cart} index={idx}
-                        actionLoading={actionLoading}
-                        onApprove={handleApproveCart}
-                        onReject={(id) => { setRejectTarget(id); setRejectType('cart'); setRejectReason(''); setShowRejectModal(true) }}
-                        onViewReceipt={(img) => { setSelectedReceipt(img); setZoomLevel(1) }} />
-                    ))}
-                  </div>
+                  <>
+                    <div className="space-y-2 lg:hidden">
+                      {weeklyCarts.map((cart, idx) => (
+                        <CartCard key={cart.id} cart={cart} index={idx}
+                          actionLoading={actionLoading}
+                          onApprove={handleApproveCart}
+                          onReject={(id) => { setRejectTarget(id); setRejectType('cart'); setRejectReason(''); setShowRejectModal(true) }}
+                          onViewReceipt={(img) => { setSelectedReceipt(img); setZoomLevel(1) }} />
+                      ))}
+                    </div>
+                    <div className="hidden lg:grid lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+                      {weeklyCarts.map((cart, idx) => (
+                        <CartDesktopRow key={cart.id} cart={cart} index={idx}
+                          actionLoading={actionLoading}
+                          onApprove={handleApproveCart}
+                          onReject={(id) => { setRejectTarget(id); setRejectType('cart'); setRejectReason(''); setShowRejectModal(true) }}
+                          onViewReceipt={(img) => { setSelectedReceipt(img); setZoomLevel(1) }} />
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
             )}
@@ -560,15 +593,26 @@ export default function AdminApprovals() {
                 </div>
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600">{mixedCarts.length} طلب</span>
               </div>
-              <div className="space-y-2">
-                {mixedCarts.map((cart, idx) => (
-                  <CartCard key={cart.id} cart={cart} index={idx}
-                    actionLoading={actionLoading}
-                    onApprove={handleApproveCart}
-                    onReject={(id) => { setRejectTarget(id); setRejectType('cart'); setRejectReason(''); setShowRejectModal(true) }}
-                    onViewReceipt={(img) => { setSelectedReceipt(img); setZoomLevel(1) }} />
-                ))}
-              </div>
+                  <>
+                <div className="space-y-2 lg:hidden">
+                  {mixedCarts.map((cart, idx) => (
+                    <CartCard key={cart.id} cart={cart} index={idx}
+                      actionLoading={actionLoading}
+                      onApprove={handleApproveCart}
+                      onReject={(id) => { setRejectTarget(id); setRejectType('cart'); setRejectReason(''); setShowRejectModal(true) }}
+                      onViewReceipt={(img) => { setSelectedReceipt(img); setZoomLevel(1) }} />
+                  ))}
+                </div>
+                <div className="hidden lg:grid lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+                  {mixedCarts.map((cart, idx) => (
+                    <CartDesktopRow key={cart.id} cart={cart} index={idx}
+                      actionLoading={actionLoading}
+                      onApprove={handleApproveCart}
+                      onReject={(id) => { setRejectTarget(id); setRejectType('cart'); setRejectReason(''); setShowRejectModal(true) }}
+                      onViewReceipt={(img) => { setSelectedReceipt(img); setZoomLevel(1) }} />
+                  ))}
+                </div>
+              </>
             </div>
           )}
         </div>
@@ -708,7 +752,7 @@ export default function AdminApprovals() {
       {/* Reject Modal */}
       {showRejectModal && (
         <div className="modal-overlay" onClick={() => setShowRejectModal(false)}>
-          <div className="modal-content max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content max-w-[min(95vw,720px)] lg:max-w-[960px] p-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-slate-800">سبب الرفض</h3>
             <p className="text-sm text-slate-500 mb-3">أدخل سبب رفض الاشتراك ثم أكد.</p>
             <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} className="input-field h-28 w-full" />
@@ -723,7 +767,7 @@ export default function AdminApprovals() {
       {/* Suspension Resolution Modal */}
       {suspensionModal && (
         <div className="modal-overlay" onClick={() => setSuspensionModal(null)}>
-          <div className="modal-content max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content max-w-[min(95vw,620px)] lg:max-w-[900px] p-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-slate-800">الطالب موقوف مالياً</h3>
             <p className="text-sm text-slate-600 mt-2 leading-relaxed">
               هذا الطالب موقوف حالياً بسبب عدم السداد.
@@ -747,7 +791,7 @@ export default function AdminApprovals() {
       {/* Add Now Modal */}
       {showAddNowModal && (
         <div className="modal-overlay" onClick={() => setShowAddNowModal(false)}>
-          <div className="modal-content max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content max-w-[min(95vw,620px)] lg:max-w-[900px] p-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-slate-800">إضافة الآن</h3>
             <p className="text-sm text-slate-500 mb-3">اختر باص اليوم لإضافة الطالب فوراً.</p>
             <div className="mb-3">
@@ -780,7 +824,7 @@ export default function AdminApprovals() {
       {/* Error Modal */}
       {errorMsg && (
         <div className="modal-overlay" onClick={() => setErrorMsg(null)}>
-          <div className="modal-content max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content max-w-[min(95vw,720px)] lg:max-w-[960px] p-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-slate-800">خطأ</h3>
             <p className="text-sm text-slate-500 mb-3">{errorMsg}</p>
             <div className="flex justify-end"><button onClick={() => setErrorMsg(null)} className="btn-ghost">إغلاق</button></div>
@@ -821,6 +865,7 @@ export default function AdminApprovals() {
 
 /* ─── Daily Request Card ─── */
 function DailyRequestCard({ row, index, actionLoading, onApprove, onReject, onViewReceipt }) {
+  console.log('Render DailyRequestCard', row?.id)
   let days = []
   try { days = JSON.parse(row.selectedDays || '[]') } catch { days = [] }
   const weeks = row.durationWeeks || 1
@@ -833,6 +878,17 @@ function DailyRequestCard({ row, index, actionLoading, onApprove, onReject, onVi
 
   return (
     <MobileCard index={index} className="bg-white border border-slate-200 p-3 rounded-xl">
+      <div
+        style={{
+          background: 'red',
+          color: 'white',
+          padding: 20,
+          fontSize: 28,
+          fontWeight: 'bold',
+        }}
+      >
+        TEST APPROVALS
+      </div>
       <div className="flex items-center justify-between w-full mb-2">
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-8 h-8 rounded-full bg-[var(--color-primary-lighter)] flex items-center justify-center text-sm font-bold text-[var(--color-primary-dark)] shrink-0">
@@ -899,6 +955,161 @@ function DailyRequestCard({ row, index, actionLoading, onApprove, onReject, onVi
         </div>
       </div>
     </MobileCard>
+  )
+}
+
+function DailyRequestDesktopRow({ row, actionLoading, onApprove, onReject, onViewReceipt }) {
+  console.log('Render DailyRequestDesktopRow', row?.id)
+  let days = []
+  try { days = JSON.parse(row.selectedDays || '[]') } catch { days = [] }
+  const weeks = row.durationWeeks || 1
+  const execDates = row.executionDates || []
+  const dailyAmount = execDates.length > 0 ? Math.round(Number(row.amount) / execDates.length) : 0
+  const receipt = row.payments?.[0]?.reference
+  const receiptDate = row.payments?.[0]?.date
+  const zoneName = row.student?.zone || '-'
+  const destName = row.student?.destination?.name || null
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm h-full flex flex-col justify-between">
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-start gap-4 justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-full bg-[var(--color-primary-lighter)] flex items-center justify-center text-base font-bold text-[var(--color-primary-dark)] shrink-0">
+              {row.student?.name?.[0] || '?'}
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-base font-semibold text-slate-900 truncate">{row.student?.name || '-'}</h3>
+              <p className="text-sm text-slate-500 truncate">طلب #{row.id?.slice(-6)?.toUpperCase() || '-'}</p>
+            </div>
+          </div>
+          <div className="inline-flex items-center gap-2 rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700">
+            يومي
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-2xl bg-slate-50 p-3 text-sm text-slate-700">
+            <div className="mb-2 text-xs text-slate-500">أيام التشغيل</div>
+            <div className="font-medium text-slate-900">{days.map(d => DAY_NAMES_AR[d] || d).join('، ') || '-'}</div>
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-3 text-sm text-slate-700">
+            <div className="mb-2 text-xs text-slate-500">المدة</div>
+            <div className="font-medium text-slate-900">{weeks} {weeks === 1 ? 'أسبوع' : 'أسابيع'}</div>
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-3 text-sm text-slate-700">
+            <div className="mb-2 text-xs text-slate-500">عدد الأيام</div>
+            <div className="font-medium text-slate-900">{execDates.length} يوم</div>
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-3 text-sm text-slate-700">
+            <div className="mb-2 text-xs text-slate-500">المنطقة</div>
+            <div className="font-medium text-slate-900">{zoneName}{destName ? ` · ${destName}` : ''}</div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-slate-100 p-4 text-sm text-slate-700">
+          <div className="flex flex-wrap items-center gap-2">
+            <DollarSign size={14} className="text-slate-500" />
+            <span className="font-medium text-slate-900">{dailyAmount.toLocaleString()} ريال × {execDates.length} يوم</span>
+          </div>
+          <div className="mt-2 text-sm font-semibold text-slate-900">الإجمالي: {formatCurrency(row.amount)}</div>
+          {receiptDate && <div className="mt-1 text-[11px] text-slate-500">تاريخ السند: {formatDate(receiptDate)}</div>}
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {receipt ? (
+          <button onClick={() => onViewReceipt(receipt)}
+            className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/10 px-4 py-2 text-sm font-medium text-[var(--color-primary)]">
+            <Eye size={16} /> عرض السند
+          </button>
+        ) : (
+          <span className="text-sm text-slate-500">لا يوجد سند</span>
+        )}
+        <div className="ml-auto flex flex-wrap gap-2">
+          <button onClick={onApprove} disabled={actionLoading}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            <CheckCircle size={16} /> قبول
+          </button>
+          <button onClick={onReject}
+            className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors">
+            <XCircle size={16} /> رفض
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CartDesktopRow({ cart, actionLoading, onApprove, onReject, onViewReceipt }) {
+  console.log('Render CartDesktopRow', cart?.id)
+  const hasDaily = cart.items.some(item => item.type === 'DAILY')
+  const hasWeekly = cart.items.some(item => item.type !== 'DAILY')
+  const cartTypeLabel = hasDaily && hasWeekly ? 'مختلط' : hasDaily ? 'يومي' : 'أسبوعي'
+  const cartTypeCls = hasDaily && hasWeekly ? 'bg-amber-100 text-amber-700' : hasDaily ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+  const statusLabel = cart.status === 'APPROVED' ? 'مقبول' : cart.status === 'REJECTED' ? 'مرفوض' : 'قيد المراجعة'
+  const statusCls = cart.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' : cart.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
+  const receiptDate = cart.submittedAt ? formatDateTime(cart.submittedAt) : null
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm h-full flex flex-col">
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-base font-bold text-emerald-700 shrink-0">
+              {cart.student?.name?.[0] || '?'}
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-base font-semibold text-slate-900 truncate">{cart.student?.name || '-'}</h3>
+              <p className="text-sm text-slate-500 truncate">طلب #{cart.id?.slice(-6)?.toUpperCase() || '-'}</p>
+            </div>
+          </div>
+          <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${cartTypeCls}`}>{cartTypeLabel}</span>
+        </div>
+
+        <div className="rounded-3xl border border-slate-100 bg-slate-50 p-4 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-slate-500">تفاصيل الطلب</div>
+              <h4 className="text-sm font-semibold text-slate-900">{cartTypeLabel} · {cart.items.length} عنصر</h4>
+            </div>
+            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${cartTypeCls}`}>{cartTypeLabel}</span>
+          </div>
+
+          <div className="space-y-3">
+            {cart.items.map(item => (
+              <CartItemDetail key={item.id} item={item} />
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-3xl bg-emerald-50 p-4 text-sm text-slate-700">
+          <div className="text-[11px] text-slate-500 mb-1">المجموع النهائي</div>
+          <div className="text-2xl font-semibold text-emerald-800">{Number(cart.totalAmount).toLocaleString()} ريال</div>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {cart.receiptImage ? (
+          <button onClick={() => onViewReceipt(cart.receiptImage)}
+            className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700">
+            <Eye size={16} /> عرض السند
+          </button>
+        ) : (
+          <span className="text-sm text-slate-500">لا يوجد سند</span>
+        )}
+        <div className="ml-auto flex flex-wrap gap-2">
+          <button onClick={() => onApprove(cart.id)} disabled={actionLoading}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            <CheckCircle size={16} /> قبول
+          </button>
+          <button onClick={() => onReject(cart.id)}
+            className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors">
+            <XCircle size={16} /> رفض
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -1135,6 +1346,7 @@ function CartItemDetail({ item }) {
 
 /* ─── Cart Approval Card ─── */
 function CartCard({ cart, index, actionLoading, onApprove, onReject, onViewReceipt }) {
+  console.log('Render CartCard', cart?.id)
   const hasDaily = cart.items.some(item => item.type === 'DAILY')
   const hasWeekly = cart.items.some(item => item.type !== 'DAILY')
   const cartTypeLabel = hasDaily && hasWeekly ? 'مختلط' : hasDaily ? 'يومي' : 'أسبوعي'

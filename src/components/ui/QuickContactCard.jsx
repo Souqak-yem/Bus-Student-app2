@@ -35,7 +35,7 @@ export default function QuickContactCard() {
   const manager = contacts.find((c) => c.type === 'phone-group')
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-100 px-4 py-3 flex items-center gap-0">
+    <div className="card px-4 py-3 flex items-center gap-0">
       {/* Registration - WhatsApp */}
       <a
         href={registration.href}
@@ -46,13 +46,13 @@ export default function QuickContactCard() {
         className="flex-1 flex flex-col items-center gap-1 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:rounded-lg"
       >
         <span className="text-[11px] font-semibold text-slate-700 leading-none">{registration.title}</span>
-        <div className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center group-hover:bg-green-100 group-active:bg-green-200 transition-colors duration-150">
+        <div className="w-8 h-8 rounded-xl bg-green-50 flex items-center justify-center group-hover:bg-green-100 group-active:bg-green-200 transition-colors duration-150">
           <MessageCircle size={16} className="text-green-600" />
         </div>
       </a>
 
       {/* Divider */}
-      <div className="w-px h-8 bg-slate-200 mx-3 shrink-0" />
+      <div className="w-px h-9 bg-slate-200 mx-3 shrink-0" />
 
       {/* Manager - Phones */}
       <div className="flex-1 flex flex-col items-center gap-1">
@@ -64,7 +64,7 @@ export default function QuickContactCard() {
               href={phone.href}
               aria-label={`الاتصال بـ ${manager.title}`}
               title={phone.label}
-              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
+              className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
                 phone.color === 'blue'
                   ? 'bg-blue-50 text-blue-600 hover:bg-blue-100 active:bg-blue-200 focus-visible:ring-blue-400'
                   : 'bg-orange-50 text-orange-600 hover:bg-orange-100 active:bg-orange-200 focus-visible:ring-orange-400'

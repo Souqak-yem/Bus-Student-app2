@@ -13,7 +13,7 @@ export default function AppSplashScreen({ onFinish }) {
     const exitTimer = setTimeout(() => {
       setPhase('exit')
       setTimeout(onFinish, 400)
-    }, 2300)
+    }, 2600)
 
     return () => clearTimeout(exitTimer)
   }, [onFinish])
@@ -52,96 +52,102 @@ export default function AppSplashScreen({ onFinish }) {
             transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
             className="relative z-10 flex flex-col items-center"
           >
-            <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center shadow-2xl">
-              <img src="/app-icon.svg" alt="مشوارك" className="w-20 h-20 sm:w-24 sm:h-24 object-contain" />
-            </div>
+            <motion.div
+              className="absolute -inset-6 z-0 rounded-[28px] blur-2xl"
+              style={{ background: 'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.20), rgba(96,165,250,0.06), transparent 70%)' }}
+              animate={{ opacity: [0.35, 0.6, 0.35], scale: [0.98, 1.03, 0.98] }}
+              transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+            />
+            <motion.div
+              className="relative z-10 flex h-32 w-32 items-center justify-center rounded-[26px] border border-white/10 bg-white/10 shadow-2xl backdrop-blur-sm sm:h-36 sm:w-36"
+              animate={{ scale: [1, 1.02, 1] }}
+              transition={{ duration: 1.9, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              <img src="/app-icon.svg" alt="مشوارك" className="h-24 w-24 object-contain sm:h-28 sm:w-28" />
+            </motion.div>
           </motion.div>
 
           {/* Title */}
           <motion.h1
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25, duration: 0.4, ease: 'easeOut' }}
-            className="relative z-10 text-2xl sm:text-3xl font-bold text-white mt-5 tracking-wider"
+            transition={{ delay: 0.25, duration: 0.45, ease: 'easeOut' }}
+            className="relative z-10 text-4xl sm:text-5xl font-black text-white mt-6 tracking-wider"
           >
-            مشوارك
+            <span className="bg-gradient-to-l from-white via-blue-50 to-white bg-clip-text text-transparent drop-shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+              مشوارك
+            </span>
           </motion.h1>
+
+          <motion.div
+            initial={{ opacity: 0, x: 24, y: 10, filter: 'blur(4px)' }}
+            animate={{ opacity: 1, x: 0, y: 0, filter: 'blur(0px)' }}
+            transition={{ delay: 0.45, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="relative z-10 mt-2"
+          >
+            <div className="relative px-5 py-2 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm shadow-[0_12px_35px_rgba(0,0,0,0.25)] overflow-hidden">
+              <div
+                className="absolute inset-0 rounded-full opacity-70"
+                style={{
+                  background: 'linear-gradient(90deg, rgba(96,165,250,0.25), rgba(167,139,250,0.18), rgba(96,165,250,0.25))',
+                }}
+              />
+              <span className="relative block text-white text-lg sm:text-xl font-extrabold tracking-wide">
+                علينا
+              </span>
+            </div>
+          </motion.div>
 
           {/* Tagline */}
           <motion.p
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45, duration: 0.35, ease: 'easeOut' }}
-            className="relative z-10 text-sm sm:text-base text-blue-200/80 mt-1.5 font-medium"
+            transition={{ delay: 0.62, duration: 0.4, ease: 'easeOut' }}
+            className="relative z-10 text-sm sm:text-base text-blue-100/80 mt-3 font-semibold"
           >
             رحلتك اليومية أسهل وأضمن
           </motion.p>
 
-          {/* Road + Bus */}
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 0.4 }}
-            className="absolute bottom-[22%] w-[70%] max-w-xs"
+            initial={{ opacity: 0, scale: 0.96, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ delay: 0.8, duration: 0.45, ease: 'easeOut' }}
+            className="relative z-10 mt-6 w-[72%] max-w-sm"
           >
-            {/* Road surface */}
-            <div className="relative h-[5px] bg-white/10 rounded-full overflow-hidden">
+            <div className="relative h-[6px] rounded-full bg-white/10 overflow-hidden">
               <motion.div
                 initial={{ width: '0%' }}
                 animate={{ width: '100%' }}
-                transition={{ delay: 0.55, duration: 1.6, ease: 'easeInOut' }}
+                transition={{ delay: 0.9, duration: 1.25, ease: [0.16, 1, 0.3, 1] }}
                 className="h-full rounded-full"
                 style={{
-                  background: 'linear-gradient(90deg, #60A5FA, #93C5FD)',
-                  boxShadow: '0 0 6px rgba(96,165,250,0.3)',
+                  background: 'linear-gradient(90deg, rgba(96,165,250,0.9), rgba(167,139,250,0.65), rgba(96,165,250,0.9))',
+                  boxShadow: '0 0 18px rgba(96,165,250,0.22)',
                 }}
               />
             </div>
-
-            {/* Lane dashes */}
-            <div className="flex gap-1 mt-0.5">
-              {Array.from({ length: 14 }).map((_, i) => (
-                <div key={i} className="h-[2px] flex-1 rounded-full bg-white/15" />
-              ))}
-            </div>
-
-            {/* Bus */}
-            <motion.div
-              initial={{ left: '0%' }}
-              animate={{ left: '92%' }}
-              transition={{ delay: 0.55, duration: 1.6, ease: 'easeInOut' }}
-              className="absolute -top-4 w-7 h-7 -translate-x-1/2"
-            >
-              <svg viewBox="0 0 24 24" fill="none" className="w-full h-full drop-shadow-lg">
-                <rect x="2" y="6" width="20" height="12" rx="2" fill="#FBBF24" />
-                <rect x="2" y="6" width="20" height="12" rx="2" fill="url(#busG)" />
-                <rect x="4" y="3" width="16" height="5" rx="1.5" fill="#F59E0B" />
-                <rect x="5.5" y="4.5" width="5" height="2" rx="0.5" fill="#1E3A5F" opacity="0.35" />
-                <rect x="13.5" y="4.5" width="5" height="2" rx="0.5" fill="#1E3A5F" opacity="0.35" />
-                <rect x="4" y="8" width="3" height="3" rx="0.5" fill="#1E3A5F" opacity="0.3" />
-                <rect x="8.5" y="8" width="3" height="3" rx="0.5" fill="#1E3A5F" opacity="0.3" />
-                <rect x="13" y="8" width="3" height="3" rx="0.5" fill="#1E3A5F" opacity="0.3" />
-                <rect x="17" y="8" width="3" height="3" rx="0.5" fill="#1E3A5F" opacity="0.3" />
-                <rect x="3.5" y="15" width="4" height="3" rx="1" fill="#1F2937" />
-                <rect x="16.5" y="15" width="4" height="3" rx="1" fill="#1F2937" />
-                <circle cx="5.5" cy="16.5" r="1.2" fill="#374151" />
-                <circle cx="18.5" cy="16.5" r="1.2" fill="#374151" />
-                <rect x="21" y="8.5" width="1.5" height="1.5" rx="0.3" fill="#93C5FD" opacity="0.7" />
-                <defs>
-                  <linearGradient id="busG" x1="0" y1="0" x2="0" y2="1">
-                    <stop stopColor="#FCD34D" />
-                    <stop stopColor="#F59E0B" />
-                  </linearGradient>
-                </defs>
-              </svg>
-            </motion.div>
           </motion.div>
+
+          <div className="absolute inset-0 pointer-events-none">
+            {Array.from({ length: 14 }).map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute w-1.5 h-1.5 rounded-full bg-white/10"
+                style={{
+                  left: `${(i * 7) % 100}%`,
+                  top: `${(i * 11) % 100}%`,
+                }}
+                animate={{ y: [0, -10, 0], opacity: [0.15, 0.35, 0.15] }}
+                transition={{ duration: 3 + (i % 4) * 0.6, repeat: Infinity, ease: 'easeInOut', delay: i * 0.08 }}
+              />
+            ))}
+          </div>
 
           {/* Version */}
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 1.4, duration: 0.5 }}
+            transition={{ delay: 1.55, duration: 0.5 }}
             className="absolute bottom-4 text-[9px] text-blue-300/30 tracking-wider"
           >
             تنسيقية مواصلات فلك

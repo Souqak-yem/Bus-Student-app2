@@ -124,7 +124,9 @@ export default function NotificationCenter({ open, onClose }) {
 
   function handleNotificationClick(notif) {
     if (!notif.isRead) markAsRead(notif.id)
-    if (notif.targetRoute) navigate(notif.targetRoute)
+    if (notif.targetRoute) {
+      navigate(notif.targetRoute, { replace: false, state: { fromNotification: true } })
+    }
     onClose()
   }
 

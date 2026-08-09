@@ -128,33 +128,29 @@ router.post('/transfer', authorize('admin'), async (req, res) => {
     const { studentId, fromBusId, toBusId, pickupTime } = req.body
 
     const result = await prisma.$transaction(async (tx) => {
-      // Delete old assignment
       const old = await tx.busStudent.findUnique({ where: { studentId } })
       if (!old) {
         throw new Error('الطالب غير موجود في أي باص')
       }
 
-      // Create new assignment
-      const created = await tx.busStudent.create({
+      if (old.busId === toBusId) {
+        throw new Error('الطالب موجود بالفعل في الباص الهدف')
+      }
+
+      const updated = await tx.busStudent.update({
+        where: { studentId },
         data: {
           busId: toBusId,
-          studentId,
           pickupTime: pickupTime || old.pickupTime,
           isActive: true,
         },
       })
 
-      // Delete old record
-      await tx.busStudent.delete({ where: { id: old.id } })
-
-      return created
+      return updated
     })
 
     res.json(result)
   } catch (error) {
-    if (error.code === 'P2002') {
-      return res.status(409).json({ error: 'هذا الطالب مضاف مسبقاً إلى الباص الهدف. اختر باصاً آخر.' })
-    }
     res.status(400).json({ error: error.message })
   }
 })

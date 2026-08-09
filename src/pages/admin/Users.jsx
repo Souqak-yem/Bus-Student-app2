@@ -2,8 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
   Users as UsersIcon, UserPlus, Search, Filter, Shield, Bus,
-  GraduationCap, RefreshCw, Lock, Unlock, KeyRound, AlertTriangle,
-  CheckCircle, XCircle, Clock, MoreHorizontal,
+  GraduationCap, RefreshCw, CheckCircle, XCircle, Trash2, Clock, MoreHorizontal,
 } from 'lucide-react'
 import { api } from '../../lib/api'
 import PageHeader from '../../components/ui/PageHeader'
@@ -25,9 +24,7 @@ export default function AdminUsers() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [createForm, setCreateForm] = useState({ username: '', name: '', phone: '', password: '', role: 'driver' })
-  const [resetResult, setResetResult] = useState(null)
   const [actionLoading, setActionLoading] = useState(null)
-  const [showConfirm, setShowConfirm] = useState(null)
 
   async function load() {
     try {
@@ -46,28 +43,20 @@ export default function AdminUsers() {
     e.preventDefault()
     try {
       await api.users.create(createForm)
-      setShowForm(false)
+      setShowCreate(false)
       setCreateForm({ username: '', name: '', phone: '', password: '', role: 'driver' })
       load()
     } catch (err) { alert(err.message) }
   }
 
-  async function handleResetPassword(id) {
-    setShowConfirm(id)
-  }
 
-  async function handleConfirmed() {
-    const id = showConfirm
-    setShowConfirm(null)
+  async function handleDeleteUser(id) {
+    if (!window.confirm('هل أنت متأكد من حذف هذا المستخدم؟')) return
     setActionLoading(id)
     try {
-      const result = await api.users.resetPassword(id)
-      setResetResult(result)
+      await api.users.delete(id)
+      load()
     } catch (err) { alert(err.message) } finally { setActionLoading(null) }
-  }
-
-  async function handleForceChange(id) {
-    try { await api.users.forceChangePassword(id); load() } catch (err) { alert(err.message) }
   }
 
   async function handleToggleStatus(id, currentStatus) {
@@ -129,20 +118,18 @@ export default function AdminUsers() {
       key: 'actions', label: '',
       render: (row) => (
         <div className="flex gap-1">
-          <button onClick={() => handleResetPassword(row.id)} disabled={actionLoading === row.id}
-            className="btn-ghost btn-sm" title="إعادة تعيين كلمة المرور">
-            <KeyRound size={14} />
-          </button>
-          <button onClick={() => handleForceChange(row.id)} className="btn-ghost btn-sm" title="فرض تغيير كلمة المرور">
-            <AlertTriangle size={14} />
-          </button>
           <button onClick={() => handleToggleStatus(row.id, row.status)} className="btn-ghost btn-sm" title={row.status === 'active' ? 'إيقاف' : 'تفعيل'}>
             {row.status === 'active' ? <XCircle size={14} className="text-[var(--color-danger)]" /> : <CheckCircle size={14} className="text-green-600" />}
           </button>
           {row.role !== 'admin' && (
-            <button onClick={() => handleGenerateUsername(row.id)} className="btn-ghost btn-sm" title="توليد اسم مستخدم">
-              <RefreshCw size={14} />
-            </button>
+            <>
+              <button onClick={() => handleGenerateUsername(row.id)} className="btn-ghost btn-sm" title="توليد اسم مستخدم">
+                <RefreshCw size={14} />
+              </button>
+              <button onClick={() => handleDeleteUser(row.id)} className="btn-ghost btn-sm" title="حذف المستخدم" disabled={actionLoading === row.id}>
+                <Trash2 size={14} className="text-[var(--color-danger)]" />
+              </button>
+            </>
           )}
         </div>
       ),
@@ -188,7 +175,7 @@ export default function AdminUsers() {
       {/* Create Modal */}
       {showCreate && (
         <div className="modal-overlay" onClick={() => setShowCreate(false)}>
-          <div className="modal-content max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content max-w-[min(95vw,760px)] lg:max-w-[920px] p-6" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-bold mb-4">إضافة مستخدم جديد</h2>
             <form onSubmit={handleCreate} className="space-y-3">
               <div>
@@ -228,34 +215,10 @@ export default function AdminUsers() {
         </div>
       )}
 
-      {/* Reset Password Result Modal */}
-      {resetResult && (
-        <div className="modal-overlay" onClick={() => setResetResult(null)}>
-          <div className="modal-content max-w-sm p-6 text-center" onClick={(e) => e.stopPropagation()}>
-            <KeyRound size={40} className="mx-auto mb-3 text-[var(--color-accent)]" />
-            <h3 className="text-lg font-bold mb-2">تم إعادة تعيين كلمة المرور</h3>
-            <div className="bg-[var(--color-border-light)] rounded-xl p-4 mb-4">
-              <p className="text-xs text-[var(--color-text-muted)] mb-1">كلمة المرور المؤقتة</p>
-              <p className="text-2xl font-mono font-bold text-[var(--color-accent)]" dir="ltr">{resetResult.temporaryPassword}</p>
-            </div>
-            <button onClick={() => setResetResult(null)} className="btn-primary w-full justify-center">تم</button>
-          </div>
-        </div>
-      )}
-
       <DataTable columns={columns} data={users} loading={loading}
         emptyTitle="لا توجد نتائج" emptyDescription="لم يتم العثور على مستخدمين"
         emptyAction={filterRole || filterStatus || searchTerm ? { label: 'مسح الفلتر', onClick: () => { setFilterRole(''); setFilterStatus(''); setSearchTerm('') } } : undefined} />
 
-      <ConfirmModal
-        show={!!showConfirm}
-        onClose={() => setShowConfirm(null)}
-        onConfirm={handleConfirmed}
-        title="تأكيد إعادة تعيين كلمة المرور"
-        danger
-      >
-        هل أنت متأكد من إعادة تعيين كلمة المرور لهذا المستخدم؟
-      </ConfirmModal>
     </div>
   )
 }

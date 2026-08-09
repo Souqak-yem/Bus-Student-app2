@@ -19,7 +19,6 @@ import {
   getReturnReadinessStats,
 } from '../services/returnReadinessService.js'
 import {
-  notifyAndBroadcastToBus,
   notifyStudent,
 } from '../services/socketService.js'
 

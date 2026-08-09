@@ -6,7 +6,7 @@ export default function Section({ title, subtitle, icon: Icon, children, classNa
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.3 }}
-      className={`bg-white rounded-xl shadow-sm border border-[var(--color-border)] p-4 sm:p-6 transition-shadow duration-200 hover:shadow-md ${className}`}
+      className={`card p-4 sm:p-6 transition-shadow duration-200 hover:shadow-pop ${className}`}
     >
       {(title || headerRight) && (
         <div className="flex items-center justify-between mb-4 sm:mb-5 flex-wrap gap-3">

@@ -4,6 +4,7 @@ import { CalendarDays, CreditCard, Clock, FileText, Upload, ShoppingCart, Trash2
 import { resolveDailyExecutionDates } from '../../../backend/src/utils/dateUtils.js'
 import { api } from '../../lib/api'
 import ConfirmModal from '../../components/ui/ConfirmModal'
+import DiscountExpiryBadge from '../../components/ui/DiscountExpiryBadge'
 
 const PLAN_LABELS = {
   DAILY: 'يومي',
@@ -107,18 +108,6 @@ export default function Subscriptions() {
           c => c.type === 'subscription_3weeks' || c.type === 'subscription_4weeks'
         )
         setCampaigns(subCamps)
-
-        // Debug: campaign vs subscription dates
-        if (subsResult.status === 'fulfilled') {
-          const subs = subsResult.value
-          console.log('--- DATE DEBUG ---')
-          subCamps.forEach(c => {
-            console.log('campaign.id:', c.id, 'startDate:', c.startDate, 'endDate:', c.endDate)
-          })
-          ;(Array.isArray(subs) ? subs : []).filter(s => s.status === 'active').forEach(s => {
-            console.log('subscription.id:', s.id, 'type:', s.type, 'startDate:', s.startDate, 'endDate:', s.endDate)
-          })
-        }
         const priceMap = {}
         await Promise.allSettled(subCamps.map(async (c) => {
           try {
@@ -345,7 +334,14 @@ export default function Subscriptions() {
   }, [pricing])
 
   if (loading) {
-    return <div className="text-center py-16 text-slate-400 text-base font-medium">جاري التحميل...</div>
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-400 text-base font-medium fade-in">
+        <div className="w-10 h-10 rounded-2xl gradient-primary flex items-center justify-center">
+          <CreditCard size={20} className="text-white animate-pulse" />
+        </div>
+        جاري التحميل...
+      </div>
+    )
   }
 
   const tabItems = [
@@ -372,10 +368,10 @@ export default function Subscriptions() {
 
   function DailySubscriptionCard({ sub }) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-3">
+      <div className="card p-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="p-2 rounded-lg bg-[var(--color-primary)]/5">
+            <div className="w-9 h-9 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center">
               <CalendarDays size={18} className="text-[var(--color-primary)]" />
             </div>
             <div className="min-w-0">
@@ -406,7 +402,7 @@ export default function Subscriptions() {
       : (price?.discountedPrice || 0)
 
     return (
-      <div className={`rounded-xl border p-4 ${isUpcoming ? 'border-amber-300 bg-amber-50/40' : hasActiveDiscount ? 'border-green-300 bg-green-50/40' : 'border-slate-200 bg-white'}`}>
+      <div className={`card p-4 ${isUpcoming ? 'border-amber-300 bg-gradient-to-b from-amber-50/60 to-white' : hasActiveDiscount ? 'border-green-300 bg-gradient-to-b from-green-50/60 to-white' : ''}`}>
         {/* Header: title + badges */}
         <div className="flex items-start justify-between gap-2 mb-2">
           <h4 className="text-sm font-bold text-slate-800 leading-snug">{campaign.title}</h4>
@@ -421,6 +417,9 @@ export default function Subscriptions() {
                 خصم مبكر
               </span>
             )}
+            {campaign.hasEarlyDiscount && campaign.discountExpiry && (
+              <DiscountExpiryBadge expiry={campaign.discountExpiry} />
+            )}
           </div>
         </div>
 
@@ -432,7 +431,7 @@ export default function Subscriptions() {
         {/* Details grid */}
         <div className="space-y-1.5 text-xs text-slate-600 mb-2">
           {/* Period with calendar icon */}
-          <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-2">
+          <div className="flex items-center gap-2 bg-slate-50/80 border border-slate-100 rounded-xl p-2.5">
             <CalendarDays size={16} className="text-slate-400 shrink-0" />
             <span className="font-medium text-slate-700">
               {new Date(campaign.startDate).toLocaleDateString('ar-SA')}
@@ -498,7 +497,7 @@ export default function Subscriptions() {
           })()}
 
           {/* Total */}
-          <div className="flex justify-between items-center bg-[var(--color-primary)]/5 rounded-lg px-3 py-2.5 mt-1">
+          <div className="flex justify-between items-center bg-gradient-to-l from-[var(--color-primary)]/10 to-[var(--color-primary)]/5 rounded-xl px-3 py-2.5 mt-1">
             <span className="text-sm font-bold text-slate-800">الإجمالي</span>
             <span className="text-base font-extrabold text-[var(--color-primary)]">
               {Number(existingEnrollment ? existingEnrollment.finalAmount : (price?.finalAmount || 0)).toLocaleString()} <span className="text-xs font-medium">ريال</span>
@@ -509,13 +508,13 @@ export default function Subscriptions() {
         {/* Actions */}
         {existingEnrollment && !isEnrolling ? (
           existingEnrollment.receiptStatus === 'REJECTED' ? (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 space-y-2">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 space-y-2">
               <div className="font-bold">تم رفض الطلب</div>
               {existingEnrollment.rejectionReason && (
                 <div><span className="font-medium">السبب:</span> {existingEnrollment.rejectionReason}</div>
               )}
               <button onClick={() => { setCampaignEnrolling(campaign.id); setCampaignError(''); setCampaignSuccess('') }}
-                className="w-full rounded-lg bg-[var(--color-primary)] py-2.5 text-sm font-bold text-white">
+                className="w-full gradient-primary py-2.5 rounded-xl text-sm font-bold text-white shadow-[0_4px_12px_-4px_rgba(37,99,235,0.5)] active:scale-[0.98] transition-all">
                 إعادة تقديم الطلب
               </button>
             </div>
@@ -533,11 +532,11 @@ export default function Subscriptions() {
             {campaignSuccess && <p className="text-sm text-green-600 bg-green-50 p-3 rounded-lg font-medium">{campaignSuccess}</p>}
             <div className="flex gap-2">
               <button onClick={() => handleAddCampaignToCart(campaign)} disabled={campaignSubmitting}
-                className="flex-1 bg-[var(--color-primary)] text-white py-2.5 rounded-xl text-sm font-bold disabled:opacity-50">
+                className="flex-1 gradient-primary text-white py-2.5 rounded-xl text-sm font-bold disabled:opacity-50 shadow-[0_4px_12px_-4px_rgba(37,99,235,0.5)] active:scale-[0.98] transition-all">
                 {campaignSubmitting ? 'جاري...' : 'إضافة إلى السلة'}
               </button>
               <button onClick={() => { setCampaignEnrolling(null); setCampaignError(''); setCampaignSuccess('') }}
-                className="px-4 py-2.5 rounded-xl text-sm font-medium border border-slate-200 text-slate-600">
+                className="px-4 py-2.5 rounded-xl text-sm font-medium border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
                 إلغاء
               </button>
             </div>
@@ -547,7 +546,7 @@ export default function Subscriptions() {
             {campaignError && <p className="text-sm text-red-500 bg-red-50 p-2 rounded-lg">{campaignError}</p>}
             {campaignSuccess && <p className="text-sm text-green-600 bg-green-50 p-3 rounded-lg font-medium">{campaignSuccess}</p>}
             <button onClick={() => handleAddCampaignToCart(campaign)} disabled={campaignSubmitting}
-              className="w-full bg-[var(--color-primary)] text-white py-2.5 rounded-xl text-sm font-bold disabled:opacity-50 min-h-[44px]">
+              className="w-full gradient-primary text-white py-2.5 rounded-xl text-sm font-bold disabled:opacity-50 min-h-[44px] shadow-[0_4px_12px_-4px_rgba(37,99,235,0.5)] active:scale-[0.98] transition-all">
               {campaignSubmitting ? 'جاري...' : 'إضافة إلى السلة'}
             </button>
           </div>
@@ -585,8 +584,8 @@ export default function Subscriptions() {
                   <button key={w} onClick={() => setDailyWeeks(w)}
                     className={`py-2.5 rounded-xl text-sm font-bold transition-all ${
                       dailyWeeks === w
-                        ? 'bg-[var(--color-primary)] text-white shadow-sm'
-                        : 'bg-slate-50 text-slate-600 border border-slate-200'
+                        ? 'gradient-primary text-white shadow-[0_4px_12px_-4px_rgba(37,99,235,0.5)]'
+                        : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
                     }`}>
                     {w === 1 ? 'أسبوع' : `${w} أسابيع`}
                   </button>
@@ -602,8 +601,8 @@ export default function Subscriptions() {
                   <button key={day.value} onClick={() => toggleDay(day.value)}
                     className={`py-2.5 rounded-xl text-sm font-bold transition-all ${
                       dailyDays.includes(day.value)
-                        ? 'bg-[var(--color-primary)] text-white shadow-sm'
-                        : 'bg-slate-50 text-slate-600 border border-slate-200'
+                        ? 'gradient-primary text-white shadow-[0_4px_12px_-4px_rgba(37,99,235,0.5)]'
+                        : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
                     }`}>
                     {day.label}
                   </button>
@@ -612,7 +611,7 @@ export default function Subscriptions() {
             </div>
 
             {computedDates.length > 0 && (
-              <div className="bg-slate-50 rounded-xl p-3 space-y-2">
+              <div className="bg-slate-50/80 border border-slate-100 rounded-xl p-3 space-y-2 fade-in">
                 <div className="text-sm font-bold text-slate-700">ملخص الطلب</div>
                 <div className="space-y-1.5 text-sm">
                   <div className="flex justify-between text-slate-600">
@@ -649,7 +648,7 @@ export default function Subscriptions() {
             {dailySuccess && <p className="text-sm text-green-600 bg-green-50 p-3 rounded-lg font-medium">{dailySuccess}</p>}
 
             <button onClick={handleAddDailyToCart} disabled={dailyAddingToCart || computedDates.length === 0}
-              className="w-full bg-[var(--color-primary)] text-white py-3 rounded-xl text-sm font-bold disabled:opacity-50 min-h-[48px]">
+              className="w-full gradient-primary text-white py-3 rounded-xl text-sm font-bold disabled:opacity-50 min-h-[48px] shadow-[0_6px_16px_-8px_rgba(37,99,235,0.6)] active:scale-[0.98] transition-all">
               {dailyAddingToCart ? 'جاري الإضافة...' : 'إضافة إلى السلة'}
             </button>
           </div>
@@ -667,10 +666,10 @@ export default function Subscriptions() {
           {activeWeeklySubscriptions.length > 0 ? (
             <div className="space-y-2">
               {activeWeeklySubscriptions.map(sub => (
-                <div key={sub.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                <div key={sub.id} className="card p-3">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="p-2 rounded-lg bg-[var(--color-primary)]/5">
+                      <div className="w-9 h-9 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center">
                         <CreditCard size={18} className="text-[var(--color-primary)]" />
                       </div>
                       <div className="min-w-0">
@@ -703,7 +702,7 @@ export default function Subscriptions() {
 
         {/* Campaigns - Upcoming */}
         {upcomingCampaigns.length > 0 && (
-          <div className="bg-white rounded-xl p-4 border border-amber-300">
+          <div className="card p-4 border border-amber-300 bg-gradient-to-b from-amber-50/60 to-white">
             <h3 className="text-sm font-bold text-amber-700 mb-3">الحملات القادمة</h3>
             <div className="space-y-3">
               {upcomingCampaigns.map(campaign => <CampaignCard key={campaign.id} campaign={campaign} isUpcoming />)}
@@ -712,7 +711,7 @@ export default function Subscriptions() {
         )}
 
         {campaigns.length === 0 && (
-          <div className="bg-white rounded-xl p-8 text-center">
+          <div className="card p-8 text-center">
             <p className="text-sm text-slate-400">لا توجد حالياً حملات اشتراك مفتوحة</p>
           </div>
         )}
@@ -722,14 +721,14 @@ export default function Subscriptions() {
 
   function renderCurrentTab() {
     return (
-      <div className="bg-white rounded-xl p-4">
+      <div className="card p-4">
         <h3 className="text-sm font-bold text-slate-800 mb-3">
           {destId ? 'أسعار الاشتراكات حسب وجهتي' : 'أسعار الاشتراكات حسب المنطقة'}
         </h3>
         <div className="overflow-x-auto -mx-4">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-slate-50 text-slate-600">
+              <tr className="bg-slate-50/80 text-slate-600">
                 <th className="px-4 py-2.5 text-right font-bold">المنطقة</th>
                 <th className="px-4 py-2.5 text-right font-bold">4 أسابيع</th>
                 <th className="px-4 py-2.5 text-right font-bold">3 أسابيع</th>
@@ -775,15 +774,15 @@ export default function Subscriptions() {
 
   function renderHistoryTab() {
     return (
-      <div className="bg-white rounded-xl p-4">
+      <div className="card p-4">
         <h3 className="text-sm font-bold text-slate-800 mb-3">سجل الاشتراكات</h3>
         {nonActiveSubscriptions.length > 0 ? (
           <div className="space-y-2">
             {nonActiveSubscriptions.map(sub => (
-              <div key={sub.id} className="rounded-xl border border-slate-200 p-3">
+              <div key={sub.id} className="card p-3">
                 <div className="flex justify-between items-start gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="p-1.5 rounded-lg bg-slate-50">
+                    <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center">
                       <FileText size={16} className="text-slate-500 shrink-0" />
                     </div>
                     <div className="min-w-0">
@@ -840,9 +839,9 @@ export default function Subscriptions() {
   return (
     <div className="space-y-2">
       {cart && (
-        <div className="bg-white rounded-xl border-2 border-[var(--color-primary)]/30 p-4 shadow-md">
+        <div className="card border-2 border-[var(--color-primary)]/40 p-4 fade-in">
           <div className="flex items-center gap-2 mb-3">
-            <div className="p-1.5 rounded-lg bg-[var(--color-primary)]/5">
+            <div className="w-9 h-9 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center">
               <ShoppingCart size={20} className="text-[var(--color-primary)]" />
             </div>
             <h3 className="text-sm font-bold text-[var(--color-primary)]">سلة الاشتراكات</h3>
@@ -851,7 +850,7 @@ export default function Subscriptions() {
 
           <div className="space-y-2">
             {(cart.items || []).map((item, idx) => (
-              <div key={item.id} className="flex items-center justify-between gap-3 py-2.5 px-3 bg-slate-50 rounded-xl">
+              <div key={item.id} className="flex items-center justify-between gap-3 py-2.5 px-3 bg-slate-50/80 border border-slate-100 rounded-xl">
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold text-slate-800">
                     {item.type === 'DAILY' ? 'اشتراك يومي' : item.type === 'FOUR_WEEKS' ? 'اشتراك 4 أسابيع' : item.type === 'THREE_WEEKS' ? 'اشتراك 3 أسابيع' : item.type}
@@ -882,7 +881,7 @@ export default function Subscriptions() {
           ) : (
             <div className="mt-3 space-y-3">
               <div>
-                <label className="flex items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl py-3 cursor-pointer hover:border-[var(--color-primary)] transition-colors">
+                <label className="flex items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-2xl py-3 cursor-pointer hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 transition-colors">
                   <Upload size={18} className="text-slate-400" />
                   <span className="text-sm text-slate-500 font-medium">{cartReceipt ? 'تغيير صورة السند' : 'إرفاق صورة سند التحويل'}</span>
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => {
@@ -893,11 +892,11 @@ export default function Subscriptions() {
                     reader.readAsDataURL(file)
                   }} />
                 </label>
-                {cartReceipt && <img src={cartReceipt} alt="السند" className="mt-2 max-h-24 rounded-xl border border-slate-200" />}
+                {cartReceipt && <img src={cartReceipt} alt="السند" className="mt-2 max-h-24 rounded-xl border border-slate-200 shadow-sm" />}
               </div>
               {cartError && <p className="text-sm text-red-500 bg-red-50 p-2 rounded-lg">{cartError}</p>}
               <button onClick={handleCartSubmit} disabled={cartSubmitting || !cartReceipt}
-                className="w-full bg-[var(--color-primary)] text-white py-3 rounded-xl text-sm font-bold disabled:opacity-50 min-h-[48px]">
+                className="w-full gradient-primary text-white py-3 rounded-xl text-sm font-bold disabled:opacity-50 min-h-[48px] shadow-[0_6px_16px_-8px_rgba(37,99,235,0.6)] active:scale-[0.98] transition-all">
                 {cartSubmitting ? 'جاري الإرسال...' : 'إرسال الطلب'}
               </button>
             </div>
@@ -905,14 +904,14 @@ export default function Subscriptions() {
         </div>
       )}
 
-      <div className="grid grid-cols-4 gap-1.5 bg-white rounded-xl border border-slate-200 p-1.5 shadow-sm">
+      <div className="grid grid-cols-4 gap-1 bg-white/80 border border-slate-200/80 rounded-2xl p-1.5 shadow-card backdrop-blur">
         {tabItems.map((tab) => (
           <NavLink key={tab.key} to={tab.key} end
             className={({ isActive }) =>
               `rounded-xl py-2.5 text-sm font-bold text-center transition-all ${
                 isActive
-                  ? 'bg-[var(--color-primary)] text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50'
+                  ? 'gradient-primary text-white shadow-[0_4px_12px_-4px_rgba(37,99,235,0.5)]'
+                  : 'text-slate-600 hover:bg-slate-100'
               }`
             }>
             {tab.label}
@@ -967,7 +966,7 @@ export default function Subscriptions() {
             </div>
           ))}
         </div>
-        <div className="flex items-center justify-between bg-[var(--color-primary)]/5 rounded-xl p-3">
+        <div className="flex items-center justify-between bg-gradient-to-l from-[var(--color-primary)]/10 to-[var(--color-primary)]/5 rounded-xl p-3">
           <span className="text-sm font-bold text-slate-800">الإجمالي</span>
           <span className="text-sm font-extrabold text-[var(--color-primary)]">{Number(cart?.totalAmount).toLocaleString()} <span className="text-xs">ريال</span></span>
         </div>

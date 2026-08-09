@@ -10,6 +10,7 @@ import { prisma } from './lib/prisma.js'
 import trackingRoutes from './routes/tracking.js'
 import authRoutes from './routes/auth.js'
 import studentRoutes from './routes/students.js'
+import debugRoutes from './routes/debug.js'
 import busRoutes from './routes/buses.js'
 import assignmentRoutes from './routes/assignments.js'
 import subscriptionRoutes from './routes/subscriptions.js'
@@ -40,7 +41,6 @@ import destinationRoutes from './routes/destinations.js'
 import dailySubscriptionRoutes from './routes/dailySubscriptions.js'
 import cartRoutes from './routes/cart.js'
 import cartApprovalRoutes from './routes/cartApprovals.js'
-import saturdayRoutes from './routes/saturdayOperations.js'
 import pushSubscriptionRoutes from './routes/pushSubscriptions.js'
 import returnReadinessRoutes from './routes/returnReadiness.js'
 
@@ -125,6 +125,7 @@ app.use('/api/assignments', assignmentRoutes)
 app.use('/api/subscriptions', subscriptionRoutes)
 app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/attendance', attendanceRoutes)
+app.use('/api/debug', debugRoutes)
 app.use('/api/bus-students', busStudentRoutes)
 app.use('/api/return', returnRoutes)
 app.use('/api/pricing', pricingRoutes)
@@ -151,7 +152,6 @@ app.use('/api/destinations', destinationRoutes)
 app.use('/api/daily-subscriptions', dailySubscriptionRoutes)
 app.use('/api/student/cart', cartRoutes)
 app.use('/api/approvals/carts', cartApprovalRoutes)
-app.use('/api/saturday', saturdayRoutes)
 app.use('/api/push', pushSubscriptionRoutes)
 app.use('/api/return-readiness', returnReadinessRoutes)
 

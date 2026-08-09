@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { authenticate, authorize } from '../middleware/auth.js'
 import { hashPassword, generateStudentUsername, ensureUniqueUsername } from '../services/authService.js'
+import { createAndBroadcast } from '../services/notificationService.js'
 import { generateRandomPassword } from '../utils/secrets.js'
 
 const router = Router()
@@ -9,12 +10,13 @@ router.use(authenticate)
 
 router.get('/', async (req, res) => {
   try {
-    const { zone, status, search, transportMode } = req.query
+    const { zone, status, search, transportMode, destinationId } = req.query
     const where = {}
 
     if (zone) where.zone = zone
     if (status) where.status = status
     if (transportMode) where.transportMode = transportMode
+    if (destinationId) where.destinationId = destinationId
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -134,6 +136,22 @@ router.put('/:id', authorize('admin'), async (req, res) => {
   try {
     const { name, phone, whatsapp, parentName, parentRelation, parentPhone, address, zone, destinationId, major, level, institutionName, offDays, pickupLocation, status, transportMode, homeAddress, homeDeliveryFee, homeDeliveryFeeDaily, homeDeliveryFeeThreeWeeks, homeDeliveryFeeFourWeeks, homeNotes, homeDeliveryActive } = req.body
 
+    const existingStudent = await prisma.student.findUnique({
+      where: { id: req.params.id },
+      include: { user: true },
+    })
+    if (!existingStudent) return res.status(404).json({ error: 'الطالب غير موجود' })
+
+    const parseOptionalPrice = (value) => {
+      if (value === undefined || value === null || value === '') return undefined
+      const num = Number(value)
+      return Number.isNaN(num) ? undefined : num
+    }
+
+    const parsedDaily = parseOptionalPrice(homeDeliveryFeeDaily)
+    const parsedThree = parseOptionalPrice(homeDeliveryFeeThreeWeeks)
+    const parsedFour = parseOptionalPrice(homeDeliveryFeeFourWeeks)
+
     const student = await prisma.student.update({
       where: { id: req.params.id },
       data: {
@@ -144,13 +162,39 @@ router.put('/:id', authorize('admin'), async (req, res) => {
         transportMode,
         homeAddress,
         homeDeliveryFee: homeDeliveryFee != null ? Number(homeDeliveryFee) : undefined,
-        homeDeliveryFeeDaily: homeDeliveryFeeDaily != null ? Number(homeDeliveryFeeDaily) : undefined,
-        homeDeliveryFeeThreeWeeks: homeDeliveryFeeThreeWeeks != null ? Number(homeDeliveryFeeThreeWeeks) : undefined,
-        homeDeliveryFeeFourWeeks: homeDeliveryFeeFourWeeks != null ? Number(homeDeliveryFeeFourWeeks) : undefined,
+        homeDeliveryFeeDaily: parsedDaily !== undefined ? parsedDaily : undefined,
+        homeDeliveryFeeThreeWeeks: parsedThree !== undefined ? parsedThree : undefined,
+        homeDeliveryFeeFourWeeks: parsedFour !== undefined ? parsedFour : undefined,
         homeNotes,
         homeDeliveryActive,
       },
+      include: { user: true },
     })
+
+    const hadPriorPrice = (existingStudent.homeDeliveryFeeDaily != null && Number(existingStudent.homeDeliveryFeeDaily) > 0)
+      || (existingStudent.homeDeliveryFeeThreeWeeks != null && Number(existingStudent.homeDeliveryFeeThreeWeeks) > 0)
+      || (existingStudent.homeDeliveryFeeFourWeeks != null && Number(existingStudent.homeDeliveryFeeFourWeeks) > 0)
+
+    const hasNewPrice = (parsedDaily != null && Number(parsedDaily) > 0)
+      || (parsedThree != null && Number(parsedThree) > 0)
+      || (parsedFour != null && Number(parsedFour) > 0)
+
+    const priceChanged = (parsedDaily != null && Number(parsedDaily) > 0 && Number(existingStudent.homeDeliveryFeeDaily || 0) !== Number(parsedDaily))
+      || (parsedThree != null && Number(parsedThree) > 0 && Number(existingStudent.homeDeliveryFeeThreeWeeks || 0) !== Number(parsedThree))
+      || (parsedFour != null && Number(parsedFour) > 0 && Number(existingStudent.homeDeliveryFeeFourWeeks || 0) !== Number(parsedFour))
+
+    if (student.transportMode === 'HOME' && hasNewPrice && priceChanged && student.user?.id) {
+      const dailyText = parsedDaily ? parsedDaily : ''
+      const threeText = parsedThree ? parsedThree : ''
+      const fourText = parsedFour ? parsedFour : ''
+      await createAndBroadcast({
+        userId: student.user.id,
+        type: 'student_home_delivery_price',
+        title: 'تم تحديد سعر التوصيل المنزلي الخاص بك',
+        message: `تم تحديد سعر التوصيل المنزلي الخاص بك وهو كالتالي: اليومي (${dailyText}) 3 أسابيع (${threeText}) 4 أسابيع (${fourText})`,
+        targetRoute: '/student/notifications',
+      })
+    }
 
     res.json(student)
   } catch (error) {

@@ -114,8 +114,18 @@ export default function Login() {
               <span className="flex items-center gap-2"><LogIn size={16} /> تسجيل الدخول</span>
             )}
           </button>
-        </form>
-      </div>
+          </form>
+          <div className="mt-4 text-center text-sm text-[var(--color-text-secondary)]">
+            <span>ليس لديك حساب؟</span>
+            <button
+              type="button"
+              onClick={() => navigate('/register')}
+              className="text-[var(--color-primary)] font-semibold mr-2 hover:underline"
+            >
+              سجل كطالب
+            </button>
+          </div>
+        </div>
       <button
         onClick={handleCopyVersion}
         className="flex items-center justify-center gap-1.5 mx-auto mt-4 text-xs text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"

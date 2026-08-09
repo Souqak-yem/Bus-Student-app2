@@ -245,7 +245,7 @@ export default function AdminPricing() {
       <PageHeader title="إدارة أسعار الاشتراكات" subtitle="تحديد الأسعار حسب المنطقة والوجهة ونوع الاشتراك" />
 
       {/* Zone selector and actions */}
-      <Section>
+      <Section className="lg:p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">
             <p className="text-sm text-[var(--color-text-muted)]">اختر المنطقة لتعديل أسعارها.</p>
@@ -286,7 +286,7 @@ export default function AdminPricing() {
       ) : (
         <>
           {/* Zone info */}
-          <Section>
+          <Section className="lg:p-5">
             <div className="bg-[var(--color-border-light)] p-4 rounded-2xl">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-center gap-3">
@@ -351,7 +351,7 @@ export default function AdminPricing() {
           </Section>
 
           {/* Summary of all destination prices */}
-          <Section title="أسعار الوجهات للمنطقة">
+          <Section title="أسعار الوجهات للمنطقة" className="lg:p-5">
             {Object.keys(groupedPrices).length === 0 ? (
               <div className="text-center py-4 text-sm text-[var(--color-text-muted)]">لا توجد أسعار خاصة بالوجهات لهذه المنطقة.</div>
             ) : (
@@ -383,7 +383,7 @@ export default function AdminPricing() {
 
           {/* All zones prices for selected destination */}
           {selectedDestId && (
-            <Section title="أسعار المناطق حسب الوجهة">
+            <Section title="أسعار المناطق حسب الوجهة" className="lg:p-5">
               <div className="overflow-x-auto rounded-3xl border border-[var(--color-border)] bg-white">
                 <table className="min-w-full text-right">
                   <thead className="bg-[var(--color-border-light)]">
@@ -419,7 +419,7 @@ export default function AdminPricing() {
 
       {addingZone && (
         <div className="modal-overlay" onClick={() => setAddingZone(false)}>
-          <div className="modal-content max-w-xl" onClick={e => e.stopPropagation()}>
+          <div className="modal-content max-w-[min(95vw,960px)] lg:max-w-[1040px]" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-[var(--color-border)]">
               <h2 className="text-lg font-bold">إضافة منطقة جديدة</h2>
               <button onClick={() => setAddingZone(false)} className="p-2 rounded-lg hover:bg-[var(--color-border-light)]"><X size={20} /></button>

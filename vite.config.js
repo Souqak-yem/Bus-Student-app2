@@ -60,6 +60,9 @@ export default defineConfig({
     __BUILD_TIME__: JSON.stringify(buildTime),
   },
   server: {
+    host: true,
+    port: 5173,
+    strictPort: false,
     hmr: {
       host: 'localhost',
       protocol: 'ws',

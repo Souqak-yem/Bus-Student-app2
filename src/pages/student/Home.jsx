@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Bus, Clock, MapPin, Phone, Check, X, Bell, ArrowLeft, Users, MessageCircle, LogIn, AlertCircle, CheckCircle2, Clock3, MapPinned, CheckCheck } from 'lucide-react'
+import { Bus, Clock, MapPin, Phone, Check, X, Bell, ArrowLeft, Users, MessageCircle, LogIn, AlertCircle, CheckCircle2, Clock3, MapPinned, CheckCheck, CalendarDays } from 'lucide-react'
 import { api } from '../../lib/api'
-import { connectSocket, joinBusRoom, leaveBusRoom, onTrackingUpdate, offTrackingUpdate, onNotificationNew, offNotificationNew, joinNotificationRoom, onStudentUpdate, offStudentUpdate, onReadinessUpdate, offReadinessUpdate, onBoardingTimerUpdate, offBoardingTimerUpdate } from '../../lib/socket'
+import { connectSocket, joinBusRoom, leaveBusRoom, onTrackingUpdate, offTrackingUpdate, onNotificationNew, offNotificationNew, joinNotificationRoom, onStudentUpdate, offStudentUpdate, onReadinessUpdate, offReadinessUpdate, onBoardingTimerUpdate, offBoardingTimerUpdate, onReconnect } from '../../lib/socket'
 import ConfirmModal from '../../components/ui/ConfirmModal'
 import QuickContactCard from '../../components/ui/QuickContactCard'
-import { ReturnTripViewWrapper } from '../../components/student/returnTrip'
+import { ReturnTripViewWrapper } from '../../components/student/returnTrip/index.js'
 
 const Stage = {
   NO_TRIP: 'NO_TRIP',
@@ -39,7 +39,12 @@ function formatTime(timeStr) {
   const period = isAM ? 'ص' : 'م'
   return `${displayHours}:${String(minutes).padStart(2, '0')} ${period}`
 }
-
+function localDateStr(d = new Date()) {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 const dotColors = {
   [TrackingStatus.PICKED_UP]: 'bg-green-500',
   [TrackingStatus.CURRENT]: 'bg-yellow-500',
@@ -67,47 +72,18 @@ const statusLabels = {
 export default function Home() {
   const [data, setData] = useState(null)
   const [tracking, setTracking] = useState(null)
-  const [saturdayData, setSaturdayData] = useState(null)
+  const [weeklySchedule, setWeeklySchedule] = useState(null)
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(false)
   const notifiedRef = useRef(false)
   const activeBusIdRef = useRef(null)
+  const [activeBusId, setActiveBusId] = useState(null)
   const studentIdRef = useRef(null)
   const [returnReadiness, setReturnReadiness] = useState(null)
 
-  const today = new Date()
-  const isSaturday = today.getDay() === 6
-
   const load = async () => {
     try {
-      if (isSaturday) {
-        const saturdayResult = await api.saturday.studentDashboard().catch(() => null)
-        setSaturdayData(saturdayResult)
-
-        if (!saturdayResult?.operationExists) {
-          setData({ operationStage: Stage.NO_TRIP })
-          setLoading(false)
-          return
-        }
-
-        if (saturdayResult?.myBus) {
-          const syntheticData = {
-            student: saturdayResult.myBus.loads?.[0]?.student || null,
-            todayAssignment: {
-              bus: saturdayResult.myBus.bus,
-              pickupTime: saturdayResult.myBus.pickupTime,
-              busId: saturdayResult.myBus.bus?.id
-            },
-            operationStage: Stage.BEFORE_PICKUP,
-            busStudents: [],
-          }
-          setData(syntheticData)
-        } else {
-          setData({ operationStage: Stage.NO_TRIP })
-        }
-        setLoading(false)
-        return
-      }
+      api.studentPortal.getWeeklySchedule().then(setWeeklySchedule).catch(() => {})
 
       const d = await api.studentPortal.getDashboard()
       setData(d)
@@ -122,10 +98,12 @@ export default function Home() {
           if (myBus) {
             const abId = myBus.activeBusId
             activeBusIdRef.current = abId
+            setActiveBusId(abId)
             try {
+              console.debug('[student] joining bus room', abId)
               const tr = await api.tracking.get(abId)
               setTracking(tr)
-            } catch {}
+            } catch (e) { console.debug('[student] tracking get failed', e) }
           }
         }
       }
@@ -209,18 +187,34 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    if (activeBusIdRef.current) {
-      joinBusRoom(activeBusIdRef.current)
-      onTrackingUpdate((state) => {
-        if (state.activeBusId === activeBusIdRef.current) {
+    if (activeBusId) {
+      joinBusRoom(activeBusId)
+      activeBusIdRef.current = activeBusId
+      console.debug('[student] joined bus room on effect', activeBusId)
+      const trackingHandler = (state) => {
+        if (state.activeBusId === activeBusId) {
+          console.debug('[student] received tracking update', state)
           setTracking(state)
           if (state.busStatus === 'ARRIVED') {
             load()
           }
         }
+      }
+      onTrackingUpdate(trackingHandler)
+      const unsubReconnect = onReconnect(() => {
+        if (activeBusIdRef.current) {
+          console.debug('[student] socket reconnected, rejoining', activeBusIdRef.current)
+          joinBusRoom(activeBusIdRef.current)
+        }
       })
+
+      return () => {
+        offTrackingUpdate(trackingHandler)
+        if (activeBusIdRef.current) leaveBusRoom(activeBusIdRef.current)
+        if (unsubReconnect) unsubReconnect()
+      }
     }
-  }, [data?.todayAssignment?.busId, returnReadiness?.activeBusId])
+  }, [activeBusId])
 
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
 
@@ -242,12 +236,20 @@ export default function Home() {
   }
 
   if (loading) {
-    return <div className="text-center py-12 text-slate-400 text-sm">جاري التحميل...</div>
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-400 text-sm fade-in">
+        <div className="w-10 h-10 rounded-2xl gradient-primary flex items-center justify-center">
+          <Bus size={20} className="text-white animate-pulse" />
+        </div>
+        جاري التحميل...
+      </div>
+    )
   }
 
   const { student, todayAssignment, busStudents, returnQueueStatus, returnBusInfo, operationStage } = data || {}
   const bus = todayAssignment?.bus
   const stage = operationStage || Stage.NO_TRIP
+  const isReturnStage = stage === Stage.MORNING_COMPLETED
 
   const presentCount = tracking ? tracking.pickedUpCount : (busStudents || []).filter(s => s.attendance === 'present').length
   const totalCount = tracking ? tracking.total : (busStudents?.length || 0)
@@ -256,17 +258,24 @@ export default function Home() {
 
   return (
     <div className="space-y-2">
-      <div className="bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] rounded-xl p-3 text-white">
-        <h2 className="text-base font-bold">مرحباً {firstName}</h2>
-        <p className="text-xs text-white/70">نتمنى لك يوماً سعيداً</p>
+      <div className="relative overflow-hidden gradient-primary rounded-2xl p-4 text-white shadow-[0_10px_26px_-12px_rgba(37,99,235,0.65)] fade-in">
+        <div className="absolute -top-10 -left-10 w-32 h-32 rounded-full bg-white/10" />
+        <div className="absolute -bottom-12 right-8 w-28 h-28 rounded-full bg-white/[0.07]" />
+        <div className="absolute top-3 left-16 w-10 h-10 rounded-xl bg-white/10 rotate-12" />
+        <h2 className="relative text-lg font-bold">مرحباً {firstName}</h2>
+        <p className="relative text-xs text-white/75 mt-0.5">نتمنى لك يوماً سعيداً</p>
       </div>
 
-      <QuickContactCard />
+      {!isReturnStage && weeklySchedule?.days?.length > 0 && <WeeklySchedule days={weeklySchedule.days} />}
+
+      {!isReturnStage && <QuickContactCard />}
 
       {stage === Stage.NO_TRIP && (
-        <div className="bg-white rounded-xl p-6 text-center">
-          <Bus size={40} className="mx-auto mb-2 text-slate-200" />
-          <p className="text-sm text-slate-500 font-medium">لا توجد رحلة مقررة اليوم</p>
+        <div className="card p-6 text-center fade-in">
+          <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center">
+            <Bus size={30} className="text-slate-300" />
+          </div>
+          <p className="text-sm text-slate-500 font-semibold">لا توجد رحلة مقررة اليوم</p>
           <p className="text-xs text-slate-400 mt-1">سيتم إشعارك عند تحديد رحلة</p>
         </div>
       )}
@@ -287,9 +296,11 @@ export default function Home() {
             joining={joining}
             handleConfirmReturn={handleConfirmReturn}
           />
-          <div className="bg-white rounded-xl p-3 opacity-50 pointer-events-none select-none">
+          <div className="card p-3 opacity-50 pointer-events-none select-none fade-in">
             <div className="flex items-center gap-2 text-sm text-slate-400">
-              <ArrowLeft size={16} />
+              <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center">
+                <ArrowLeft size={15} />
+              </div>
               <span>ستظهر رحلة العودة بعد انتهاء رحلة الذهاب</span>
             </div>
           </div>
@@ -312,20 +323,22 @@ export default function Home() {
             joining={joining}
             handleConfirmReturn={handleConfirmReturn}
           />
-          <div className="bg-white rounded-xl p-3 border border-green-100 text-center">
+          <div className="card p-3 border border-green-100 text-center fade-in">
             <div className="flex items-center justify-center gap-2">
-              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+              <div className="w-9 h-9 bg-green-100 rounded-full flex items-center justify-center shrink-0">
                 <Check size={16} className="text-green-600" />
               </div>
               <div>
-                <div className="text-sm font-medium text-green-700">تم تسجيل حضورك</div>
+                <div className="text-sm font-semibold text-green-700">تم تسجيل حضورك</div>
                 <div className="text-xs text-green-600">في انتظار الوصول إلى الجامعة</div>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl p-3 opacity-50 pointer-events-none select-none">
+          <div className="card p-3 opacity-50 pointer-events-none select-none fade-in">
             <div className="flex items-center gap-2 text-sm text-slate-400">
-              <ArrowLeft size={16} />
+              <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center">
+                <ArrowLeft size={15} />
+              </div>
               <span>ستظهر رحلة العودة بعد انتهاء رحلة الذهاب</span>
             </div>
           </div>
@@ -333,11 +346,11 @@ export default function Home() {
       )}
 
       {stage === Stage.ABSENT && (
-        <div className="bg-white rounded-xl p-6 text-center">
-          <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-2">
-            <X size={20} className="text-red-400" />
+        <div className="card p-6 text-center fade-in">
+          <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-3">
+            <X size={24} className="text-red-400" />
           </div>
-          <p className="text-sm text-slate-500 font-medium">تم تسجيل غيابك اليوم</p>
+          <p className="text-sm text-slate-600 font-semibold">تم تسجيل غيابك اليوم</p>
         </div>
       )}
 
@@ -358,6 +371,62 @@ export default function Home() {
   )
 }
 
+function WeeklySchedule({ days }) {
+  const todayStr = localDateStr()
+
+  return (
+    <div className="card p-3 fade-in">
+      <div className="flex items-center justify-between mb-2.5">
+        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+          <div className="w-8 h-8 gradient-primary rounded-xl flex items-center justify-center">
+            <CalendarDays size={15} className="text-white" />
+          </div>
+          جدولي الأسبوعي
+        </h3>
+        <span className="text-[10px] text-slate-400">السبت → الخميس</span>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1.5 mx-auto max-w-fit">
+        {days.map((d) => {
+          const isToday = d.date === todayStr
+          const subscribed = d.status === 'subscribed'
+          const off = d.status === 'off'
+          return (
+            <div
+              key={d.date}
+              className={`flex flex-col items-center gap-1 rounded-xl px-0.5 py-2 border transition-all ${
+                subscribed ? 'bg-blue-50 border-blue-200' : off ? 'bg-red-50 border-red-100' : 'bg-green-50 border-green-100'
+              } ${isToday ? 'ring-2 ring-[var(--color-primary)] ring-offset-1' : ''}`}
+            >
+              <span className={`text-[10px] font-medium ${isToday ? 'text-[var(--color-primary)] font-bold' : 'text-slate-500'}`}>
+                {d.dayLabel}
+              </span>
+              <span className="text-sm font-bold text-slate-800">{d.dayNumber}</span>
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                subscribed ? 'bg-blue-500' : off ? 'bg-red-400' : 'bg-green-500'
+              }`}>
+                {off ? <X size={13} className="text-white" strokeWidth={3} /> : <Check size={13} className="text-white" strokeWidth={3} />}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="flex items-center justify-center gap-3 mt-2.5 text-[9px] text-slate-400">
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> دوام
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-red-400 inline-block" /> إجازة
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> اشتراك يومي
+        </span>
+      </div>
+    </div>
+  )
+}
+
 function MorningCompletedView({ student, returnBusInfo, returnQueueStatus, showReturnConfirm, setShowReturnConfirm, joining, handleConfirmReturn, returnReadiness, setReturnReadiness, activeBusIdRef }) {
   const rd = returnReadiness
   const readiness = rd?.readiness
@@ -367,13 +436,13 @@ function MorningCompletedView({ student, returnBusInfo, returnQueueStatus, showR
 
   if (returnBusInfo?.droppedOffAt) {
     return (
-      <div className="bg-white rounded-xl p-3 border border-green-100">
+      <div className="card p-3 border border-green-100 fade-in">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 bg-green-100 rounded-full flex items-center justify-center shrink-0">
             <Check size={16} className="text-green-600" />
           </div>
           <div>
-            <div className="text-sm font-medium text-green-700">تم إيصالك إلى وجهتك</div>
+            <div className="text-sm font-semibold text-green-700">تم إيصالك إلى وجهتك</div>
             <div className="text-xs text-green-600">شكراً لاستخدامك الخدمة</div>
           </div>
         </div>
@@ -388,22 +457,24 @@ function MorningCompletedView({ student, returnBusInfo, returnQueueStatus, showR
   if (returnQueueStatus) {
     return (
       <>
-        <div className="bg-white rounded-xl p-3 border border-green-100 mb-2">
+        <div className="card p-3 border border-green-100 mb-2 fade-in">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 bg-green-100 rounded-full flex items-center justify-center shrink-0">
               <Check size={16} className="text-green-600" />
             </div>
             <div>
-              <div className="text-sm font-medium text-green-700">تم الوصول إلى الجامعة</div>
+              <div className="text-sm font-semibold text-green-700">تم الوصول إلى الجامعة</div>
               <div className="text-xs text-green-600">انتهت رحلة الذهاب</div>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl p-3 border border-amber-100">
+        <div className="card p-3 border border-amber-100 fade-in">
           <div className="flex items-center gap-2">
-            <Bell size={16} className="text-amber-500 shrink-0" />
+            <div className="w-9 h-9 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
+              <Bell size={16} className="text-amber-500" />
+            </div>
             <div>
-              <div className="text-sm font-medium text-amber-700">أنت في قائمة انتظار العودة</div>
+              <div className="text-sm font-semibold text-amber-700">أنت في قائمة انتظار العودة</div>
               <div className="text-xs text-amber-600">في انتظار التخصيص</div>
             </div>
           </div>
@@ -414,13 +485,13 @@ function MorningCompletedView({ student, returnBusInfo, returnQueueStatus, showR
 
   return (
     <>
-      <div className="bg-white rounded-xl p-3 border border-green-100 mb-2">
+      <div className="card p-3 border border-green-100 mb-2 fade-in">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 bg-green-100 rounded-full flex items-center justify-center shrink-0">
             <Check size={16} className="text-green-600" />
           </div>
           <div>
-            <div className="text-sm font-medium text-green-700">تم الوصول إلى الجامعة</div>
+            <div className="text-sm font-semibold text-green-700">تم الوصول إلى الجامعة</div>
             <div className="text-xs text-green-600">انتهت رحلة الذهاب</div>
           </div>
         </div>
@@ -428,7 +499,7 @@ function MorningCompletedView({ student, returnBusInfo, returnQueueStatus, showR
       <button
         onClick={() => setShowReturnConfirm(true)}
         disabled={joining}
-        className="w-full bg-[var(--color-primary)] text-white py-3 rounded-xl text-sm font-medium disabled:opacity-50 min-h-[44px]"
+        className="w-full gradient-primary text-white py-3 rounded-xl text-sm font-semibold disabled:opacity-50 min-h-[48px] shadow-[0_6px_18px_-8px_rgba(37,99,235,0.6)] active:scale-[0.98] transition-all"
       >
         {joining ? 'جاري...' : 'طلب رحلة العودة'}
       </button>
@@ -503,7 +574,7 @@ function ReturnReadinessCard({ readiness, timer, bus, driver, rd, setReturnReadi
     <div className="space-y-2">
       <JourneySequence readiness={readiness} timer={timer} busStatus={rd?.busStatus} />
 
-      <div className="bg-white rounded-xl p-3 border border-slate-100">
+      <div className="card p-3 fade-in">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-xs font-bold text-slate-800">تفاصيل باص العودة</h3>
           <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold border ${statusLabel.cls}`}>
@@ -530,16 +601,16 @@ function ReturnReadinessCard({ readiness, timer, bus, driver, rd, setReturnReadi
       </div>
 
       {isOnBoard ? (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
-            <CheckCheck size={24} className="text-green-600" />
+        <div className="gradient-success rounded-2xl p-4 text-center text-white shadow-[0_10px_24px_-12px_rgba(34,197,94,0.6)] fade-in">
+          <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2">
+            <CheckCheck size={24} className="text-white" />
           </div>
-          <div className="text-sm font-bold text-green-800">✅ تم تسجيل صعودك إلى الباص</div>
-          <div className="text-xs text-green-700 mt-1">رحلة سعيدة! في الطريق إلى وجهتك</div>
+          <div className="text-sm font-bold text-white">✅ تم تسجيل صعودك إلى الباص</div>
+          <div className="text-xs text-white/85 mt-1">رحلة سعيدة! في الطريق إلى وجهتك</div>
         </div>
       ) : status === 'MISSED_BUS' ? (
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
-          <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-2">
+        <div className="bg-slate-100 border border-slate-200 rounded-2xl p-4 text-center fade-in">
+          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto mb-2 shadow-sm">
             <AlertCircle size={24} className="text-slate-500" />
           </div>
           <div className="text-sm font-bold text-slate-800">⛔ فاتك الباص</div>
@@ -549,13 +620,13 @@ function ReturnReadinessCard({ readiness, timer, bus, driver, rd, setReturnReadi
         <>
           {showTimer && <BoardingTimerView timer={timer} />}
 
-          <div className="bg-white rounded-xl p-3 border border-slate-100">
+          <div className="card p-3 fade-in">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-bold text-slate-800">جاهزية رحلة العودة</h3>
             </div>
 
             {status === 'READY' ? (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+              <div className="bg-gradient-to-b from-green-50 to-white border border-green-200 rounded-xl p-3 text-center">
                 <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
                   <CheckCircle2 size={20} className="text-green-600" />
                 </div>
@@ -564,7 +635,7 @@ function ReturnReadinessCard({ readiness, timer, bus, driver, rd, setReturnReadi
               </div>
             ) : status === 'DELAYED' ? (
               <div className="space-y-2">
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <div className="bg-gradient-to-b from-amber-50 to-white border border-amber-200 rounded-xl p-3">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-9 h-9 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
                       <Clock3 size={18} className="text-amber-600" />
@@ -579,14 +650,14 @@ function ReturnReadinessCard({ readiness, timer, bus, driver, rd, setReturnReadi
                 <button
                   onClick={markArrived}
                   disabled={submitting}
-                  className="w-full bg-green-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-green-700 transition-colors disabled:opacity-50 min-h-[44px] flex items-center justify-center gap-1.5"
+                  className="w-full gradient-success text-white py-2.5 rounded-xl text-sm font-bold hover:brightness-105 transition-all disabled:opacity-50 min-h-[44px] flex items-center justify-center gap-1.5 shadow-[0_6px_16px_-8px_rgba(34,197,94,0.6)] active:scale-[0.98]"
                 >
                   <MapPinned size={16} /> وصلت إلى نقطة التجمع
                 </button>
                 <button
                   onClick={markReady}
                   disabled={submitting}
-                  className="w-full bg-slate-100 text-slate-700 py-2 rounded-xl text-xs font-medium hover:bg-slate-200 transition-colors disabled:opacity-50"
+                  className="w-full bg-slate-100 text-slate-700 py-2 rounded-xl text-xs font-medium hover:bg-slate-200 transition-all disabled:opacity-50"
                 >
                   عدل الحالة إلى: أنا جاهز
                 </button>
@@ -597,7 +668,7 @@ function ReturnReadinessCard({ readiness, timer, bus, driver, rd, setReturnReadi
                   <button
                     onClick={markReady}
                     disabled={submitting}
-                    className="bg-green-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-green-700 transition-colors disabled:opacity-50 min-h-[48px] flex flex-col items-center justify-center gap-0.5"
+                    className="gradient-success text-white py-3 rounded-2xl text-sm font-bold hover:brightness-105 transition-all disabled:opacity-50 min-h-[48px] flex flex-col items-center justify-center gap-0.5 shadow-[0_8px_20px_-10px_rgba(34,197,94,0.65)] active:scale-[0.98]"
                   >
                     <span className="text-base">🟢</span>
                     <span>أنا جاهز</span>
@@ -605,7 +676,7 @@ function ReturnReadinessCard({ readiness, timer, bus, driver, rd, setReturnReadi
                   <button
                     onClick={() => setShowDelayDialog(true)}
                     disabled={submitting}
-                    className="bg-amber-500 text-white py-3 rounded-xl text-sm font-bold hover:bg-amber-600 transition-colors disabled:opacity-50 min-h-[48px] flex flex-col items-center justify-center gap-0.5"
+                    className="gradient-warning text-white py-3 rounded-2xl text-sm font-bold hover:brightness-105 transition-all disabled:opacity-50 min-h-[48px] flex flex-col items-center justify-center gap-0.5 shadow-[0_8px_20px_-10px_rgba(245,158,11,0.6)] active:scale-[0.98]"
                   >
                     <span className="text-base">🟡</span>
                     <span>سأتأخر</span>
@@ -636,17 +707,20 @@ function DelayDialog({ onClose, onSubmit, submitting }) {
   ]
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center" onClick={onClose}>
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] z-50 flex items-end sm:items-center justify-center fade-in" onClick={onClose}>
       <div
-        className="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 shadow-2xl"
+        className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-2xl p-4 shadow-pop scale-in"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-3 sm:hidden" />
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-            <Clock3 size={18} className="text-amber-500" />
+            <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+              <Clock3 size={16} className="text-amber-600" />
+            </div>
             سأتأخر عن موعد الصعود
           </h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100">
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
             <X size={18} className="text-slate-400" />
           </button>
         </div>
@@ -658,9 +732,9 @@ function DelayDialog({ onClose, onSubmit, submitting }) {
               <button
                 key={opt.value}
                 onClick={() => setDelayMinutes(opt.value)}
-                className={`py-2 rounded-lg text-xs font-medium transition-colors border ${
+                className={`py-2 rounded-xl text-xs font-medium transition-all border ${
                   delayMinutes === opt.value
-                    ? 'bg-amber-500 text-white border-amber-500'
+                    ? 'bg-amber-500 text-white border-amber-500 shadow-[0_4px_12px_-4px_rgba(245,158,11,0.6)]'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                 }`}
               >
@@ -679,7 +753,7 @@ function DelayDialog({ onClose, onSubmit, submitting }) {
             onChange={(e) => setDelayReason(e.target.value)}
             rows={3}
             placeholder="اكتب سبب التأخير هنا..."
-            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400 resize-none"
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400 resize-none"
           />
         </div>
 
@@ -693,7 +767,7 @@ function DelayDialog({ onClose, onSubmit, submitting }) {
           <button
             onClick={() => onSubmit(delayMinutes, delayReason.trim())}
             disabled={submitting}
-            className="bg-amber-500 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-amber-600 transition-colors disabled:opacity-50"
+            className="gradient-warning text-white py-2.5 rounded-xl text-sm font-bold hover:brightness-105 transition-all disabled:opacity-50 shadow-[0_4px_12px_-4px_rgba(245,158,11,0.5)] active:scale-[0.98]"
           >
             {submitting ? 'جاري الحفظ...' : 'حفظ'}
           </button>
@@ -724,30 +798,30 @@ function BoardingTimerView({ timer }) {
   const isEnded = remainingMs <= 0 || timer.endedAt
 
   return (
-    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-3">
+    <div className="rounded-2xl p-3 bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-700 text-white border border-indigo-400/40 shadow-[0_12px_28px_-12px_rgba(79,70,229,0.7)] fade-in">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1.5">
-          <Clock size={16} className="text-indigo-600" />
-          <span className="text-xs font-bold text-indigo-800">العد التنازلي لتسجيل الصعود</span>
+          <Clock size={16} className="text-indigo-200" />
+          <span className="text-xs font-bold text-white">العد التنازلي لتسجيل الصعود</span>
         </div>
-        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-100 px-1.5 py-0.5 rounded-full">
+        <span className="text-[10px] font-bold text-white bg-white/20 px-2 py-0.5 rounded-full">
           الوقت المحدد: {timer.durationMinutes || 15} د
         </span>
       </div>
       <div className="text-center mb-2">
-        <span className={`text-4xl font-black font-mono tracking-wider ${
-          remainingMs <= 60000 ? 'text-red-600 animate-pulse' : remainingMs <= 5 * 60000 ? 'text-amber-600' : 'text-indigo-700'
+        <span className={`text-4xl font-black font-mono tracking-wider rt-countdown-digit-mono ${
+          remainingMs <= 60000 ? 'text-red-300 animate-pulse' : remainingMs <= 5 * 60000 ? 'text-amber-300' : 'text-white'
         }`}>
           {String(mm).padStart(2, '0')}:{String(ss).padStart(2, '0')}
         </span>
       </div>
-      <div className="w-full bg-white rounded-full h-2 overflow-hidden mb-2">
+      <div className="w-full bg-white/25 rounded-full h-2 overflow-hidden mb-2">
         <div
-          className={`h-2 rounded-full transition-all duration-1000 ${isEnded ? 'bg-red-500' : remainingMs <= 5 * 60000 ? 'bg-amber-500' : 'bg-indigo-500'}`}
+          className={`h-2 rounded-full transition-all duration-1000 ${isEnded ? 'bg-red-400' : remainingMs <= 5 * 60000 ? 'bg-amber-400' : 'bg-white'}`}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <p className="text-[10px] text-indigo-700 text-center font-medium">
+      <p className="text-[10px] text-indigo-100 text-center font-medium">
         وصل الباص إلى الجامعة · قم بالتوجه للباص فوراً
       </p>
     </div>
@@ -789,9 +863,11 @@ function JourneySequence({ readiness, timer, busStatus }) {
   })
 
   return (
-    <div className="bg-white rounded-xl p-3 border border-slate-100">
+    <div className="card p-3 fade-in">
       <h3 className="text-[11px] font-bold text-slate-700 mb-2 flex items-center gap-1">
-        <MapPin size={12} className="text-slate-500" />
+        <div className="w-5 h-5 rounded-md bg-slate-100 flex items-center justify-center">
+          <MapPin size={11} className="text-slate-500" />
+        </div>
         تسلسل رحلة العودة
       </h3>
       <div className="space-y-0.5">
@@ -804,7 +880,7 @@ function JourneySequence({ readiness, timer, busStatus }) {
               : step.color === 'blue' ? 'bg-blue-500 border-blue-500 text-white'
               : step.color === 'indigo' ? 'bg-indigo-500 border-indigo-500 text-white'
               : 'bg-slate-500 border-slate-500 text-white'
-            : step.active ? 'ring-2 ring-[var(--color-primary)] ring-offset-2 bg-white border-[var(--color-primary)] text-[var(--color-primary)]'
+            : step.active ? 'ring-2 ring-[var(--color-primary)] ring-offset-2 bg-white border-[var(--color-primary)] text-[var(--color-primary)] rt-anim-timeline-glow'
             : 'bg-white border-slate-200 text-slate-300'
           const lineCls = step.done ? (step.color === 'amber' ? 'bg-amber-300' : step.color === 'green' ? 'bg-green-300' : step.color === 'blue' ? 'bg-blue-300' : 'bg-indigo-300') : 'bg-slate-100'
           const labelCls = step.done ? (step.color === 'amber' ? 'text-amber-800' : step.color === 'green' ? 'text-green-800' : step.color === 'blue' ? 'text-blue-800' : 'text-indigo-800') : step.active ? 'text-[var(--color-primary)] font-bold' : 'text-slate-400'
@@ -856,16 +932,16 @@ function MorningTripCard({ bus, todayAssignment, student, busStudents, tracking,
 
   return (
     <>
-      <div className="bg-white rounded-xl p-3">
+      <div className="card p-3 fade-in">
         <div className="flex items-center gap-2 mb-2">
-          <div className="w-8 h-8 bg-[var(--color-primary)]/10 rounded-full flex items-center justify-center shrink-0">
-            <Bus size={16} className="text-[var(--color-primary)]" />
+          <div className="w-9 h-9 bg-[var(--color-primary)]/10 rounded-xl flex items-center justify-center shrink-0">
+            <Bus size={17} className="text-[var(--color-primary)]" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-slate-800">باص رقم {bus?.busNumber}</div>
+            <div className="text-sm font-bold text-slate-800">باص رقم {bus?.busNumber}</div>
             <div className="text-xs text-slate-500 truncate">السائق: {bus?.driver?.name || bus?.driverName}</div>
           </div>
-          <div className="text-xs text-slate-400 shrink-0">
+          <div className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 text-xs font-bold text-slate-600">
             {presentCount}/{totalCount}
           </div>
         </div>
@@ -873,45 +949,44 @@ function MorningTripCard({ bus, todayAssignment, student, busStudents, tracking,
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 mb-2">
           {todayAssignment?.pickupTime && (
             <span className="flex items-center gap-1">
-              <Clock size={10} />
+              <Clock size={10} className="text-[var(--color-primary)]" />
               {formatTime(todayAssignment.pickupTime)}
             </span>
           )}
           {student?.pickupLocation && (
             <span className="flex items-center gap-1 truncate max-w-[60%]">
-              <MapPin size={10} className="shrink-0" />
+              <MapPin size={10} className="text-[var(--color-primary)] shrink-0" />
               <span className="truncate">{student.pickupLocation}</span>
             </span>
           )}
         </div>
 
-        <div className="flex gap-1.5 mb-2">
+        <div className="flex gap-1.5 mb-3">
           {bus?.primaryPhone && (
             <a href={`tel:${bus.primaryPhone}`}
-              className="flex-1 flex items-center justify-center gap-1 bg-green-500 text-white py-1.5 rounded-lg text-xs font-medium">
+              className="flex-1 flex items-center justify-center gap-1 gradient-success text-white py-2 rounded-xl text-xs font-semibold shadow-[0_4px_12px_-6px_rgba(34,197,94,0.5)] hover:brightness-105 transition-all active:scale-[0.98]">
               <Phone size={11} /> {bus.primaryPhone}
             </a>
           )}
           {bus?.secondaryPhone && (
             <a href={`tel:${bus.secondaryPhone}`}
-              className="flex-1 flex items-center justify-center gap-1 bg-blue-500 text-white py-1.5 rounded-lg text-xs font-medium">
+              className="flex-1 flex items-center justify-center gap-1 gradient-info text-white py-2 rounded-xl text-xs font-semibold shadow-[0_4px_12px_-6px_rgba(59,130,246,0.5)] hover:brightness-105 transition-all active:scale-[0.98]">
               <Phone size={11} /> {bus.secondaryPhone}
             </a>
           )}
         </div>
 
-        <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-          <span>تقدم الباص</span>
-          <span className="text-[var(--color-primary)] font-medium">
+        <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5">
+          <span className="font-medium">تقدم الباص</span>
+          <span className="text-[var(--color-primary)] font-bold">
             {totalCount > 0 ? `${Math.round((presentCount / totalCount) * 100)}%` : '0%'}
           </span>
         </div>
-        <div className="w-full bg-slate-100 rounded-full h-1.5 mb-2">
-          <div
-            className="bg-[var(--color-primary)] h-1.5 rounded-full transition-all duration-500"
-            style={{ width: totalCount > 0 ? `${(presentCount / totalCount) * 100}%` : '0%' }}
-          />
+        <div className="progress-track mb-3">
+          <div className="progress-fill" style={{ width: totalCount > 0 ? `${(presentCount / totalCount) * 100}%` : '0%' }} />
         </div>
+
+        {/* current/next header removed — address shown per-row below */}
 
         <div className="space-y-2">
           <div className="hidden sm:grid grid-cols-[1.6fr_1.4fr_0.9fr] gap-2 text-[10px] text-slate-500 uppercase tracking-wide px-2">
@@ -923,16 +998,14 @@ function MorningTripCard({ bus, todayAssignment, student, busStudents, tracking,
           {displayStudents.map((s) => {
             const isMe = s.studentId === student?.id
             const ts = s.trackingStatus
-            const address = s.transportMode === 'HOME'
-              ? (s.homeAddress || '-')
-              : (s.pickupLocation || '-')
+            const address = s.pickupLocation || s.homeAddress || '-'
             const studentTime = s.pickupTime ? formatTime(s.pickupTime) : 'غير محدد'
 
             return (
               <div
                 key={s.studentId}
-                className={`grid gap-2 py-2 px-2 rounded-lg transition-all ${
-                  ts === TrackingStatus.CURRENT && isMe ? 'ring-2 ring-yellow-300 bg-yellow-50' :
+                className={`grid gap-2 py-2 px-2 rounded-xl transition-all ${
+                  ts === TrackingStatus.CURRENT && isMe ? 'ring-2 ring-yellow-300 bg-yellow-50 shadow-sm' :
                   ts === TrackingStatus.CURRENT ? 'bg-yellow-50' :
                   ts === TrackingStatus.PICKED_UP ? 'bg-green-50/50' : 'bg-slate-50'
                 } sm:grid-cols-[1.6fr_1.4fr_0.9fr] sm:items-center`}
@@ -971,22 +1044,22 @@ function MorningTripCard({ bus, todayAssignment, student, busStudents, tracking,
         </div>
 
         {isStudentCurrent && (
-          <div className="mt-1.5 text-center">
-            <span className="inline-block bg-yellow-100 text-yellow-700 px-3 py-1 rounded-lg text-xs font-medium">
+          <div className="mt-2 text-center">
+            <span className="inline-block bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm fade-in">
               الباص عندك الآن
             </span>
           </div>
         )}
         {isStudentNext && (
-          <div className="mt-1.5 text-center">
-            <span className="inline-block bg-amber-100 text-amber-700 px-3 py-1 rounded-lg text-xs font-medium">
+          <div className="mt-2 text-center">
+            <span className="inline-block bg-amber-100 text-amber-700 px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm fade-in">
               أنت التالي
             </span>
           </div>
         )}
         {!isStudentCurrent && !isStudentNext && remaining > 0 && (
-          <div className="mt-1.5 text-center">
-            <span className="inline-block bg-slate-100 text-slate-500 px-3 py-1 rounded-lg text-xs font-medium">
+          <div className="mt-2 text-center">
+            <span className="inline-block bg-slate-100 text-slate-600 px-3 py-1.5 rounded-xl text-xs font-medium fade-in">
               بقي {remaining === 1 ? 'طالب واحد' : remaining === 2 ? 'طالبان' : `${remaining} طلاب`} قبل وصول الباص
             </span>
           </div>

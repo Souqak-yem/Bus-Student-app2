@@ -29,7 +29,7 @@ export default function DriverLayout() {
   const currentPage = navItems.find(i => i.to === location.pathname || (i.end && location.pathname === i.to))?.label || ''
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen surface-wash flex">
       {/* Desktop sidebar */}
       <aside className={`fixed lg:static inset-y-0 right-0 z-40 w-64 bg-white shadow-lg transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'} lg:block`}>
         <div className="h-full flex flex-col">

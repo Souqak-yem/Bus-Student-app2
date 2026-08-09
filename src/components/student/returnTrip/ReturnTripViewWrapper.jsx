@@ -38,7 +38,15 @@ function ReturnTripViewWrapperImpl({
   const status = readiness?.status || 'NO_RESPONSE'
   const activeBusId = rd?.activeBusId
   const busStatus = rd?.busStatus
-  const readinessStats = rd?.readinessStats || { ready: 0, delayed: 0, noResponse: 0, total: 0, onBoard: 0 }
+  const statsSource = rd?.readinessStats || {}
+  const readinessStats = {
+    ready: statsSource.ready ?? statsSource.READY ?? 0,
+    delayed: statsSource.delayed ?? statsSource.DELAYED ?? 0,
+    noResponse: statsSource.noResponse ?? statsSource.NO_RESPONSE ?? 0,
+    onBoard: statsSource.onBoard ?? statsSource.ON_BOARD ?? 0,
+    missedBus: statsSource.missedBus ?? statsSource.MISSED_BUS ?? 0,
+    total: statsSource.total ?? 0,
+  }
 
   const [delayOpen, setDelayOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -118,7 +126,7 @@ function ReturnTripViewWrapperImpl({
   // --- VISIBILITY RULES (per requirement 10) ---
   const isOnBoard = status === 'ON_BOARD'
   const isMissed = status === 'MISSED_BUS'
-  const isDroppedOffFinal = !!returnBusInfo?.droppedOffAt || busStatus === 'COMPLETED'
+  const isDroppedOffFinal = !!returnBusInfo?.droppedOffAt || !!readiness?.droppedOffAt || busStatus === 'COMPLETED'
 
   const statusBadgePulse = status === 'DELAYED' || (timer && (timer.durationMinutes || 15) * 60000 - (new Date((timer?.serverNow || timer?.startedAt) || 0).getTime() - new Date(timer?.startedAt || 0).getTime()) < 5 * 60000)
 
@@ -133,7 +141,7 @@ function ReturnTripViewWrapperImpl({
     busArrivedAt: timer?.startedAt,
     onBoardAt: readiness?.onBoardAt,
     departedAt: rd?.departedAt,
-    droppedOffAt: returnBusInfo?.droppedOffAt,
+    droppedOffAt: rd?.droppedOffAt || returnBusInfo?.droppedOffAt,
   }), [readiness, timer, busStatus, isDroppedOffFinal, rd, returnBusInfo, status, returnReadiness])
 
   // Hide entire section once dropped off (per req 10, 17)
@@ -189,7 +197,7 @@ function ReturnTripViewWrapperImpl({
             <button
               onClick={() => setShowReturnConfirm(true)}
               disabled={joining || submitting}
-              className="w-full rt-btn-min rounded-xl text-[12.5px] font-black text-white bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-dark)] active:opacity-90 disabled:opacity-50 shadow-sm rt-anim-fade-in flex items-center justify-center gap-1.5"
+              className="w-full rt-btn-min rounded-xl text-[13px] py-3 font-black text-white bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-dark)] active:opacity-90 disabled:opacity-50 shadow-sm rt-anim-fade-in flex items-center justify-center gap-1.5"
             >
               {joining ? 'جاري المعالجة...' : (<>طلب رحلة العودة <ArrowRight size={14} /></>)}
             </button>

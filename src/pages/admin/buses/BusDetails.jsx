@@ -49,13 +49,14 @@ export default function BusDetails() {
         const orderMap = new Map()
         orderData.order?.forEach((o, i) => orderMap.set(o.studentId, i))
         const sorted = [...(data.templateStudents || [])].sort((a, b) => {
-          const ai = orderMap.has(a.studentId) ? orderMap.get(a.studentId) : 999
-          const bi = orderMap.has(b.studentId) ? orderMap.get(b.studentId) : 999
-          if (ai !== bi) return ai - bi
-
           const aTime = a.pickupTime || '99:99'
           const bTime = b.pickupTime || '99:99'
-          return aTime.localeCompare(bTime)
+          const timeComparison = aTime.localeCompare(bTime)
+          if (timeComparison !== 0) return timeComparison
+
+          const ai = orderMap.has(a.studentId) ? orderMap.get(a.studentId) : 999
+          const bi = orderMap.has(b.studentId) ? orderMap.get(b.studentId) : 999
+          return ai - bi
         })
         setOrderedStudents(sorted)
       } catch (e) {
@@ -224,33 +225,37 @@ export default function BusDetails() {
                 const isOutgoing = !!outgoingInfo
                 return (
                   <div key={bs.id} draggable={!isOutgoing} onDragStart={() => !isOutgoing && handleDragStart(idx)} onDragOver={(e) => !isOutgoing && handleDragOver(e, idx)} onDrop={!isOutgoing ? handleDrop : undefined} onDragEnd={() => !isOutgoing && setDragIndex(null)}
-                    className={`flex items-start gap-2 sm:gap-3 p-2 sm:p-3 rounded-xl transition-colors max-sm:flex-col max-sm:gap-2 ${isOutgoing ? 'opacity-40' : dragIndex === idx ? 'opacity-50 bg-[var(--color-primary-lighter)]' : 'hover:bg-[var(--color-border-light)]'}`}>
-                    <div className="flex items-center gap-2 w-full max-sm:justify-between">
-                      <div className="flex items-center gap-2">
-                        <input type="checkbox" disabled={isOutgoing} checked={selectedForTransfer.has(studentId)} onChange={() => setSelectedForTransfer(prev => { const n = new Set(prev); if (n.has(studentId)) n.delete(studentId); else n.add(studentId); return n })}
-                          className="rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]/50 shrink-0" />
-                        {!isOutgoing && <div className="cursor-grab active:cursor-grabbing text-[var(--color-text-muted)] shrink-0"><GripVertical size={16} /></div>}
-                        <div className="w-8 h-8 rounded-full bg-[var(--color-primary-lighter)] flex items-center justify-center text-sm font-bold text-[var(--color-primary-dark)] shrink-0">{bs.student?.name?.[0] || '?'}</div>
-                        <p className="text-sm font-medium truncate">{bs.student?.name || 'غير معروف'}</p>
+                    className={`grid gap-2 p-2 sm:p-3 rounded-xl transition-colors sm:grid-cols-[1fr_auto] ${isOutgoing ? 'opacity-40' : dragIndex === idx ? 'opacity-50 bg-[var(--color-primary-lighter)]' : 'hover:bg-[var(--color-border-light)]'}`}>
+                    <div className="grid gap-2 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 w-full sm:justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <input type="checkbox" disabled={isOutgoing} checked={selectedForTransfer.has(studentId)} onChange={() => setSelectedForTransfer(prev => { const n = new Set(prev); if (n.has(studentId)) n.delete(studentId); else n.add(studentId); return n })}
+                            className="rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]/50 shrink-0" />
+                          {!isOutgoing && <div className="cursor-grab active:cursor-grabbing text-[var(--color-text-muted)] shrink-0"><GripVertical size={16} /></div>}
+                          <div className="w-8 h-8 rounded-full bg-[var(--color-primary-lighter)] flex items-center justify-center text-sm font-bold text-[var(--color-primary-dark)] shrink-0">{bs.student?.name?.[0] || '?'}</div>
+                          <p className="text-sm font-medium truncate">{bs.student?.name || 'غير معروف'}</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 justify-end sm:justify-start lg:justify-end">
+                          <div className="flex items-center gap-1 rounded-xl bg-[var(--color-border-light)] px-1.5 py-0.5">
+                            <Clock size={10} className="text-[var(--color-text-muted)]" />
+                            <input type="time" value={bs.pickupTime || '07:00'} onChange={async (e) => { try { await api.busStudents.update(bus.id, bs.studentId, { pickupTime: e.target.value }); await load() } catch (err) { alert(err.message) } }}
+                              className="text-[10px] bg-transparent border-none p-0 min-w-[72px] sm:min-w-[88px] text-center" />
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <StatusBadge status={bs.student?.transportMode === 'HOME' ? 'home' : 'line'} />
+                            {isOutgoing && <StatusBadge status="warning" label={`محول`} />}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <StatusBadge status={bs.student?.transportMode === 'HOME' ? 'home' : 'line'} />
-                        {isOutgoing && <StatusBadge status="warning" label={`محول`} />}
-                      </div>
-                    </div>
-                    <div className="flex-1 min-w-0 w-full">
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--color-text-muted)]">
-                        {bs.student?.institutionName && <span className="flex items-center gap-1"><GraduationCap size={10} /> {bs.student.institutionName}</span>}
-                        <span className="flex items-center gap-1"><MapPin size={10} /> {studentAddress(bs)}</span>
-                        <div className="flex items-center gap-1 mr-auto">
-                          <Clock size={10} className="text-[var(--color-text-muted)]" />
-                          <input type="time" value={bs.pickupTime || '07:00'} onChange={async (e) => { try { await api.busStudents.update(bus.id, bs.studentId, { pickupTime: e.target.value }); await load() } catch (err) { alert(err.message) } }}
-                            className="text-xs bg-[var(--color-border-light)] border-none rounded px-1.5 py-0.5 w-[68px] text-center" />
+                      <div className="grid gap-2 text-xs text-[var(--color-text-muted)] lg:grid-cols-[1fr_auto] lg:items-center">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 lg:flex-nowrap min-w-0">
+                          {bs.student?.institutionName && <span className="flex items-center gap-1 truncate"><GraduationCap size={10} /> {bs.student.institutionName}</span>}
+                          <span className="flex items-center gap-1 truncate"><MapPin size={10} /> {studentAddress(bs)}</span>
                         </div>
                       </div>
                     </div>
                     {!isOutgoing && (
-                      <div className="flex justify-end w-full">
+                      <div className="flex justify-end items-start w-full sm:w-auto">
                         <button onClick={() => setTransferTarget(bs)} className="p-1.5 rounded-lg hover:bg-[var(--color-border-light)] text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors" title="نقل دائم"><ArrowLeftRight size={14} /></button>
                       </div>
                     )}
@@ -272,7 +277,7 @@ export default function BusDetails() {
           {/* Bulk pickup modal */}
           {showBulkPickupModal && (
             <div className="modal-overlay" onClick={() => setShowBulkPickupModal(false)}>
-              <div className="modal-content max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-content max-w-[min(95vw,520px)] sm:max-w-[min(90vw,620px)] lg:max-w-[720px] p-6" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-bold">تعديل وقت الجميع</h2>
                   <button onClick={() => setShowBulkPickupModal(false)} className="p-1 rounded hover:bg-[var(--color-border-light)]"><X size={18} /></button>
@@ -302,7 +307,7 @@ export default function BusDetails() {
           {/* Template management modal */}
           {showTemplateModal && (
             <div className="modal-overlay" onClick={() => setShowTemplateModal(false)}>
-              <div className="modal-content max-w-2xl p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-content max-w-[min(95vw,1080px)] lg:max-w-[1150px] p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-bold">إدارة قالب الحافلة</h2>
                   <button onClick={() => setShowTemplateModal(false)} className="p-1 rounded hover:bg-[var(--color-border-light)]"><X size={18} /></button>

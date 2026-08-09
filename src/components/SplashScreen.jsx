@@ -118,19 +118,20 @@ export default function SplashScreen({ duration = 4000, onFinish }) {
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
             className="relative z-10 flex flex-col items-center mb-6"
           >
-            {/* Glow ring behind logo */}
-            <motion.div
-              initial={{ scale: 0.6, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.8, delay: 0.15 }}
-              className="absolute w-44 h-44 sm:w-52 sm:h-52 rounded-full bg-blue-400/15 blur-2xl"
-            />
+            <div className="relative">
+              <motion.div
+                initial={{ scale: 0.6, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.15 }}
+                className="absolute left-1/2 top-1/2 z-0 h-44 w-44 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-400/15 blur-2xl sm:h-52 sm:w-52"
+              />
 
-            <img
-              src="/full-logo.svg"
-              alt="مشوارك"
-              className="w-28 h-28 sm:w-36 sm:h-36 lg:w-44 lg:h-44 object-contain drop-shadow-2xl relative z-10"
-            />
+              <img
+                src="/full-logo.svg"
+                alt="مشوارك"
+                className="relative z-10 h-28 w-28 object-contain drop-shadow-2xl sm:h-36 sm:w-36 lg:h-44 lg:w-44"
+              />
+            </div>
 
             <motion.div
               initial={{ opacity: 0, y: 12 }}

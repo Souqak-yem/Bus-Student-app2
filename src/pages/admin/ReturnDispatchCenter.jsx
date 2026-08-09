@@ -4,14 +4,15 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Bus, Users, Search, Plus, X, GripVertical, Phone, MessageCircle, MapPin } from 'lucide-react'
 import PageHeader from '../../components/ui/PageHeader'
 import ConfirmModal from '../../components/ui/ConfirmModal'
+import StatusBadge from '../../components/ui/StatusBadge'
 import { onAdminReadinessUpdate, offAdminReadinessUpdate, onAdminBoardingTimerUpdate, offAdminBoardingTimerUpdate, onAdminReadinessStats, offAdminReadinessStats } from '../../lib/socket'
 
 const STATUS_BADGE = {
-  READY: { label: 'READY', cls: 'bg-green-100 text-green-700 border-green-200' },
-  DELAYED: { label: 'DELAYED', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
-  NO_RESPONSE: { label: 'NO_RESPONSE', cls: 'bg-red-100 text-red-700 border-red-200' },
-  ON_BOARD: { label: 'ON_BOARD', cls: 'bg-blue-100 text-blue-700 border-blue-200' },
-  MISSED_BUS: { label: 'MISSED_BUS', cls: 'bg-slate-200 text-slate-700 border-slate-300' },
+  READY: { label: 'جاهز', cls: 'bg-green-100 text-green-700 border-green-200' },
+  DELAYED: { label: 'متأخر', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
+  NO_RESPONSE: { label: 'لم يرد', cls: 'bg-red-100 text-red-700 border-red-200' },
+  ON_BOARD: { label: 'داخل الباص', cls: 'bg-blue-100 text-blue-700 border-blue-200' },
+  MISSED_BUS: { label: 'تغيب', cls: 'bg-slate-200 text-slate-700 border-slate-300' },
 }
 
 function ReadinessBadge({ status }) {
@@ -164,8 +165,7 @@ export default function ReturnDispatchCenter() {
   async function handleTransfer(targetBusId) {
     if (!transferMode) return
     try {
-      await api.return.loads.remove(transferMode.activeBusId, transferMode.studentId)
-      await api.return.loads.add(targetBusId, transferMode.studentId, '')
+      await api.return.loads.transfer(transferMode.studentId, transferMode.activeBusId, targetBusId, '')
       loadAll()
       const buses = await api.return.activeBuses.list().catch(() => [])
       setActiveBuses(buses)
@@ -226,19 +226,19 @@ export default function ReturnDispatchCenter() {
         return (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
             <div className="bg-green-50 border border-green-100 rounded-xl p-3">
-              <div className="text-[10px] font-bold text-green-600 mb-1">جاهزون (READY)</div>
+              <div className="text-[10px] font-bold text-green-600 mb-1">جاهزون</div>
               <div className="text-2xl font-black text-green-700">{totals.READY || 0}</div>
             </div>
             <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
-              <div className="text-[10px] font-bold text-amber-600 mb-1">سيتأخرون (DELAYED)</div>
+              <div className="text-[10px] font-bold text-amber-600 mb-1">متأخرون</div>
               <div className="text-2xl font-black text-amber-700">{totals.DELAYED || 0}</div>
             </div>
             <div className="bg-red-50 border border-red-100 rounded-xl p-3">
-              <div className="text-[10px] font-bold text-red-600 mb-1">لم يردوا (NO_RESPONSE)</div>
+              <div className="text-[10px] font-bold text-red-600 mb-1">لم يردوا</div>
               <div className="text-2xl font-black text-red-700">{totals.NO_RESPONSE || 0}</div>
             </div>
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
-              <div className="text-[10px] font-bold text-blue-600 mb-1">داخل الباص (ON_BOARD)</div>
+              <div className="text-[10px] font-bold text-blue-600 mb-1">داخل الباص</div>
               <div className="text-2xl font-black text-blue-700">{totals.ON_BOARD || 0}</div>
             </div>
           </div>
@@ -248,7 +248,7 @@ export default function ReturnDispatchCenter() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Right column: Queue */}
         <div className="lg:col-span-1 order-last lg:order-first">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-3">
+          <div className="card p-3">
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-bold text-slate-800 text-sm">
                 <Users className="inline w-3.5 h-3.5 ml-1 -mt-0.5" />
@@ -278,12 +278,18 @@ export default function ReturnDispatchCenter() {
                   <div key={item.id} className="bg-slate-50 rounded-lg p-2 border border-slate-100">
                     <div className="flex items-center gap-1.5">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-slate-800 text-sm truncate">{item.student?.name || 'غير معروف'}</span>
+                        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                          <span className="font-semibold text-slate-800 text-sm truncate flex-1 min-w-0">{item.student?.name || 'غير معروف'}</span>
+                          {item.student?.transportMode && (
+                            <StatusBadge status={item.student.transportMode.toLowerCase()} />
+                          )}
                           {item.student?.institutionName && (
                             <span className="text-[10px] text-slate-400 truncate shrink-0">{item.student.institutionName}</span>
                           )}
                         </div>
+                        {item.student?.destination?.name && (
+                          <div className="text-[10px] text-slate-400 truncate mt-0.5">{item.student.destination.name}</div>
+                        )}
                         <div className="flex items-center gap-1 text-[10px] text-slate-400">
                           <MapPin size={8} className="shrink-0" />
                           <span className="truncate">{address}</span>
@@ -320,7 +326,7 @@ export default function ReturnDispatchCenter() {
 
         {/* Left column: Buses */}
         <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-3">
+          <div className="card p-3">
             <h3 className="font-bold text-slate-800 mb-2 text-sm">
               <Bus className="inline w-3.5 h-3.5 ml-1 -mt-0.5" />
               الباصات
@@ -373,7 +379,7 @@ export default function ReturnDispatchCenter() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ duration: 0.25, ease: 'easeInOut' }}
-              className="fixed top-0 left-0 h-full w-full max-w-lg bg-white z-50 shadow-2xl overflow-y-auto"
+              className="fixed top-0 left-0 h-full w-full max-w-[min(100vw,1080px)] lg:max-w-[1100px] bg-white z-50 shadow-2xl overflow-y-auto"
             >
               <div className="p-3 sm:p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -490,14 +496,13 @@ export default function ReturnDispatchCenter() {
                             <div className="flex items-center gap-1 flex-wrap">
                               <span className="font-semibold text-slate-800 text-xs truncate">{s?.name}</span>
                               <ReadinessBadge status={readinessStatus} />
-                              {isHome && (
-                                <span className="shrink-0 inline-flex items-center px-1 py-0.5 rounded text-[9px] font-medium bg-purple-100 text-purple-700">
-                                  توصيل منزلي
-                                </span>
+                              {s?.transportMode && (
+                                <StatusBadge status={s.transportMode.toLowerCase()} />
                               )}
                             </div>
                             <div className="flex items-center gap-1 text-[10px] text-slate-400 flex-wrap">
                               {s?.institutionName && <span className="truncate">{s.institutionName}</span>}
+                              {s?.destination?.name && <span className="truncate">{s.destination.name}</span>}
                               <span className="truncate">{isHome ? s?.homeAddress : (s?.pickupLocation || s?.address || '---')}</span>
                               {hasDelay && (
                                 <span className="shrink-0 text-amber-600">
@@ -508,6 +513,26 @@ export default function ReturnDispatchCenter() {
                           </div>
                           {!isDeparted && (
                             <div className="flex items-center gap-0.5 shrink-0">
+                              {s?.phone && (
+                                <a
+                                  href={`tel:${s.phone}`}
+                                  className="w-6 h-6 rounded-full bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center transition-colors"
+                                  title="اتصال"
+                                >
+                                  <Phone className="w-3.5 h-3.5" />
+                                </a>
+                              )}
+                              {s?.whatsapp && (
+                                <a
+                                  href={`https://wa.me/${s.whatsapp.replace(/^0/, '966')}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="w-6 h-6 rounded-full bg-green-600 text-white hover:bg-green-700 flex items-center justify-center transition-colors"
+                                  title="واتساب"
+                                >
+                                  <MessageCircle className="w-3.5 h-3.5" />
+                                </a>
+                              )}
                               <button
                                 onClick={() => setTransferMode({ studentId: load.studentId, activeBusId: selectedBus.id })}
                                 className="w-6 h-6 rounded text-blue-600 hover:bg-blue-50 flex items-center justify-center text-xs transition-colors"
@@ -687,23 +712,27 @@ function AddStudentToQueue({ onAdd }) {
   }
 
   return (
-    <div className="relative">
+    <div className="relative z-20 flex justify-end">
       {!show ? (
         <button onClick={() => setShow(true)} className="flex items-center gap-1 text-xs text-[var(--color-primary)] hover:text-[var(--color-primary-dark)] font-medium transition-colors">
           <Plus className="w-3.5 h-3.5" />
           إضافة
         </button>
       ) : (
-        <div className="absolute top-7 left-0 right-0 z-20 bg-white rounded-xl shadow-lg border border-slate-200 p-2 min-w-[220px]">
+        <div
+          dir="rtl"
+          className="fixed top-20 right-3 z-[60] w-[min(88vw,420px)] max-w-[min(95vw,440px)] lg:max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 p-3"
+          style={{ left: 'auto', right: '0.75rem', top: '5.5rem' }}
+        >
           <input
             type="text"
             placeholder="ابحث عن طالب..."
             value={search}
             onChange={(e) => handleSearch(e.target.value)}
-            className="w-full text-xs py-1 px-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
+            className="w-full text-sm py-2.5 px-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] text-right"
             autoFocus
           />
-          <div className="mt-1 space-y-0.5 max-h-32 overflow-y-auto">
+          <div className="mt-2 space-y-1 max-h-44 overflow-y-auto text-right">
             {students.map(s => (
               <button
                 key={s.id}

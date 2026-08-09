@@ -12,42 +12,50 @@ const slides = [
     bgMain: ['#0B1E4A', '#1A3D8F'],
     decorColor: '#60A5FA',
     image: (
-      <svg width="200" height="200" viewBox="0 0 200 200" fill="none" className="w-44 h-44 sm:w-52 sm:h-52">
-        {/* Background circle */}
-        <circle cx="100" cy="100" r="96" fill="#DBEAFE" />
-        <circle cx="100" cy="100" r="86" fill="#EFF6FF" />
-        {/* Road */}
-        <rect x="10" y="128" width="180" height="12" rx="6" fill="#BFDBFE" />
-        <rect x="40" y="124" width="24" height="6" rx="3" fill="#93C5FD" />
-        <rect x="90" y="124" width="24" height="6" rx="3" fill="#93C5FD" />
-        <rect x="140" y="124" width="24" height="6" rx="3" fill="#93C5FD" />
-        {/* Bus */}
-        <rect x="48" y="50" width="104" height="60" rx="10" fill="#FBBF24" />
-        <rect x="48" y="50" width="104" height="60" rx="10" fill="url(#sb1)" />
-        <rect x="60" y="30" width="80" height="24" rx="6" fill="#F59E0B" />
-        <rect x="64" y="36" width="28" height="12" rx="3" fill="#1E3A5F" opacity="0.4" />
-        <rect x="108" y="36" width="28" height="12" rx="3" fill="#1E3A5F" opacity="0.4" />
-        <rect x="52" y="56" width="16" height="14" rx="2" fill="#1E3A5F" opacity="0.3" />
-        <rect x="72" y="56" width="16" height="14" rx="2" fill="#1E3A5F" opacity="0.3" />
-        <rect x="92" y="56" width="16" height="14" rx="2" fill="#1E3A5F" opacity="0.3" />
-        <rect x="112" y="56" width="16" height="14" rx="2" fill="#1E3A5F" opacity="0.3" />
-        <rect x="132" y="56" width="16" height="14" rx="2" fill="#1E3A5F" opacity="0.3" />
-        <rect x="48" y="76" width="104" height="6" fill="#D97706" opacity="0.3" />
-        <rect x="56" y="96" width="20" height="16" rx="3" fill="#1F2937" />
-        <rect x="124" y="96" width="20" height="16" rx="3" fill="#1F2937" />
-        <circle cx="66" cy="104" r="6" fill="#374151" />
-        <circle cx="134" cy="104" r="6" fill="#374151" />
-        <rect x="145" y="60" width="6" height="8" rx="1" fill="#93C5FD" opacity="0.8" />
-        <rect x="49" y="60" width="6" height="8" rx="1" fill="#EF4444" opacity="0.6" />
-        {/* Small buildings */}
-        <rect x="14" y="100" width="12" height="24" rx="1" fill="#93C5FD" opacity="0.4" />
-        <rect x="174" y="94" width="14" height="30" rx="1" fill="#93C5FD" opacity="0.4" />
-        <rect x="160" y="104" width="10" height="20" rx="1" fill="#93C5FD" opacity="0.3" />
+      <svg width="240" height="240" viewBox="0 0 240 240" fill="none" className="w-48 h-48 sm:w-56 sm:h-56">
+        <circle cx="120" cy="120" r="112" fill="url(#s1_bg)" />
+        <circle cx="120" cy="120" r="96" fill="rgba(255,255,255,0.68)" />
+        <g filter="url(#s1_shadow)">
+          <rect x="76" y="40" width="88" height="160" rx="22" fill="url(#s1_phone)" />
+          <rect x="84" y="56" width="72" height="128" rx="16" fill="rgba(255,255,255,0.70)" />
+          <rect x="103" y="48" width="34" height="6" rx="3" fill="rgba(255,255,255,0.55)" />
+          <rect x="92" y="70" width="56" height="40" rx="14" fill="rgba(59,130,246,0.13)" />
+          <rect x="96" y="76" width="30" height="8" rx="4" fill="rgba(11,30,74,0.25)" />
+          <rect x="96" y="88" width="42" height="8" rx="4" fill="rgba(11,30,74,0.18)" />
+          <rect x="92" y="120" width="56" height="52" rx="16" fill="rgba(255,255,255,0.78)" />
+          <rect x="98" y="128" width="44" height="10" rx="5" fill="rgba(11,30,74,0.14)" />
+          <rect x="98" y="144" width="32" height="8" rx="4" fill="rgba(11,30,74,0.10)" />
+          <rect x="98" y="156" width="38" height="8" rx="4" fill="rgba(11,30,74,0.10)" />
+          <g transform="translate(148 128)">
+            <rect x="-18" y="10" width="36" height="22" rx="6" fill="url(#s1_bus)" />
+            <rect x="-12" y="2" width="24" height="10" rx="4" fill="#F59E0B" opacity="0.95" />
+            <rect x="-10" y="6" width="10" height="4" rx="2" fill="#0B1E4A" opacity="0.25" />
+            <rect x="2" y="6" width="10" height="4" rx="2" fill="#0B1E4A" opacity="0.25" />
+            <circle cx="-8" cy="32" r="3.2" fill="#334155" opacity="0.9" />
+            <circle cx="8" cy="32" r="3.2" fill="#334155" opacity="0.9" />
+          </g>
+        </g>
+        <path d="M34 172 C60 160, 86 168, 104 184 C122 200, 148 206, 206 188" stroke="rgba(59,130,246,0.35)" strokeWidth="8" strokeLinecap="round" />
+        <circle cx="46" cy="170" r="4" fill="rgba(59,130,246,0.35)" />
+        <circle cx="198" cy="190" r="4" fill="rgba(59,130,246,0.35)" />
         <defs>
-          <linearGradient id="sb1" x1="0" y1="0" x2="0" y2="1">
-            <stop stopColor="#FCD34D" />
-            <stop stopColor="#F59E0B" />
+          <linearGradient id="s1_bg" x1="28" y1="20" x2="216" y2="228" gradientUnits="userSpaceOnUse">
+            <stop stopColor="rgba(96,165,250,0.55)" />
+            <stop offset="0.55" stopColor="rgba(255,255,255,0.18)" />
+            <stop offset="1" stopColor="rgba(167,139,250,0.45)" />
           </linearGradient>
+          <linearGradient id="s1_phone" x1="76" y1="40" x2="164" y2="200" gradientUnits="userSpaceOnUse">
+            <stop stopColor="rgba(255,255,255,0.45)" />
+            <stop offset="0.6" stopColor="rgba(255,255,255,0.20)" />
+            <stop offset="1" stopColor="rgba(255,255,255,0.12)" />
+          </linearGradient>
+          <linearGradient id="s1_bus" x1="0" y1="0" x2="0" y2="1">
+            <stop stopColor="#FCD34D" />
+            <stop offset="1" stopColor="#F59E0B" />
+          </linearGradient>
+          <filter id="s1_shadow" x="56" y="26" width="128" height="196" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+            <feDropShadow dx="0" dy="12" stdDeviation="14" floodColor="rgba(0,0,0,0.25)" />
+          </filter>
         </defs>
       </svg>
     ),
@@ -61,32 +69,49 @@ const slides = [
     bgMain: ['#064E3B', '#065F46'],
     decorColor: '#34D399',
     image: (
-      <svg width="200" height="200" viewBox="0 0 200 200" fill="none" className="w-44 h-44 sm:w-52 sm:h-52">
-        {/* Background */}
-        <circle cx="100" cy="100" r="96" fill="#D1FAE5" />
-        <circle cx="100" cy="100" r="86" fill="#ECFDF5" />
-        {/* Map lines */}
-        <line x1="30" y1="60" x2="80" y2="120" stroke="#A7F3D0" strokeWidth="3" strokeLinecap="round" />
-        <line x1="80" y1="120" x2="160" y2="70" stroke="#A7F3D0" strokeWidth="3" strokeLinecap="round" />
-        <line x1="50" y1="140" x2="140" y2="100" stroke="#A7F3D0" strokeWidth="3" strokeLinecap="round" strokeDasharray="6 4" />
-        {/* Map dots */}
-        <circle cx="30" cy="60" r="4" fill="#6EE7B7" opacity="0.6" />
-        <circle cx="160" cy="70" r="4" fill="#6EE7B7" opacity="0.6" />
-        <circle cx="50" cy="140" r="4" fill="#6EE7B7" opacity="0.6" />
-        <circle cx="140" cy="100" r="4" fill="#6EE7B7" opacity="0.6" />
-        {/* Main pin */}
-        <path d="M100 40C85 40 72 52 72 66C72 86 100 120 100 120C100 120 128 86 128 66C128 52 115 40 100 40Z" fill="#10B981" />
-        <circle cx="100" cy="66" r="12" fill="white" />
-        <path d="M96 66 L100 60 L104 66 L100 72Z" fill="#10B981" />
-        {/* Pulse ring */}
-        <circle cx="100" cy="66" r="22" stroke="#10B981" strokeWidth="1.5" opacity="0.2" />
-        {/* Bus icon on map */}
-        <rect x="72" y="130" width="20" height="12" rx="2" fill="#FBBF24" />
-        <circle cx="78" cy="140" r="2.5" fill="#374151" />
-        <circle cx="86" cy="140" r="2.5" fill="#374151" />
-        {/* Phone indicator */}
-        <rect x="152" y="110" width="6" height="14" rx="1" fill="#34D399" opacity="0.4" />
-        <rect x="154" y="112" width="2" height="3" rx="0.5" fill="#D1FAE5" opacity="0.6" />
+      <svg width="240" height="240" viewBox="0 0 240 240" fill="none" className="w-48 h-48 sm:w-56 sm:h-56">
+        <circle cx="120" cy="120" r="112" fill="url(#s2_bg)" />
+        <circle cx="120" cy="120" r="96" fill="rgba(255,255,255,0.66)" />
+        <g filter="url(#s2_shadow)">
+          <rect x="74" y="38" width="92" height="164" rx="22" fill="url(#s2_phone)" />
+          <rect x="82" y="56" width="76" height="132" rx="16" fill="rgba(255,255,255,0.74)" />
+          <path d="M92 78 C114 62, 128 74, 142 92 C156 110, 166 122, 154 142 C142 162, 112 166, 96 152 C80 138, 76 108, 92 78 Z" fill="rgba(16,185,129,0.12)" />
+          <path d="M96 150 C114 138, 128 144, 140 156 C152 168, 162 170, 154 184" stroke="rgba(16,185,129,0.45)" strokeWidth="6" strokeLinecap="round" strokeDasharray="1 10" />
+          <path d="M102 118 C116 100, 134 112, 146 96" stroke="rgba(16,185,129,0.38)" strokeWidth="6" strokeLinecap="round" />
+          <g transform="translate(0 0)">
+            <path d="M120 72C105 72 92 84 92 98C92 118 120 152 120 152C120 152 148 118 148 98C148 84 135 72 120 72Z" fill="url(#s2_pin)" />
+            <circle cx="120" cy="98" r="12" fill="white" opacity="0.95" />
+            <circle cx="120" cy="98" r="4" fill="#10B981" opacity="0.95" />
+            <circle cx="120" cy="98" r="24" stroke="rgba(16,185,129,0.22)" strokeWidth="2" />
+          </g>
+          <g transform="translate(146 156)">
+            <rect x="-20" y="-10" width="40" height="22" rx="8" fill="rgba(16,185,129,0.16)" />
+            <rect x="-12" y="-4" width="24" height="10" rx="5" fill="rgba(11,30,74,0.12)" />
+            <circle cx="-8" cy="12" r="3.2" fill="#334155" opacity="0.9" />
+            <circle cx="8" cy="12" r="3.2" fill="#334155" opacity="0.9" />
+          </g>
+        </g>
+        <circle cx="50" cy="70" r="4" fill="rgba(16,185,129,0.35)" />
+        <circle cx="196" cy="170" r="4" fill="rgba(16,185,129,0.35)" />
+        <defs>
+          <linearGradient id="s2_bg" x1="26" y1="18" x2="218" y2="230" gradientUnits="userSpaceOnUse">
+            <stop stopColor="rgba(52,211,153,0.55)" />
+            <stop offset="0.6" stopColor="rgba(255,255,255,0.14)" />
+            <stop offset="1" stopColor="rgba(16,185,129,0.42)" />
+          </linearGradient>
+          <linearGradient id="s2_phone" x1="74" y1="38" x2="166" y2="202" gradientUnits="userSpaceOnUse">
+            <stop stopColor="rgba(255,255,255,0.48)" />
+            <stop offset="0.62" stopColor="rgba(255,255,255,0.20)" />
+            <stop offset="1" stopColor="rgba(255,255,255,0.12)" />
+          </linearGradient>
+          <linearGradient id="s2_pin" x1="120" y1="72" x2="120" y2="152" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#34D399" />
+            <stop offset="1" stopColor="#10B981" />
+          </linearGradient>
+          <filter id="s2_shadow" x="52" y="24" width="136" height="204" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+            <feDropShadow dx="0" dy="12" stdDeviation="14" floodColor="rgba(0,0,0,0.25)" />
+          </filter>
+        </defs>
       </svg>
     ),
   },
@@ -99,27 +124,41 @@ const slides = [
     bgMain: ['#3B0764', '#5B21B6'],
     decorColor: '#A78BFA',
     image: (
-      <svg width="200" height="200" viewBox="0 0 200 200" fill="none" className="w-44 h-44 sm:w-52 sm:h-52">
-        {/* Background */}
-        <circle cx="100" cy="100" r="96" fill="#EDE9FE" />
-        <circle cx="100" cy="100" r="86" fill="#F5F3FF" />
-        {/* Shield */}
-        <path d="M100 30L155 55V100C155 135 130 165 100 175C70 165 45 135 45 100V55L100 30Z" fill="#8B5CF6" />
-        <path d="M100 40L145 60V100C145 130 125 155 100 163C75 155 55 130 55 100V60L100 40Z" fill="#A78BFA" />
-        {/* Checkmark */}
-        <path d="M78 100 L92 114 L122 84" stroke="white" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-        {/* Sparkles */}
-        <circle cx="60" cy="65" r="2" fill="#C4B5FD" />
-        <circle cx="145" cy="55" r="2.5" fill="#C4B5FD" />
-        <circle cx="70" cy="145" r="1.5" fill="#C4B5FD" />
-        <circle cx="140" cy="120" r="2" fill="#C4B5FD" />
-        <line x1="62" y1="63" x2="62" y2="67" stroke="#C4B5FD" strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="60" y1="65" x2="64" y2="65" stroke="#C4B5FD" strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="143" y1="53" x2="143" y2="57" stroke="#C4B5FD" strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="141" y1="55" x2="145" y2="55" stroke="#C4B5FD" strokeWidth="1.5" strokeLinecap="round" />
-        {/* Small bus silhouettes in back */}
-        <rect x="20" y="80" width="10" height="8" rx="1" fill="#C4B5FD" opacity="0.3" />
-        <rect x="170" y="90" width="12" height="8" rx="1" fill="#C4B5FD" opacity="0.3" />
+      <svg width="240" height="240" viewBox="0 0 240 240" fill="none" className="w-48 h-48 sm:w-56 sm:h-56">
+        <circle cx="120" cy="120" r="112" fill="url(#s3_bg)" />
+        <circle cx="120" cy="120" r="96" fill="rgba(255,255,255,0.66)" />
+        <g filter="url(#s3_shadow)">
+          <rect x="74" y="38" width="92" height="164" rx="22" fill="url(#s3_phone)" />
+          <rect x="82" y="56" width="76" height="132" rx="16" fill="rgba(255,255,255,0.76)" />
+          <path d="M120 68L164 88V122C164 150 144 176 120 184C96 176 76 150 76 122V88L120 68Z" fill="url(#s3_shield)" />
+          <path d="M104 126 L116 138 L140 112" stroke="white" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+          <rect x="92" y="72" width="56" height="10" rx="5" fill="rgba(11,30,74,0.10)" />
+          <rect x="92" y="90" width="40" height="8" rx="4" fill="rgba(11,30,74,0.08)" />
+          <rect x="92" y="102" width="46" height="8" rx="4" fill="rgba(11,30,74,0.08)" />
+        </g>
+        <path d="M54 78 C72 64, 90 66, 102 80" stroke="rgba(139,92,246,0.35)" strokeWidth="6" strokeLinecap="round" />
+        <path d="M186 170 C170 184, 152 180, 140 166" stroke="rgba(167,139,250,0.35)" strokeWidth="6" strokeLinecap="round" />
+        <circle cx="56" cy="76" r="4" fill="rgba(167,139,250,0.45)" />
+        <circle cx="184" cy="172" r="4" fill="rgba(139,92,246,0.45)" />
+        <defs>
+          <linearGradient id="s3_bg" x1="24" y1="18" x2="220" y2="232" gradientUnits="userSpaceOnUse">
+            <stop stopColor="rgba(167,139,250,0.55)" />
+            <stop offset="0.58" stopColor="rgba(255,255,255,0.14)" />
+            <stop offset="1" stopColor="rgba(139,92,246,0.46)" />
+          </linearGradient>
+          <linearGradient id="s3_phone" x1="74" y1="38" x2="166" y2="202" gradientUnits="userSpaceOnUse">
+            <stop stopColor="rgba(255,255,255,0.48)" />
+            <stop offset="0.62" stopColor="rgba(255,255,255,0.20)" />
+            <stop offset="1" stopColor="rgba(255,255,255,0.12)" />
+          </linearGradient>
+          <linearGradient id="s3_shield" x1="120" y1="68" x2="120" y2="184" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#A78BFA" />
+            <stop offset="1" stopColor="#8B5CF6" />
+          </linearGradient>
+          <filter id="s3_shadow" x="52" y="24" width="136" height="204" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+            <feDropShadow dx="0" dy="12" stdDeviation="14" floodColor="rgba(0,0,0,0.25)" />
+          </filter>
+        </defs>
       </svg>
     ),
   },
@@ -297,22 +336,19 @@ export default function Onboarding({ onComplete }) {
                 rotateY: slideTilt.x,
                 transition: 'rotateX 0.1s, rotateY 0.1s',
               }}
-              className="mb-6 sm:mb-8"
+              className="relative mb-6 sm:mb-8"
             >
-              {/* Glow ring */}
               <motion.div
                 initial={{ scale: 0.85, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.1 }}
-                className="absolute w-48 h-48 sm:w-56 sm:h-56 rounded-full blur-2xl -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                className="absolute left-1/2 top-1/2 z-0 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full blur-2xl pointer-events-none sm:h-56 sm:w-56"
                 style={{
                   background: slide?.accent,
                   opacity: 0.12,
-                  top: '50%',
-                  left: '50%',
                 }}
               />
-              {slide.image}
+              <div className="relative z-10">{slide.image}</div>
             </motion.div>
 
             {/* Floating decorative dots */}
@@ -434,7 +470,7 @@ export default function Onboarding({ onComplete }) {
           <motion.button
             onClick={goNext}
             whileTap={{ scale: 0.96 }}
-            className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-bold text-white transition-all duration-200 relative overflow-hidden ${
+            className={`group flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-bold text-white transition-all duration-200 relative overflow-hidden ${
               isFirst ? 'shadow-lg' : ''
             }`}
             style={{

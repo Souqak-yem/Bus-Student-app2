@@ -153,7 +153,7 @@ export default function ReturnTrip() {
         setPhase((prev) => (prev === 'dropoff' || prev === 'completed' || prev === 'just_completed') ? prev : 'boarding')
       }
       if (payload.priority === 'CRITICAL' && payload.title) {
-        addNotification(payload.title, payload.message || '', 'warning')
+        addNotification(payload.title, payload.message || '', 'CRITICAL')
       }
     })
     return () => {
@@ -260,7 +260,10 @@ export default function ReturnTrip() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <div className="w-14 h-14 rounded-2xl gradient-primary text-white flex items-center justify-center animate-pulse shadow-card">
+          <Bus className="w-7 h-7" />
+        </div>
         <div className="text-slate-400 text-sm">جاري التحميل...</div>
       </div>
     )
@@ -269,7 +272,7 @@ export default function ReturnTrip() {
   if (noReturnTrip) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-10 max-w-sm text-center">
+        <div className="card p-10 max-w-sm text-center fade-in-up">
           <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-5">
             <svg className="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -284,9 +287,9 @@ export default function ReturnTrip() {
   if (phase === 'just_completed') {
     return (
       <div className="max-w-lg mx-auto">
-        <div className="bg-white rounded-xl p-4 text-center">
-          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
-            <Check className="w-6 h-6 text-green-600" />
+        <div className="card p-4 text-center fade-in-up">
+          <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-2 ring-1 ring-green-100">
+            <Check className="w-7 h-7 text-green-600" />
           </div>
           <h2 className="text-base font-bold text-slate-800">تم إنهاء رحلة العودة</h2>
         </div>
@@ -297,24 +300,24 @@ export default function ReturnTrip() {
   if (phase === 'completed') {
     return (
       <div className="max-w-lg mx-auto">
-        <div className="bg-white rounded-xl p-4 text-center">
-          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
-            <Check className="w-6 h-6 text-green-600" />
+        <div className="card p-4 text-center fade-in-up">
+          <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-2 ring-1 ring-green-100">
+            <Check className="w-7 h-7 text-green-600" />
           </div>
           <h2 className="text-base font-bold text-slate-800 mb-3">اكتمل إنزال جميع الطلاب</h2>
           <div className="grid grid-cols-2 gap-2 mb-4">
-            <div className="bg-slate-50 rounded-lg p-2">
+            <div className="bg-slate-50 rounded-xl p-2">
               <p className="text-lg font-bold text-slate-800">{loads.length}</p>
               <p className="text-[10px] text-slate-500">إجمالي الطلاب</p>
             </div>
-            <div className="bg-green-50 rounded-lg p-2">
+            <div className="bg-green-50 rounded-xl p-2">
               <p className="text-lg font-bold text-green-700">{droppedOffCount}</p>
               <p className="text-[10px] text-green-600">تم الإنزال</p>
             </div>
           </div>
           <button
             onClick={handleEndReturnTrip}
-            className="w-full bg-[var(--color-primary)] text-white py-3.5 rounded-xl font-bold text-sm hover:brightness-110 transition-all min-h-[48px]"
+            className="w-full gradient-primary text-white py-3.5 rounded-xl font-bold text-sm hover:brightness-110 transition-all min-h-[48px] shadow-[0_8px_24px_-6px_rgba(37,99,235,0.55)] active:scale-[0.98]"
           >
             إنهاء رحلة العودة
           </button>
@@ -326,7 +329,7 @@ export default function ReturnTrip() {
   if (!selectedBus) {
     return (
       <div className="max-w-lg mx-auto space-y-2">
-        <div className="bg-white rounded-xl p-4">
+        <div className="card p-4 fade-in-up">
           <h1 className="text-lg font-bold text-slate-800 mb-1">اختر الباص</h1>
           <p className="text-xs text-slate-500 mb-3">يوجد أكثر من باص مخصص لك اليوم</p>
           <div className="space-y-2">
@@ -334,7 +337,7 @@ export default function ReturnTrip() {
               <button
                 key={b.id}
                 onClick={() => selectBus(b)}
-                className="w-full bg-slate-50 hover:bg-slate-100 rounded-xl p-3 text-right border border-slate-200 transition-colors"
+                className="w-full bg-slate-50 hover:bg-slate-100 rounded-xl p-3 text-right border border-slate-200 transition-colors hover:border-[var(--color-primary)]/40 hover:shadow-sm"
               >
                 <div className="flex items-center justify-between">
                   <div>
@@ -362,7 +365,7 @@ export default function ReturnTrip() {
 
     return (
       <div className="max-w-lg mx-auto space-y-2 pb-4">
-        <div className="bg-white rounded-xl px-3 py-2">
+        <div className="card px-3 py-2.5">
           <div className="flex items-center justify-between">
             <span className="text-sm font-bold text-slate-800">باص {selectedBus.bus?.busNumber}</span>
             <div className="text-left">
@@ -372,9 +375,9 @@ export default function ReturnTrip() {
               <p className="text-[10px] text-slate-400">المتبقي: {remaining}</p>
             </div>
           </div>
-          <div className="w-full bg-slate-100 rounded-full h-1.5 mt-1.5">
-            <div className="bg-green-500 h-1.5 rounded-full transition-all duration-300"
-              style={{ width: `${((dropoffIndex + 1) / loads.length) * 100}%` }} />
+          <div className="progress-track h-1.5 mt-2">
+            <div className="progress-fill"
+              style={{ width: `${((dropoffIndex + 1) / loads.length) * 100}%`, background: 'linear-gradient(90deg, #22C55E 0%, #16A34A 60%, #15803D 100%)' }} />
           </div>
         </div>
 
@@ -385,7 +388,7 @@ export default function ReturnTrip() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: direction * -60 }}
             transition={{ duration: 0.2 }}
-            className="bg-white rounded-xl p-3"
+            className="card p-3.5 shadow-pop"
           >
             <div className="text-center mb-2">
               <h2 className="text-lg font-bold text-slate-800">{currentStudent?.name}</h2>
@@ -409,7 +412,7 @@ export default function ReturnTrip() {
             <button
               onClick={handleDropoff}
               disabled={submitting}
-              className="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-base hover:brightness-110 transition-all disabled:opacity-50 min-h-[52px]"
+              className="w-full gradient-success text-white py-4 rounded-xl font-bold text-base hover:brightness-110 transition-all disabled:opacity-50 min-h-[52px] shadow-[0_6px_16px_-6px_rgba(22,163,74,0.55)] active:scale-[0.98]"
             >
               <Check size={20} className="inline ml-1 -mt-0.5" />
               تم الإنزال
@@ -441,7 +444,7 @@ export default function ReturnTrip() {
 
     return (
       <div className="max-w-lg mx-auto space-y-2 pb-4">
-        <div className={`rounded-2xl overflow-hidden border shadow-sm ${
+        <div className={`rounded-2xl overflow-hidden border shadow-card ${
           isCritical
             ? 'border-red-200 bg-gradient-to-br from-red-50 via-rose-50 to-orange-50'
             : isWarning
@@ -521,7 +524,7 @@ export default function ReturnTrip() {
                 <button
                   onClick={handleDispatchBoarding}
                   disabled={submitting}
-                  className="w-full rounded-2xl py-4 font-black text-base min-h-[56px] flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.99] bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+                  className="w-full rounded-2xl py-4 font-black text-base min-h-[56px] flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.99] gradient-danger text-white disabled:opacity-50"
                 >
                   <Bus size={22} />
                   {submitting ? 'جاري الانطلاق...' : `🚍 انطلاق الباص الآن (${stats.ON_BOARD || 0})`}
@@ -536,7 +539,7 @@ export default function ReturnTrip() {
               <button
                 onClick={handleDispatchBoarding}
                 disabled={submitting}
-                className="w-full rounded-2xl py-4 font-black text-base min-h-[56px] flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.99] bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+                className="w-full rounded-2xl py-4 font-black text-base min-h-[56px] flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.99] gradient-success text-white disabled:opacity-50"
               >
                 <Bus size={22} />
                 {submitting ? 'جاري الانطلاق...' : `🚍 انطلاق الباص (${stats.ON_BOARD || 0})`}
@@ -545,7 +548,7 @@ export default function ReturnTrip() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-3">
+        <div className="card p-3">
           <div className="flex items-center justify-between mb-2.5">
             <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
               <Users size={16} className="text-slate-500" />
@@ -653,7 +656,7 @@ export default function ReturnTrip() {
 
   return (
     <div className="max-w-lg mx-auto space-y-2 pb-4">
-      <div className="bg-white rounded-xl p-4">
+      <div className="card p-4 fade-in-up">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h1 className="text-lg font-bold text-slate-800">باص {selectedBus.bus?.busNumber}</h1>
@@ -666,11 +669,11 @@ export default function ReturnTrip() {
         </div>
 
         <div className="grid grid-cols-2 gap-2 mb-3">
-          <div className="bg-slate-50 rounded-lg p-2.5 text-center">
+          <div className="bg-slate-50 rounded-xl p-2.5 text-center">
             <p className="text-lg font-bold text-slate-800">{loads.length}</p>
             <p className="text-[10px] text-slate-500">إجمالي الطلاب</p>
           </div>
-          <div className="bg-slate-50 rounded-lg p-2.5 text-center">
+          <div className="bg-slate-50 rounded-xl p-2.5 text-center">
             <p className="text-lg font-bold text-slate-800">{lineLabel}</p>
             <p className="text-[10px] text-slate-500">الطريق</p>
           </div>
@@ -702,7 +705,7 @@ export default function ReturnTrip() {
             <button
               onClick={handleDispatchBoarding}
               disabled={submitting}
-              className="w-full bg-green-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+              className="w-full bg-green-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1 shadow-[0_6px_16px_-6px_rgba(22,163,74,0.5)] active:scale-[0.98]"
             >
               <Bus size={16} /> انطلاق الباص ({stats.ON_BOARD || 0})
             </button>
@@ -711,7 +714,7 @@ export default function ReturnTrip() {
           {!allOnBoard && !timerRunning && !timerEnded && (
             <button
               onClick={handleStartTimer}
-              className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-indigo-700 transition-colors flex items-center justify-center gap-1"
+              className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-indigo-700 transition-colors flex items-center justify-center gap-1 shadow-[0_6px_16px_-6px_rgba(79,70,229,0.5)] active:scale-[0.98]"
             >
               <PlayCircle size={16} /> بدء العد التنازلي للصعود
             </button>
@@ -727,7 +730,7 @@ export default function ReturnTrip() {
               <button
                 onClick={handleDispatchBoarding}
                 disabled={submitting}
-                className="w-full bg-green-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+                className="w-full bg-green-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1 shadow-[0_6px_16px_-6px_rgba(22,163,74,0.5)] active:scale-[0.98]"
               >
                 <Bus size={16} /> انطلاق الباص ({stats.ON_BOARD || 0})
               </button>
@@ -736,7 +739,7 @@ export default function ReturnTrip() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl p-3 border border-slate-100">
+      <div className="card p-3">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
             <Users size={16} className="text-slate-500" />

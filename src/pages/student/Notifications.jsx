@@ -126,7 +126,9 @@ export default function Notifications() {
 
   function handleNotificationClick(notif) {
     if (!notif.isRead) markAsRead(notif.id)
-    if (notif.targetRoute) navigate(notif.targetRoute)
+    if (notif.targetRoute) {
+      navigate(notif.targetRoute, { replace: false, state: { fromNotification: true } })
+    }
   }
 
   async function handleReadAll() {
@@ -171,13 +173,13 @@ export default function Notifications() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-1 overflow-x-auto scrollbar-thin">
+      <div className="flex gap-1.5 overflow-x-auto scrollbar-thin pb-0.5">
         {FILTERS.map(f => (
           <button key={f.key}
             onClick={() => setActiveFilter(f.key)}
-            className={`text-xs px-2.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-colors ${
+            className={`text-xs px-2.5 py-1.5 rounded-full font-medium whitespace-nowrap transition-all ${
               activeFilter === f.key
-                ? 'bg-primary text-white'
+                ? 'gradient-primary text-white shadow-[0_3px_10px_-3px_rgba(37,99,235,0.6)]'
                 : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'
             }`}
           >
@@ -189,11 +191,13 @@ export default function Notifications() {
       {/* List */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 size={24} className="animate-spin text-slate-400" />
+          <Loader2 size={24} className="animate-spin text-[var(--color-primary)]" />
         </div>
       ) : notifications.length === 0 ? (
-        <div className="bg-white rounded-xl p-8 text-center">
-          <Bell size={36} className="mx-auto mb-2 text-slate-200" />
+        <div className="card p-8 text-center">
+          <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center">
+            <Bell size={28} className="text-slate-300" />
+          </div>
           <p className="text-sm text-slate-400">لا توجد إشعارات</p>
         </div>
       ) : (
@@ -210,14 +214,14 @@ export default function Notifications() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   onClick={() => handleNotificationClick(notif)}
-                  className={`bg-white rounded-xl p-3 transition-all cursor-pointer ${
+                  className={`card p-3 transition-all cursor-pointer ${
                     notif.isRead
                       ? 'opacity-70 hover:opacity-100'
-                      : `shadow-sm ${cfg.bg}`
+                      : `shadow-card ${cfg.bg}`
                   } ${!notif.isRead ? `border-r-2 border-r-${cfg.color.replace('text-', '')}` : ''}`}
                 >
                   <div className="flex items-start gap-2.5">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${cfg.bg}`}>
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${cfg.bg}`}>
                       <Icon size={16} className={cfg.color} />
                     </div>
                     <div className="flex-1 min-w-0">

@@ -215,6 +215,7 @@ export async function startMorningTrip(busId) {
 
   const state = await getTrackingState(activeBus.id)
   broadcastTrackingUpdate(activeBus.id, state)
+  await checkAndSendNotifications(state, activeBus.id)
 
   notifyStudentsOnBus(busId, {
     type: 'student_trip_started', title: 'انطلقت رحلة الصباح', message: 'انطلق باصك إلى الجامعة',

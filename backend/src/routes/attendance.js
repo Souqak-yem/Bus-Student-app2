@@ -94,16 +94,26 @@ router.post('/', async (req, res) => {
     })
 
     const { today, tomorrow } = (() => {
-      const d = new Date()
-      const today = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+      const today = getLocalDate()
       const tomorrow = new Date(today)
       tomorrow.setDate(tomorrow.getDate() + 1)
       return { today, tomorrow }
     })()
-    const activeBus = await prisma.activeBus.findFirst({
+    let activeBus = await prisma.activeBus.findFirst({
       where: { busId, tripType: { not: 'RETURN' }, operation: { operationDate: { gte: today, lt: tomorrow } } },
       select: { id: true },
     })
+    if (!activeBus) {
+      // Fallback: try to find the most recent activeBus for this bus (in case of slight date mismatch)
+      activeBus = await prisma.activeBus.findFirst({
+        where: { busId, tripType: { not: 'RETURN' } },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true },
+      })
+      if (activeBus) {
+        console.warn('[attendance] activeBus not found for today range, falling back to recent activeBus', activeBus.id)
+      }
+    }
     if (activeBus) {
       advanceTrackingAfterAttendance(activeBus.id, studentId).catch(() => {})
     }

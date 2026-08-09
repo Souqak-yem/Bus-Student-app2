@@ -1,9 +1,19 @@
 import { Router } from 'express'
-import { authenticate } from '../middleware/auth.js'
+import { authenticate, authorize } from '../middleware/auth.js'
 import * as notificationService from '../services/notificationService.js'
+import { checkAndNotifyUnassignedDailySubscriptions } from '../services/dailyExceptionsService.js'
 
 const router = Router()
 router.use(authenticate)
+
+router.post('/check-unassigned-daily', authorize('admin'), async (req, res) => {
+  try {
+    const summary = await checkAndNotifyUnassignedDailySubscriptions(req.user.id)
+    res.json(summary)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
 
 router.get('/', async (req, res) => {
   try {

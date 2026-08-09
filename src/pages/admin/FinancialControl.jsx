@@ -96,10 +96,10 @@ export default function FinancialControl() {
   }
 
   const stats = [
-    { icon: DollarSign, label: 'مسددون', value: dashboard?.settled, color: 'green' },
-    { icon: AlertTriangle, label: 'متأخرون', value: dashboard?.overdue, color: 'red' },
-    { icon: Ban, label: 'موقوفون', value: dashboard?.suspended, color: 'red' },
-    { icon: Clock, label: 'مهلة', value: dashboard?.gracePeriod, color: 'yellow' },
+    { icon: DollarSign, label: 'مسددون', value: dashboard?.counts?.SETTLED ?? null, color: 'green' },
+    { icon: AlertTriangle, label: 'متأخرون', value: dashboard?.counts?.OVERDUE ?? null, color: 'red' },
+    { icon: Ban, label: 'موقوفون', value: dashboard?.counts?.SUSPENDED ?? null, color: 'red' },
+    { icon: Clock, label: 'مهلة', value: dashboard?.counts?.GRACE_PERIOD ?? null, color: 'yellow' },
   ]
 
   const columns = [
@@ -110,9 +110,9 @@ export default function FinancialControl() {
       </span>
     )},
     { key: 'delayDays', label: 'أيام التأخير', hideOnMobile: true, render: (r) => r.delayDays > 0 ? `${r.delayDays} يوم` : '-' },
-    { key: 'institutionName', label: 'الوجهة', hideOnMobile: true, render: (r) => r.institutionName || '-' },
+    { key: 'destinationName', label: 'الوجهة', hideOnMobile: true, render: (r) => r.destinationName || r.institutionName || '-' },
     { key: 'busInfo', label: 'الباص', hideOnMobile: true, render: (r) => {
-      const b = r.busNumber || r.templateStudents?.[0]?.bus?.busNumber
+      const b = r.bus?.busNumber || r.bus?.plateNumber || r.busNumber || r.templateStudents?.[0]?.bus?.busNumber
       return b || '-'
     }},
     { key: 'actions', label: 'الإجراءات', render: (r) => (
@@ -210,8 +210,10 @@ export default function FinancialControl() {
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--color-text-muted)]">
                   {row.delayDays > 0 && <span className="flex items-center gap-1"><Clock size={10} /> {row.delayDays} يوم تأخير</span>}
-                  {row.institutionName && <span>{row.institutionName}</span>}
-                  {(row.busNumber || row.templateStudents?.[0]?.bus?.busNumber) && <span>باص: {row.busNumber || row.templateStudents?.[0]?.bus?.busNumber}</span>}
+                  {(row.destinationName || row.institutionName) && <span>{row.destinationName || row.institutionName}</span>}
+                  {(row.bus?.busNumber || row.bus?.plateNumber || row.busNumber || row.templateStudents?.[0]?.bus?.busNumber) && (
+                    <span>باص: {row.bus?.busNumber || row.bus?.plateNumber || row.busNumber || row.templateStudents?.[0]?.bus?.busNumber}</span>
+                  )}
                 </div>
                 <div className="flex gap-1 flex-wrap" onClick={e => e.stopPropagation()}>
                   {row.financialStatus !== 'SUSPENDED' && (
@@ -242,7 +244,7 @@ export default function FinancialControl() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="modal-overlay" onClick={() => { setActionStudent(null); setActionType(null) }}>
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="modal-content max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+            className="modal-content max-w-[min(95vw,680px)] lg:max-w-[780px] p-6" onClick={(e) => e.stopPropagation()}>
 
               {actionType === 'suspend' && (
                 <>

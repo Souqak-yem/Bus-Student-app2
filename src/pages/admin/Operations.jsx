@@ -3,15 +3,15 @@ import { Clock, History, ClipboardList, Bus } from 'lucide-react'
 
 const tabs = [
   { to: 'today', label: 'اليوم', icon: Clock },
-  { to: 'history', label: 'السجل', icon: History },
   { to: 'return', label: 'الرجوع', icon: ClipboardList },
   { to: 'departed', label: 'المنطلقات', icon: Bus },
+  { to: 'history', label: 'السجل', icon: History },
 ]
 
 export default function AdminOperations() {
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div className="flex flex-nowrap gap-1.5 mb-4 overflow-x-auto">
         {tabs.map((tab) => {
           const Icon = tab.icon
           return (
@@ -19,7 +19,7 @@ export default function AdminOperations() {
               key={tab.to}
               to={tab.to}
               className={({ isActive }) =>
-                `inline-flex items-center gap-2 px-3 py-2 rounded-2xl text-sm font-medium transition-all ${
+                `inline-flex items-center gap-1 px-2 py-1.5 rounded-xl text-xs font-medium transition-all sm:gap-2 sm:px-3 sm:py-2 sm:rounded-2xl sm:text-sm ${
                   isActive
                     ? 'bg-[var(--color-primary-lighter)] text-[var(--color-primary-dark)]'
                     : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-border-light)] hover:text-[var(--color-text)]'

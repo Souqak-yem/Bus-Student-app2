@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js'
-import { getLocalDate } from '../utils/dateUtils.js'
+import { getLocalDate, formatLocalDate } from '../utils/dateUtils.js'
+import { createAndBroadcast } from './notificationService.js'
 
 const DAY_NAMES = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
 
@@ -74,4 +75,28 @@ export async function getTodayExceptions() {
     overrideCount: dailySubsWithMeta.filter(s => s.isOffDay).length,
     unassignedCount: unassignedWithDefaults.length,
   }
+}
+
+export async function checkAndNotifyUnassignedDailySubscriptions(adminId) {
+  const today = getLocalDate()
+  const dateKey = formatLocalDate(today)
+
+  const { unassignedCount: dailyUnassigned } = await getTodayExceptions()
+
+  if (dailyUnassigned > 0) {
+    const existing = await prisma.notification.findFirst({
+      where: { userId: adminId, type: 'unassigned_daily_subscription', createdAt: { gte: today } },
+    })
+    if (!existing) {
+      await createAndBroadcast({
+        userId: adminId,
+        type: 'unassigned_daily_subscription',
+        title: 'طلاب غير موزعين في الاشتراكات اليومية',
+        message: `يوجد ${dailyUnassigned} طالب باشتراك يومي غير موزعين اليوم`,
+        priority: 'WARNING',
+        dedupKey: `unassigned_daily_${dateKey}_${adminId}`,
+      })
+    }
+  }
+  return { dailyUnassigned }
 }

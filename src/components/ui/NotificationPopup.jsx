@@ -38,7 +38,7 @@ export default function NotificationPopup({ notification }) {
 
   function handleClick() {
     if (notification.targetRoute) {
-      navigate(notification.targetRoute)
+      navigate(notification.targetRoute, { replace: false, state: { fromNotification: true } })
     }
     setExiting(true)
     setTimeout(() => dismissPopup(notification._popupId), 300)
@@ -77,10 +77,10 @@ export default function NotificationPopup({ notification }) {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onClick={handleClick}
-      className={`fixed top-4 left-4 right-4 z-[100] max-w-sm mx-auto cursor-pointer select-none ${style.border} border-r-4 bg-white rounded-2xl shadow-xl overflow-hidden`}
+      className={`fixed top-4 left-4 right-4 z-[100] max-w-sm mx-auto cursor-pointer select-none ${style.border} border-r-4 bg-white rounded-2xl shadow-pop overflow-hidden`}
     >
       <div className="flex items-start gap-3 p-4">
-        <div className={`w-10 h-10 rounded-xl ${style.bg} flex items-center justify-center shrink-0`}>
+        <div className={`w-10 h-10 rounded-2xl ${style.bg} flex items-center justify-center shrink-0`}>
           <IconComponent size={20} className={style.icon} />
         </div>
         <div className="flex-1 min-w-0">

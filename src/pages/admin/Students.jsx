@@ -66,6 +66,8 @@ export default function AdminStudents() {
   const [pricingZones, setPricingZones] = useState([]);
   const [destinations, setDestinations] = useState([]);
   const [search, setSearch] = useState("");
+  const [filterZone, setFilterZone] = useState("");
+  const [filterDestinationId, setFilterDestinationId] = useState("");
   const [filterMode, setFilterMode] = useState("");
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [credentials, setCredentials] = useState(null);
@@ -74,6 +76,8 @@ export default function AdminStudents() {
   async function load() {
     try {
       const params = { search };
+      if (filterZone) params.zone = filterZone;
+      if (filterDestinationId) params.destinationId = filterDestinationId;
       if (filterMode) params.transportMode = filterMode;
       const [data, zones, dests] = await Promise.all([
         api.students.list(params),
@@ -92,9 +96,13 @@ export default function AdminStudents() {
 
   useEffect(() => {
     load();
-  }, [search, filterMode]);
+  }, [search, filterZone, filterDestinationId, filterMode]);
 
-
+  function handleResetFilters() {
+    setFilterZone("");
+    setFilterDestinationId("");
+    setFilterMode("");
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -279,6 +287,58 @@ export default function AdminStudents() {
         </button>
       </PageHeader>
 
+      <div className="bg-white rounded-xl shadow-sm border border-[var(--color-border)] p-4 mb-4">
+        <div className="grid gap-3 lg:grid-cols-4">
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-600 mb-2">المنطقة</label>
+            <select
+              value={filterZone}
+              onChange={(e) => setFilterZone(e.target.value)}
+              className="w-full input-field"
+            >
+              <option value="">الكل</option>
+              {pricingZones.map((zone) => (
+                <option key={zone.id} value={zone.name}>{zone.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-600 mb-2">الوجهة</label>
+            <select
+              value={filterDestinationId}
+              onChange={(e) => setFilterDestinationId(e.target.value)}
+              className="w-full input-field"
+            >
+              <option value="">الكل</option>
+              {destinations.map((dest) => (
+                <option key={dest.id} value={dest.id}>{dest.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-600 mb-2">نوع التوصيل</label>
+            <select
+              value={filterMode}
+              onChange={(e) => setFilterMode(e.target.value)}
+              className="w-full input-field"
+            >
+              <option value="">الكل</option>
+              <option value="LINE">توصيل على الخط</option>
+              <option value="HOME">توصيل منزلي</option>
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="btn-ghost btn-sm w-full"
+            >
+              إعادة الكل
+            </button>
+          </div>
+        </div>
+      </div>
+
       <DataTable
         columns={columns}
         data={students}
@@ -332,7 +392,7 @@ export default function AdminStudents() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="modal-content max-w-2xl"
+              className="modal-content max-w-[min(95vw,1160px)] lg:max-w-[1200px]"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between p-6 border-b border-[var(--color-border)]">

@@ -228,7 +228,19 @@ export default function AdminBuses() {
                     </select>
                   </FormField>
                   <FormField label="اللون">
-                    <input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="input-field" />
+                    <select
+                      value={form.color}
+                      onChange={(e) => setForm({ ...form, color: e.target.value })}
+                      className="select-field"
+                    >
+                      <option value="">اختر اللون</option>
+                      <option value="أبيض">أبيض</option>
+                      <option value="أسود">أسود</option>
+                      <option value="بيج">بيج</option>
+                      <option value="رمادي">رمادي</option>
+                      <option value="أزرق">أزرق</option>
+                      <option value="أحمر">أحمر</option>
+                    </select>
                   </FormField>
                   <FormField label="جوال رئيسي">
                     <input value={form.primaryPhone} onChange={(e) => setForm({ ...form, primaryPhone: e.target.value })} className="input-field" />

@@ -28,10 +28,17 @@ router.post('/reset-data', async (req, res) => {
 
     const admin = admins[0]
 
+    // Preserve system configuration tables: destinations, pricing areas, and pricing rows.
     await prisma.emergencyReport.deleteMany()
     await prisma.emergencyLog.deleteMany()
     await prisma.busLoad.deleteMany()
     await prisma.returnQueue.deleteMany()
+    await prisma.saturdayBusLoad.deleteMany()
+    await prisma.saturdayBoardingTimer.deleteMany()
+    await prisma.saturdayAssignment.deleteMany()
+    await prisma.saturdayReturnQueue.deleteMany()
+    await prisma.saturdayActiveBus.deleteMany()
+    await prisma.saturdayOperation.deleteMany()
     await prisma.activeBus.deleteMany()
     await prisma.dailyOperation.deleteMany()
     await prisma.dailyExecutionDate.deleteMany()
@@ -143,8 +150,8 @@ router.post('/reset-system', async (req, res) => {
 
     res.json({ success: true, message: 'تم إعادة ضبط النظام بالكامل بنجاح' })
   } catch (err) {
-    console.error(err)
-    res.status(500).json({ error: 'فشلت عملية إعادة ضبط النظام' })
+    console.error('reset-system error:', err.stack || err)
+    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'فشلت عملية إعادة ضبط النظام' : (err.message || 'فشلت عملية إعادة ضبط النظام') })
   }
 })
 

@@ -67,8 +67,18 @@ export async function resetLogs(userId, ip) {
 
 export async function resetSystemFull(userId, ip, adminId) {
   await prisma.$transaction(async (tx) => {
+    // NOTE: preserve system configuration records
+    // - destinations
+    // - pricing areas
+    // - pricing rows
     await tx.busLoad.deleteMany()
     await tx.returnQueue.deleteMany()
+    await tx.saturdayBusLoad.deleteMany()
+    await tx.saturdayBoardingTimer.deleteMany()
+    await tx.saturdayAssignment.deleteMany()
+    await tx.saturdayReturnQueue.deleteMany()
+    await tx.saturdayActiveBus.deleteMany()
+    await tx.saturdayOperation.deleteMany()
     await tx.activeBus.deleteMany()
     await tx.attendance.deleteMany()
     await tx.assignment.deleteMany()

@@ -220,6 +220,7 @@ export default function AdminSystemManagement() {
               <p className="font-semibold text-green-700 mb-1">سيتم الاحتفاظ بـ:</p>
               <ul className="space-y-0.5 text-green-600">
                 <li>✓ حساب الأدمن الرئيسي</li>
+                <li>✓ الوجهات</li>
                 <li>✓ المناطق (Pricing Areas)</li>
                 <li>✓ الأسعار (Pricing)</li>
                 <li>✓ إعدادات النظام</li>
@@ -289,9 +290,8 @@ export default function AdminSystemManagement() {
 
             <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-700">
               <p className="font-bold mb-1">⚠️ تحذير: هذا الإجراء لا يمكن التراجع عنه!</p>
-              <p>سيتم حذف جميع البيانات بما في ذلك الطلاب والسائقين والعمليات والإشعارات. لن يتم حذف حساب الأدمن الرئيسي والمناطق والأسعار.</p>
+              <p>سيتم حذف جميع البيانات بما في ذلك الطلاب والسائقين والعمليات والإشعارات. لن يتم حذف حساب الأدمن الرئيسي، الوجهات، المناطق، والأسعار.</p>
             </div>
-
             <div className="mb-4">
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">
                 اكتب <span className="font-bold text-red-600">إعادة ضبط النظام</span> أو <span className="font-bold text-red-600">RESET</span> للتأكيد:

@@ -501,13 +501,21 @@ export default function AdminStudents() {
                       />
                     </FormField>
                     <FormField label="المستوى">
-                      <input
+                      <select
                         value={form.level}
                         onChange={(e) =>
                           setForm({ ...form, level: e.target.value })
                         }
                         className="input-field"
-                      />
+                      >
+                        <option value="">اختر المستوى</option>
+                        <option value="الأول">الأول</option>
+                        <option value="الثاني">الثاني</option>
+                        <option value="الثالث">الثالث</option>
+                        <option value="الرابع">الرابع</option>
+                        <option value="الخامس">الخامس</option>
+                        <option value="السادس">السادس</option>
+                      </select>
                     </FormField>
                     <FormField label="العنوان" className="sm:col-span-2">
                       <input

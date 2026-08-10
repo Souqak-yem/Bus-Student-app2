@@ -197,7 +197,7 @@ export default function AdminOverview() {
             <div className="space-y-4">
               <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
                 <p className="font-medium mb-1">تحذير: هذا الإجراء لا يمكن التراجع عنه!</p>
-                <p>سيتم حذف جميع الطلاب، الباصات، الاشتراكات، المدفوعات، الحضور، الحملات، الكشوف الأسبوعية، والبيانات المالية. سيبقى حساب الأدمن والإعدادات فقط.</p>
+                <p>سيتم حذف جميع الطلاب، الباصات، الاشتراكات، المدفوعات، الحضور، الحملات، الكشوف الأسبوعية، والبيانات المالية. سيبقى حساب الأدمن والإعدادات والمناطق والأسعار والوجهات.</p>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">اكتب <span className="font-bold text-red-600">RESET</span> لتأكيد المسح</label>

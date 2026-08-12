@@ -26,7 +26,7 @@ export default function AdminDailyOperation() {
   const [search, setSearch] = useState('')
   const [exceptions, setExceptions] = useState(null)
   const [exceptionsLoading, setExceptionsLoading] = useState(false)
-  const [showExceptions, setShowExceptions] = useState(true)
+  const [showExceptions, setShowExceptions] = useState(false)
   const [exceptionStudentForBus, setExceptionStudentForBus] = useState(null)
   const [showConfirm, setShowConfirm] = useState(null)
 
@@ -108,10 +108,14 @@ export default function AdminDailyOperation() {
   }
 
   async function handleAddBuses() {
-    if (selectedBusIds.length === 0) return
+    const busIds = selectedBusIds
+      .filter(id => typeof id === 'string' && id.trim() !== '')
+      .map(id => id.trim())
+
+    if (busIds.length === 0) return
     setGenerating(true)
     try {
-      await api.operations.addBuses(selectedBusIds)
+      await api.operations.addBuses(busIds)
       setShowCreateDialog(false)
       await load()
     } catch (err) {
@@ -169,6 +173,8 @@ export default function AdminDailyOperation() {
   const expectedStudents = availableBuses
     .filter(b => selectedBusIds.includes(b.id))
     .reduce((sum, b) => sum + (b.templateStudentCount || 0), 0)
+
+  const hasTodayOffStudents = Boolean(exceptions?.todayOffStudents?.length)
 
   const filtered = search
     ? buses.filter(b =>
@@ -257,7 +263,7 @@ export default function AdminDailyOperation() {
         )}
       </ResponsiveKpiGrid>
 
-      {!exceptionsLoading && exceptions && exceptions.overrideCount > 0 && (
+      {!exceptionsLoading && hasTodayOffStudents && (
         <div className="mb-4">
           <button
             onClick={() => setShowExceptions(prev => !prev)}
@@ -265,8 +271,10 @@ export default function AdminDailyOperation() {
           >
             <AlertTriangle size={18} className="text-amber-600" />
             <span className="font-semibold text-amber-800 flex-1">
-              استثناءات اليوم
-              <span className="mr-2 text-sm font-normal">· {exceptions.overrideCount} تجاوز إجازة</span>
+              {exceptions.overrideCount > 0 ? 'استثناءات اليوم' : 'إجازات اليوم'}
+              <span className="mr-2 text-sm font-normal">
+                {exceptions.overrideCount > 0 ? `· ${exceptions.overrideCount} تجاوز إجازة` : `· ${exceptions.todayOffStudents.length} طالب`}
+              </span>
             </span>
             {showExceptions ? <ChevronUp size={16} className="text-amber-600" /> : <ChevronDown size={16} className="text-amber-600" />}
           </button>
@@ -274,21 +282,19 @@ export default function AdminDailyOperation() {
       )}
 
       {showExceptions && !exceptionsLoading && exceptions && exceptions.todayOffStudents?.length > 0 && (
-        <div className="mb-6 space-y-4">
-          <Section title={`طلاب الإجازات اليوم (${exceptions.todayOffStudents.length})`}>
-            <div className="divide-y divide-[var(--color-border)]">
-              {exceptions.todayOffStudents.map(s => (
-                <div key={s.id} className="flex items-center justify-between py-3 px-1">
-                  <div>
-                    <span className="font-semibold">{s.name}</span>
-                    <span className="mr-3 text-xs text-[var(--color-text-muted)]">{s.zone}</span>
-                    {s.phone && <span className="mr-3 text-xs text-[var(--color-text-muted)]">{s.phone}</span>}
-                  </div>
-                  <StatusBadge status="pending" label="إجازة" />
+        <div className="mb-6">
+          <div className="divide-y divide-[var(--color-border)] rounded-xl border border-[var(--color-border)] bg-white overflow-hidden">
+            {exceptions.todayOffStudents.map(s => (
+              <div key={s.id} className="flex items-center justify-between py-3 px-3 sm:px-4">
+                <div>
+                  <span className="text-sm font-semibold">{s.name}</span>
+                  <span className="mr-3 text-[11px] text-[var(--color-text-muted)]">{s.zone}</span>
+                  {s.phone && <span className="mr-3 text-[11px] text-[var(--color-text-muted)]">{s.phone}</span>}
                 </div>
-              ))}
-            </div>
-          </Section>
+                <StatusBadge status="pending" label="إجازة" />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -416,10 +422,10 @@ export default function AdminDailyOperation() {
                 initial={{ opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.02 }}
-                className="card p-3"
+                className={`card p-3 border ${getStudentGenderTone(s.student?.gender).card}`}
               >
                 <div className="flex items-start gap-2">
-                  <div className="w-8 h-8 rounded-full bg-[var(--color-primary-lighter)] flex items-center justify-center text-xs font-bold text-[var(--color-primary-dark)] shrink-0">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${getStudentGenderTone(s.student?.gender).avatar}`}>
                     {s.student?.name?.[0] || '?'}
                   </div>
                   <div className="flex-1 min-w-0">

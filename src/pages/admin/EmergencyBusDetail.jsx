@@ -217,9 +217,9 @@ export default function EmergencyBusDetail() {
         ) : (
           <div className="divide-y">
             {students.map((s, i) => (
-              <div key={s.assignment?.id || i} className="flex items-center justify-between py-2.5 px-1">
+              <div key={s.assignment?.id || i} className={`flex items-center justify-between py-2.5 px-1 rounded-xl border ${getStudentGenderTone(s.student?.gender).card}`}>
                 <div className="flex items-center gap-3">
-                  <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium">{i + 1}</span>
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${getStudentGenderTone(s.student?.gender).avatar}`}>{i + 1}</span>
                   <div>
                     <p className="text-sm font-medium">{s.student?.name}</p>
                     <p className="text-xs text-[var(--color-text-muted)]">{s.student?.zone || s.student?.institutionName || ''}</p>

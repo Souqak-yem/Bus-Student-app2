@@ -19,6 +19,7 @@ export default function DataTable({
   selectedRows,
   onSelectionChange,
   renderRow,
+  rowClassName,
   keyExtractor = (row) => row.id,
   mobileCards = false,
 }) {
@@ -157,7 +158,7 @@ export default function DataTable({
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.02 }}
-                className={`${onRowClick ? 'cursor-pointer' : ''} ${cardView ? 'max-sm:block max-sm:border max-sm:rounded-xl max-sm:p-3 max-sm:mb-2 max-sm:bg-white max-sm:border-[var(--color-border)]' : ''} ${!cardView ? 'hover:bg-[var(--color-border-light)]' : ''} transition-colors`}
+                className={`${onRowClick ? 'cursor-pointer' : ''} ${cardView ? 'max-sm:block max-sm:border max-sm:rounded-xl max-sm:p-3 max-sm:mb-2 max-sm:bg-white max-sm:border-[var(--color-border)]' : ''} ${!cardView ? 'hover:bg-[var(--color-border-light)]' : ''} transition-colors ${rowClassName ? rowClassName(row) : ''}`}
               >
                 {renderRow
                   ? renderRow(row, visibleCols)

@@ -197,6 +197,10 @@ export default function Home() {
           setTracking(state)
           if (state.busStatus === 'ARRIVED') {
             load()
+            return
+          }
+          if (studentIdRef.current && state.students?.some(s => s.studentId === studentIdRef.current && [TrackingStatus.PICKED_UP, TrackingStatus.CURRENT].includes(s.trackingStatus))) {
+            load()
           }
         }
       }

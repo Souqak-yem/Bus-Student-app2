@@ -42,10 +42,12 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    let { campaignId, studentId, areaId, baseAmount, surcharge, discount, finalAmount, receiptImage } = req.body
+    let { campaignId, studentId, areaId, baseAmount, surcharge, discount, finalAmount, receiptImage, depositReference } = req.body
     if (!campaignId || !studentId || baseAmount == null || finalAmount == null) {
       return res.status(400).json({ error: 'البيانات غير كاملة' })
     }
+    if (!receiptImage) return res.status(400).json({ error: 'يرجى رفع صورة سند التحويل' })
+    if (!depositReference || !String(depositReference).trim()) return res.status(400).json({ error: 'يرجى إدخال رقم الإيداع أو المرجع' })
     if (req.user.role === 'student') {
       const sid = resolveStudentId(req.user)
       if (!sid || sid !== studentId) return res.status(403).json({ error: 'غير مصرح' })
@@ -91,6 +93,7 @@ router.post('/', async (req, res) => {
         extraFeeAmount: extraFee.amount || null,
         finalAmount,
         receiptImage: receiptImage || null,
+        depositReference: String(depositReference).trim(),
       },
       include: {
         campaign: { select: { name: true, title: true } },
@@ -172,8 +175,8 @@ router.patch('/:id/approve', authorize('admin'), async (req, res) => {
             amount: enrollment.finalAmount,
             date: new Date(),
             method: 'transfer',
-            reference: enrollment.receiptImage,
-            notes: 'موافقة على الاشتراك',
+            reference: enrollment.depositReference || enrollment.receiptImage || 'غير محدد',
+            notes: enrollment.receiptImage || 'موافقة على الاشتراك',
           },
         })
       }

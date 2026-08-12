@@ -96,7 +96,9 @@ export default function FinancialControl() {
   }
 
   const stats = [
-    { icon: DollarSign, label: 'مسددون', value: dashboard?.counts?.SETTLED ?? null, color: 'green' },
+    { icon: DollarSign, label: 'إيرادات اليوم', value: dashboard?.dailyRevenue ?? dashboard?.todayRevenue ?? null, color: 'green', format: 'currency' },
+    { icon: DollarSign, label: 'إيرادات الشهر', value: dashboard?.monthlyRevenue ?? null, color: 'blue', format: 'currency' },
+    { icon: UserCheck, label: 'مسددون', value: dashboard?.counts?.SETTLED ?? null, color: 'green' },
     { icon: AlertTriangle, label: 'متأخرون', value: dashboard?.counts?.OVERDUE ?? null, color: 'red' },
     { icon: Ban, label: 'موقوفون', value: dashboard?.counts?.SUSPENDED ?? null, color: 'red' },
     { icon: Clock, label: 'مهلة', value: dashboard?.counts?.GRACE_PERIOD ?? null, color: 'yellow' },
@@ -166,7 +168,13 @@ export default function FinancialControl() {
       {/* Stat Cards */}
       <ResponsiveKpiGrid>
         {stats.map((s) => (
-          <StatCard key={s.label} icon={s.icon} label={s.label} value={loading ? null : s.value} color={s.color} />
+          <StatCard
+            key={s.label}
+            icon={s.icon}
+            label={s.label}
+            value={loading ? null : (s.format === 'currency' && s.value != null ? `${Number(s.value).toLocaleString('en-US')} ﷼` : s.value)}
+            color={s.color}
+          />
         ))}
       </ResponsiveKpiGrid>
 

@@ -138,8 +138,11 @@ router.put('/today/bus/:busId/assignments/:assignmentId', authorize('admin'), as
 
 router.post('/today/add-buses', authorize('admin'), async (req, res) => {
   try {
-    const { busIds } = req.body
-    if (!busIds || !Array.isArray(busIds) || busIds.length === 0) {
+    const busIds = Array.isArray(req.body.busIds)
+      ? req.body.busIds.map(id => typeof id === 'string' ? id.trim() : id).filter(Boolean)
+      : []
+
+    if (busIds.length === 0) {
       return res.status(400).json({ error: 'يجب اختيار باص واحد على الأقل' })
     }
     const result = await addBusesToOperation(req.user.id, busIds)

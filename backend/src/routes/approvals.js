@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { authenticate, authorize } from '../middleware/auth.js'
 import { getTodayOperation, addStudentToOperation } from '../services/operationService.js'
-import { reactivateStudent } from '../services/financialService.js'
+import { reactivateStudent, reconcileSubscriptionPayments } from '../services/financialService.js'
 import { createSubscriptionNotification, isSubscriptionActiveForDate, parseSubscriptionNotes, getExecutionDates } from '../services/subscriptionService.js'
 import { canStudentOperateOnDate } from '../services/studentService.js'
 import { getLocalDate } from '../utils/dateUtils.js'
@@ -105,6 +105,22 @@ router.post('/subscriptions/:id/approve', authorize('admin'), async (req, res) =
         executionDate: null,
       },
     })
+
+    const existingPayment = await prisma.payment.findFirst({ where: { subscriptionId: updated.id } })
+    if (!existingPayment && Number(updated.amount || 0) > 0) {
+      await prisma.payment.create({
+        data: {
+          subscriptionId: updated.id,
+          amount: updated.amount,
+          date: new Date(),
+          method: 'transfer',
+          reference: 'موافقة المشرف',
+          notes: 'تمت الموافقة على اشتراك يومي',
+        },
+      })
+    }
+
+    await reconcileSubscriptionPayments(updated.id)
 
     const todayStr = today.getTime()
     const hasTodayExecDate = execDates.some(ed => getLocalDate(ed.executionDate).getTime() === todayStr)

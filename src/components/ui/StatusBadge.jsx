@@ -24,6 +24,8 @@ export default function StatusBadge({ status, label, size = 'sm' }) {
     home: { cls: 'badge-orange', default: 'توصيل منزل' },
     line: { cls: 'badge-blue', default: 'خط عام' },
     transfer: { cls: 'badge-purple', default: 'تحويل' },
+    male: { cls: 'badge-blue', default: 'ذكر' },
+    female: { cls: 'badge-pink', default: 'أنثى' },
   }
 
   const m = map[status]

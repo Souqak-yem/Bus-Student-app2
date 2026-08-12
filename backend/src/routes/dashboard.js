@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { authenticate } from '../middleware/auth.js'
 import { expireSubscriptions } from '../services/subscriptionService.js'
-import { getLocalDate, snapToSaturday } from '../utils/dateUtils.js'
+import { getLocalDate, snapToSaturday, getUtcDateRange } from '../utils/dateUtils.js'
 
 const router = Router()
 router.use(authenticate)
@@ -17,13 +17,14 @@ router.get('/stats', async (req, res) => {
     await expireSubscriptions()
 
     const today = getLocalDate()
+    const { start: dayStartUtc, end: dayEndUtc } = getUtcDateRange(today)
     const tomorrow = new Date(today)
     tomorrow.setDate(tomorrow.getDate() + 1)
     const dayAfterTomorrow = new Date(tomorrow)
     dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1)
     const now = new Date()
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+    const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+    const startOfNextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1))
     const weekStart = toUTC(snapToSaturday(today))
     const pendingPaymentStatuses = ['unpaid', 'partial', 'overdue']
 
@@ -76,7 +77,7 @@ router.get('/stats', async (req, res) => {
       prisma.payment.aggregate({
         _sum: { amount: true },
         where: {
-          date: { gte: today, lt: tomorrow },
+          date: { gte: dayStartUtc, lt: dayEndUtc },
           subscription: { status: { in: ['active', 'expired', 'cancelled'] } },
         },
       }),

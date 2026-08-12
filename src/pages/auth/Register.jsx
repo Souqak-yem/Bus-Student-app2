@@ -14,7 +14,10 @@ const offDayOptions = [
 ]
 
 const emptyForm = {
-  name: '',
+  firstName: '',
+  fatherName: '',
+  grandfatherName: '',
+  familyName: '',
   phone: '',
   whatsapp: '',
   parentName: '',
@@ -26,9 +29,18 @@ const emptyForm = {
   major: '',
   level: '',
   offDays: [],
+  gender: '',
   transportMode: '',
   pickupLocation: '',
   homeAddress: '',
+}
+
+const arabicNamePattern = /[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g
+const repeatedCharPattern = /(.)\1\1+/g
+
+function sanitizeArabicName(value) {
+  const onlyArabic = value.replace(/\s+/g, '').replace(arabicNamePattern, '')
+  return onlyArabic.replace(repeatedCharPattern, '$1$1')
 }
 
 export default function Register() {
@@ -37,6 +49,7 @@ export default function Register() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [inputError, setInputError] = useState('')
   const [success, setSuccess] = useState(false)
   const [touched, setTouched] = useState({})
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false)
@@ -45,7 +58,22 @@ export default function Register() {
   const errors = useMemo(() => {
     const errs = {}
 
-    if (!form.name.trim()) errs.name = 'اسم الطالب مطلوب'
+    if (!form.firstName.trim()) errs.firstName = 'الاسم الأول مطلوب'
+    else if (!/^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+$/.test(form.firstName)) errs.firstName = 'استخدم الحروف العربية فقط'
+    else if (/(.)\1\1/.test(form.firstName)) errs.firstName = 'لا يسمح بتكرار الحرف أكثر من مرتين'
+
+    if (!form.fatherName.trim()) errs.fatherName = 'اسم الأب مطلوب'
+    else if (!/^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+$/.test(form.fatherName)) errs.fatherName = 'استخدم الحروف العربية فقط'
+    else if (/(.)\1\1/.test(form.fatherName)) errs.fatherName = 'لا يسمح بتكرار الحرف أكثر من مرتين'
+
+    if (!form.grandfatherName.trim()) errs.grandfatherName = 'اسم الجد مطلوب'
+    else if (!/^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+$/.test(form.grandfatherName)) errs.grandfatherName = 'استخدم الحروف العربية فقط'
+    else if (/(.)\1\1/.test(form.grandfatherName)) errs.grandfatherName = 'لا يسمح بتكرار الحرف أكثر من مرتين'
+
+    if (!form.familyName.trim()) errs.familyName = 'اللقب مطلوب'
+    else if (!/^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+$/.test(form.familyName)) errs.familyName = 'استخدم الحروف العربية فقط'
+    else if (/(.)\1\1/.test(form.familyName)) errs.familyName = 'لا يسمح بتكرار الحرف أكثر من مرتين'
+
     if (!form.phone.trim()) errs.phone = 'رقم الجوال مطلوب'
     else if (!/^[0-9]+$/.test(form.phone.trim())) errs.phone = 'استخدم أرقاماً فقط'
 
@@ -63,6 +91,7 @@ export default function Register() {
     else if (!/^[0-9]+$/.test(form.parentPhone.trim())) errs.parentPhone = 'استخدم أرقاماً فقط'
 
     if (!form.parentRelation.trim()) errs.parentRelation = 'صلة القرابة مطلوبة'
+    if (!form.gender) errs.gender = 'الجنس مطلوب'
     if (!form.transportMode) errs.transportMode = 'نوع التوصيل مطلوب'
 
     if (form.transportMode === 'LINE' && !form.pickupLocation.trim()) errs.pickupLocation = 'نقطة الانتظار مطلوبة'
@@ -103,7 +132,10 @@ export default function Register() {
     e.preventDefault()
 
     setTouched({
-      name: true,
+      firstName: true,
+      fatherName: true,
+      grandfatherName: true,
+      familyName: true,
       phone: true,
       whatsapp: true,
       zone: true,
@@ -114,6 +146,7 @@ export default function Register() {
       parentName: true,
       parentPhone: true,
       parentRelation: true,
+      gender: true,
       transportMode: true,
       pickupLocation: true,
       homeAddress: true,
@@ -132,8 +165,13 @@ export default function Register() {
     setShowSubmitConfirm(false)
     setSubmitting(true)
 
+    const registrationPayload = {
+      ...form,
+      name: [form.firstName, form.fatherName, form.grandfatherName, form.familyName].filter(Boolean).join(' '),
+    }
+
     try {
-      await api.studentPortal.register(form)
+      await api.studentPortal.register(registrationPayload)
       setSuccess(true)
       setForm(emptyForm)
       setTouched({})
@@ -174,43 +212,125 @@ export default function Register() {
           ) : (
             <>
               <form onSubmit={handleSubmit} className="space-y-6 text-right">
-                {error && (
+                {(error || inputError) && (
                   <div className="rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-                    {error}
+                    {inputError || error}
                   </div>
                 )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-[var(--color-text)] mb-1">اسم الطالب</label>
-                  <input
-                    type="text"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    onBlur={() => handleBlur('name')}
-                    placeholder="اسم الطالب"
-                    className="input-field w-full"
-                  />
-                  {touched.name && errors.name && <p className="text-[12px] text-red-600 mt-1">{errors.name}</p>}
-                </div>
+          <label className="block text-sm font-medium text-[var(--color-text)] mb-1">الاسم الأول</label>
+          <input
+            type="text"
+            value={form.firstName}
+            onChange={(e) => {
+              const sanitized = sanitizeArabicName(e.target.value)
+              if (sanitized !== e.target.value) setInputError('لا يمكن كتابة رموز أو أحرف غير عربية أو تكرار حرف أكثر من مرتين')
+              else setInputError('')
+              setForm((prev) => ({ ...prev, firstName: sanitized }))
+            }}
+            onBlur={() => handleBlur('firstName')}
+            placeholder="الاسم"
+            className="input-field w-full"
+          />
+          {touched.firstName && errors.firstName && <p className="text-[12px] text-red-600 mt-1">{errors.firstName}</p>}
+        </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-[var(--color-text)] mb-1">رقم الجوال</label>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    onBlur={() => handleBlur('phone')}
-                    placeholder="05xxxxxxxx"
-                    className="input-field w-full"
-                  />
-                  {touched.phone && errors.phone && <p className="text-[12px] text-red-600 mt-1">{errors.phone}</p>}
-                </div>
-              </div>
+        <div>
+          <label className="block text-sm font-medium text-[var(--color-text)] mb-1">اسم الأب</label>
+          <input
+            type="text"
+            value={form.fatherName}
+            onChange={(e) => {
+              const sanitized = sanitizeArabicName(e.target.value)
+              if (sanitized !== e.target.value) setInputError('لا يمكن كتابة رموز أو أحرف غير عربية أو تكرار حرف أكثر من مرتين')
+              else setInputError('')
+              setForm((prev) => ({ ...prev, fatherName: sanitized }))
+            }}
+            onBlur={() => handleBlur('fatherName')}
+            placeholder="اسم الأب"
+            className="input-field w-full"
+          />
+          {touched.fatherName && errors.fatherName && <p className="text-[12px] text-red-600 mt-1">{errors.fatherName}</p>}
+        </div>
+      </div>
 
-              <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-[var(--color-text)] mb-1">اسم الجد</label>
+          <input
+            type="text"
+            value={form.grandfatherName}
+            onChange={(e) => {
+              const sanitized = sanitizeArabicName(e.target.value)
+              if (sanitized !== e.target.value) setInputError('لا يمكن كتابة رموز أو أحرف غير عربية أو تكرار حرف أكثر من مرتين')
+              else setInputError('')
+              setForm((prev) => ({ ...prev, grandfatherName: sanitized }))
+            }}
+            onBlur={() => handleBlur('grandfatherName')}
+            placeholder="اسم الجد"
+            className="input-field w-full"
+          />
+          {touched.grandfatherName && errors.grandfatherName && <p className="text-[12px] text-red-600 mt-1">{errors.grandfatherName}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-[var(--color-text)] mb-1">اللقب</label>
+          <input
+            type="text"
+            value={form.familyName}
+            onChange={(e) => {
+              const sanitized = sanitizeArabicName(e.target.value)
+              if (sanitized !== e.target.value) setInputError('لا يمكن كتابة رموز أو أحرف غير عربية أو تكرار حرف أكثر من مرتين')
+              else setInputError('')
+              setForm((prev) => ({ ...prev, familyName: sanitized }))
+            }}
+            onBlur={() => handleBlur('familyName')}
+            placeholder="اللقب"
+            className="input-field w-full"
+          />
+          {touched.familyName && errors.familyName && <p className="text-[12px] text-red-600 mt-1">{errors.familyName}</p>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={() => setForm((prev) => ({ ...prev, gender: 'MALE' }))}
+          className={`min-h-[52px] rounded-xl border-2 font-semibold transition-all ${form.gender === 'MALE'
+            ? 'border-blue-500 bg-blue-200 text-blue-900'
+            : 'border-blue-300 bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+        >
+          ذكر
+        </button>
+        <button
+          type="button"
+          onClick={() => setForm((prev) => ({ ...prev, gender: 'FEMALE' }))}
+          className={`min-h-[52px] rounded-xl border-2 font-semibold transition-all ${form.gender === 'FEMALE'
+            ? 'border-pink-500 bg-pink-200 text-pink-900'
+            : 'border-pink-300 bg-pink-100 text-pink-700 hover:bg-pink-200'}`}
+        >
+          أنثى
+        </button>
+      </div>
+      {touched.gender && errors.gender && <p className="text-[12px] text-red-600 mt-1">{errors.gender}</p>}
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-[var(--color-text)] mb-1">رقم الجوال</label>
+          <input
+            type="tel"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            onBlur={() => handleBlur('phone')}
+            placeholder="05xxxxxxxx"
+            className="input-field w-full"
+          />
+          {touched.phone && errors.phone && <p className="text-[12px] text-red-600 mt-1">{errors.phone}</p>}
+        </div>
                 <div>
                   <label className="block text-sm font-medium text-[var(--color-text)] mb-1">الواتساب</label>
                   <input
@@ -360,7 +480,7 @@ export default function Register() {
 
               <div>
                 <label className="block text-sm font-medium text-[var(--color-text)] mb-1">نوع التوصيل</label>
-                <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex flex-row flex-wrap gap-3">
                   <button
                     type="button"
                     onClick={() =>
@@ -440,7 +560,7 @@ export default function Register() {
 
               <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
                 <p className="text-sm font-semibold mb-3">أيام العطلة (اختياري)</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {offDayOptions.map((option) => (
                     <button
                       key={option.value}

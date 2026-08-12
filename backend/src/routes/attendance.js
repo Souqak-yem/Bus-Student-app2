@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth.js'
 import { getLocalDate } from '../utils/dateUtils.js'
 import { advanceTrackingAfterAttendance, startMorningTrip, completeMorningTrip } from '../services/trackingService.js'
 import { createAndBroadcast } from '../services/notificationService.js'
+import { broadcastStudentUpdate } from '../services/socketService.js'
 
 const router = Router()
 router.use(authenticate)
@@ -118,6 +119,11 @@ router.post('/', async (req, res) => {
       advanceTrackingAfterAttendance(activeBus.id, studentId).catch(() => {})
     }
 
+    const studentUser = await prisma.user.findUnique({ where: { studentId }, select: { id: true } })
+    if (studentUser) {
+      broadcastStudentUpdate(studentUser.id, { type: 'attendance_updated', studentId, status: record.status })
+    }
+
     if (status === 'late') {
       prisma.bus.findUnique({ where: { id: busId }, select: { plateNumber: true, busNumber: true } }).then(bus => {
         const busLabel = bus?.plateNumber || bus?.busNumber || 'غير معروف'
@@ -188,6 +194,12 @@ router.post('/batch', async (req, res) => {
         })
       )
     )
+
+    const studentIds = [...new Set(records.map(r => r.studentId))]
+    const users = await prisma.user.findMany({ where: { studentId: { in: studentIds } }, select: { id: true, studentId: true } })
+    for (const user of users) {
+      broadcastStudentUpdate(user.id, { type: 'attendance_batch_updated', studentIds })
+    }
 
     res.status(201).json({ count: result.length })
   } catch (error) {

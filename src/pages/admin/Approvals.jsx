@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
-import { CheckCircle, XCircle, Eye, X, ZoomIn, ZoomOut, ExternalLink, CalendarDays, Clock, DollarSign, History, ClipboardList, Filter, ShoppingCart } from 'lucide-react'
+import { CheckCircle, XCircle, Eye, X, ZoomIn, ZoomOut, ExternalLink, CalendarDays, Clock, DollarSign, History, ClipboardList, Filter, ShoppingCart, Copy, Check } from 'lucide-react'
 import { api } from '../../lib/api'
-import { formatCurrency } from '../../lib/format'
+import { getStudentGenderTone } from '../../lib/studentGender'
+import { formatCurrency, formatNumber } from '../../lib/format'
 import PageHeader from '../../components/ui/PageHeader'
 import DataTable from '../../components/ui/DataTable'
 import MobileCard from '../../components/ui/MobileCard'
@@ -63,6 +64,49 @@ function SubscriptionTypeBadge({ type }) {
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${cls}`}>
       {label}
     </span>
+  )
+}
+
+function CopyReferenceButton({ value }) {
+  const [copied, setCopied] = useState(false)
+
+  async function handleCopy() {
+    if (!value) return
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1200)
+    } catch (err) {
+      console.error('copy failed', err)
+    }
+  }
+
+  if (!value) return null
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-medium text-slate-600 hover:bg-slate-50"
+      title="نسخ رقم الإيداع"
+    >
+      {copied ? <Check size={12} className="text-green-600" /> : <Copy size={12} />}
+      {copied ? 'تم النسخ' : 'نسخ'}
+    </button>
+  )
+}
+
+function ReferenceDisplay({ value }) {
+  if (!value) return null
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2">
+      <div className="mb-1 text-[10px] font-semibold text-slate-500">رقم الإيداع / المرجع</div>
+      <div className="flex items-center gap-2">
+        <span className="min-w-0 flex-1 break-all text-[11px] font-medium text-slate-700">{value}</span>
+        <CopyReferenceButton value={value} />
+      </div>
+    </div>
   )
 }
 
@@ -315,32 +359,45 @@ export default function AdminApprovals() {
         const efLabel = efType === 'NEW_STUDENT' ? 'طالب جديد' : efType === 'LATE_REGISTRATION' ? 'طالب متأخر' : null
         return (
           <div className="text-xs space-y-0.5">
-            <div className="text-slate-400">الأساسي: {base.toLocaleString()}</div>
-            {disc > 0 && <div className="text-green-600">الخصم: {disc.toLocaleString()}</div>}
+            <div className="text-slate-400">الأساسي: {formatNumber(base)}</div>
+            {disc > 0 && <div className="text-green-600">الخصم: {formatNumber(disc)}</div>}
             {efType && efAmount > 0 && (
               <div className="text-amber-600">
-                {efLabel}: +{efAmount.toLocaleString()}
+                {efLabel}: +{formatNumber(efAmount)}
               </div>
             )}
-            <div className="font-medium text-slate-800">النهائي: {Number(row.finalAmount).toLocaleString()}</div>
+            <div className="font-medium text-slate-800">النهائي: {formatNumber(row.finalAmount)}</div>
           </div>
         )
       },
     },
     {
       key: 'receipt',
-      label: 'السند',
-      render: (row) => row.receiptImage ? (
-        <button
-          onClick={() => {
-            setSelectedReceipt(row.receiptImage)
-            setZoomLevel(1)
-          }}
-          className="inline-flex items-center gap-1 rounded-full border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/10 px-2.5 py-1 text-xs font-medium text-[var(--color-primary)]"
-        >
-          <Eye size={14} /> عرض السند
-        </button>
-      ) : <span className="text-slate-400">لا يوجد سند</span>,
+      label: 'السند / المرجع',
+      render: (row) => {
+        const reference = row.depositReference || row.payments?.[0]?.reference || row.reference || ''
+        return (
+          <div className="space-y-1.5">
+            {row.receiptImage ? (
+              <button
+                onClick={() => {
+                  setSelectedReceipt(row.receiptImage)
+                  setZoomLevel(1)
+                }}
+                className="inline-flex items-center gap-1 rounded-full border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/10 px-2.5 py-1 text-xs font-medium text-[var(--color-primary)]"
+              >
+                <Eye size={14} /> عرض السند
+              </button>
+            ) : <span className="text-slate-400">لا يوجد سند</span>}
+            {reference && (
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-slate-600 break-all">{reference}</span>
+                <CopyReferenceButton value={reference} />
+              </div>
+            )}
+          </div>
+        )
+      },
     },
     {
       key: 'createdAt',
@@ -877,18 +934,7 @@ function DailyRequestCard({ row, index, actionLoading, onApprove, onReject, onVi
   const destName = row.student?.destination?.name || null
 
   return (
-    <MobileCard index={index} className="bg-white border border-slate-200 p-3 rounded-xl">
-      <div
-        style={{
-          background: 'red',
-          color: 'white',
-          padding: 20,
-          fontSize: 28,
-          fontWeight: 'bold',
-        }}
-      >
-        TEST APPROVALS
-      </div>
+    <MobileCard index={index} className={`border p-3 rounded-xl ${getStudentGenderTone(row.student?.gender).card}`}>
       <div className="flex items-center justify-between w-full mb-2">
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-8 h-8 rounded-full bg-[var(--color-primary-lighter)] flex items-center justify-center text-sm font-bold text-[var(--color-primary-dark)] shrink-0">
@@ -927,14 +973,15 @@ function DailyRequestCard({ row, index, actionLoading, onApprove, onReject, onVi
       <div className="flex items-center justify-between w-full mb-3 py-1.5 px-2 bg-slate-50 rounded-lg">
         <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
           <DollarSign size={12} className="text-slate-400" />
-          {dailyAmount.toLocaleString()} ريال × {execDates.length} يوم
+          {formatNumber(dailyAmount)} ريال × {execDates.length} يوم
         </span>
         <span className="text-xs font-bold text-slate-800">
           الإجمالي: {formatCurrency(row.amount)}
         </span>
       </div>
 
-      <div className="flex items-center gap-1.5 w-full">
+      {paymentReference && <div className="mb-2 w-full"><ReferenceDisplay value={paymentReference} /></div>}
+      <div className="flex items-center gap-1.5 w-full flex-wrap">
         {receipt ? (
           <button onClick={() => onViewReceipt(receipt)}
             className="inline-flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/10 text-xs font-medium text-[var(--color-primary)] min-h-[36px]">
@@ -966,12 +1013,13 @@ function DailyRequestDesktopRow({ row, actionLoading, onApprove, onReject, onVie
   const execDates = row.executionDates || []
   const dailyAmount = execDates.length > 0 ? Math.round(Number(row.amount) / execDates.length) : 0
   const receipt = row.payments?.[0]?.reference
+  const paymentReference = row.depositReference || row.payments?.[0]?.reference || ''
   const receiptDate = row.payments?.[0]?.date
   const zoneName = row.student?.zone || '-'
   const destName = row.student?.destination?.name || null
 
   return (
-    <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm h-full flex flex-col justify-between">
+    <div className={`border rounded-3xl p-5 shadow-sm h-full flex flex-col justify-between ${getStudentGenderTone(row.student?.gender).card}`}>
       <div className="space-y-4">
         <div className="flex flex-wrap items-start gap-4 justify-between">
           <div className="flex items-center gap-3 min-w-0">
@@ -1010,13 +1058,14 @@ function DailyRequestDesktopRow({ row, actionLoading, onApprove, onReject, onVie
         <div className="rounded-2xl bg-slate-100 p-4 text-sm text-slate-700">
           <div className="flex flex-wrap items-center gap-2">
             <DollarSign size={14} className="text-slate-500" />
-            <span className="font-medium text-slate-900">{dailyAmount.toLocaleString()} ريال × {execDates.length} يوم</span>
+            <span className="font-medium text-slate-900">{formatNumber(dailyAmount)} ريال × {execDates.length} يوم</span>
           </div>
           <div className="mt-2 text-sm font-semibold text-slate-900">الإجمالي: {formatCurrency(row.amount)}</div>
           {receiptDate && <div className="mt-1 text-[11px] text-slate-500">تاريخ السند: {formatDate(receiptDate)}</div>}
         </div>
       </div>
 
+      {paymentReference && <div className="mt-4 w-full"><ReferenceDisplay value={paymentReference} /></div>}
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {receipt ? (
           <button onClick={() => onViewReceipt(receipt)}
@@ -1052,7 +1101,7 @@ function CartDesktopRow({ cart, actionLoading, onApprove, onReject, onViewReceip
   const receiptDate = cart.submittedAt ? formatDateTime(cart.submittedAt) : null
 
   return (
-    <div className="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm h-full flex flex-col">
+    <div className={`border rounded-3xl p-4 shadow-sm h-full flex flex-col ${getStudentGenderTone(cart.student?.gender).card}`}>
       <div className="space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
@@ -1085,10 +1134,11 @@ function CartDesktopRow({ cart, actionLoading, onApprove, onReject, onViewReceip
 
         <div className="rounded-3xl bg-emerald-50 p-4 text-sm text-slate-700">
           <div className="text-[11px] text-slate-500 mb-1">المجموع النهائي</div>
-          <div className="text-2xl font-semibold text-emerald-800">{Number(cart.totalAmount).toLocaleString()} ريال</div>
+          <div className="text-2xl font-semibold text-emerald-800">{formatNumber(cart.totalAmount)} ريال</div>
         </div>
       </div>
 
+      {cart.depositReference && <div className="mt-4 w-full"><ReferenceDisplay value={cart.depositReference} /></div>}
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {cart.receiptImage ? (
           <button onClick={() => onViewReceipt(cart.receiptImage)}
@@ -1120,7 +1170,7 @@ function HistoryDailyCard({ row, index }) {
   const execDates = row.executionDates || []
 
   return (
-    <MobileCard index={index} className="bg-white border border-slate-200 p-3 rounded-xl">
+    <MobileCard index={index} className={`border p-3 rounded-xl ${getStudentGenderTone(row.student?.gender).card}`}>
       <div className="flex items-center justify-between w-full mb-2">
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-sm font-bold text-purple-700 shrink-0">
@@ -1231,12 +1281,12 @@ function CartItemDetail({ item }) {
           <div className="space-y-0.5 text-[11px]">
             <div className="flex justify-between">
               <span className="text-slate-500">المبلغ:</span>
-              <span className="font-medium">{Number(item.amount).toLocaleString()} ريال</span>
+              <span className="font-medium">{formatNumber(item.amount)} ريال</span>
             </div>
             {item.homeDeliveryFee && Number(item.homeDeliveryFee) > 0 && (
               <div className="flex justify-between">
                 <span className="text-slate-500">رسوم التوصيل:</span>
-                <span className="font-medium text-amber-600">+{Number(item.homeDeliveryFee).toLocaleString()} ريال</span>
+                <span className="font-medium text-amber-600">+{formatNumber(item.homeDeliveryFee)} ريال</span>
               </div>
             )}
           </div>
@@ -1257,7 +1307,9 @@ function CartItemDetail({ item }) {
   const snapEnd = data.endDate ? new Date(data.endDate) : null
   const campaignTitle = data.campaignTitle || null
   const surcharge = item.homeDeliveryFee ? Number(item.homeDeliveryFee) : 0
-  const baseAmount = Number(data.baseAmount || item.amount) - surcharge
+  const baseAmount = data.baseAmount != null
+    ? Number(data.baseAmount)
+    : Number(item.amount) - surcharge
   const discount = Number(data.discount || 0)
   const extraFeeType = data.extraFeeType || null
   const extraFeeAmount = Number(data.extraFeeAmount || 0)
@@ -1309,29 +1361,29 @@ function CartItemDetail({ item }) {
         <div className="space-y-0.5 text-[11px]">
           <div className="flex justify-between">
             <span className="text-slate-500">الأساسي:</span>
-            <span className="font-medium">{baseAmount.toLocaleString()} ريال</span>
+            <span className="font-medium">{formatNumber(baseAmount)} ريال</span>
           </div>
           {discount > 0 && (
             <div className="flex justify-between">
               <span className="text-slate-500">الخصم:</span>
-              <span className="font-medium text-green-600">-{discount.toLocaleString()} ريال</span>
+              <span className="font-medium text-green-600">-{formatNumber(discount)} ريال</span>
             </div>
           )}
           {extraFeeType && extraFeeAmount > 0 && (
             <div className="flex justify-between">
               <span className="text-slate-500">{extraFeeLabel}:</span>
-              <span className="font-medium text-amber-600">+{extraFeeAmount.toLocaleString()} ريال</span>
+              <span className="font-medium text-amber-600">+{formatNumber(extraFeeAmount)} ريال</span>
             </div>
           )}
           {surcharge > 0 && (
             <div className="flex justify-between">
               <span className="text-slate-500">رسوم التوصيل:</span>
-              <span className="font-medium text-amber-600">+{surcharge.toLocaleString()} ريال</span>
+              <span className="font-medium text-amber-600">+{formatNumber(surcharge)} ريال</span>
             </div>
           )}
           <div className="flex justify-between font-semibold text-slate-800 pt-0.5 border-t border-slate-100 mt-0.5">
             <span>المجموع:</span>
-            <span>{Number(item.amount).toLocaleString()} ريال</span>
+            <span>{formatNumber(item.amount)} ريال</span>
           </div>
         </div>
       </div>
@@ -1353,7 +1405,7 @@ function CartCard({ cart, index, actionLoading, onApprove, onReject, onViewRecei
   const cartTypeCls = hasDaily && hasWeekly ? 'bg-amber-100 text-amber-700' : hasDaily ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
 
   return (
-    <MobileCard index={index} className="bg-white border border-slate-200 p-3 rounded-xl">
+    <MobileCard index={index} className={`border p-3 rounded-xl ${getStudentGenderTone(cart.student?.gender).card}`}>
       {/* Header */}
       <div className="flex items-center justify-between w-full mb-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -1397,11 +1449,12 @@ function CartCard({ cart, index, actionLoading, onApprove, onReject, onViewRecei
       {/* Total */}
       <div className="flex items-center justify-between w-full mb-3 py-1.5 px-2 bg-emerald-50 rounded-lg">
         <span className="text-xs text-slate-500">الإجمالي</span>
-        <span className="text-sm font-bold text-emerald-700">{Number(cart.totalAmount).toLocaleString()} ريال</span>
+        <span className="text-sm font-bold text-emerald-700">{formatNumber(cart.totalAmount)} ريال</span>
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-1.5 w-full">
+      {cart.depositReference && <div className="mb-2 w-full"><ReferenceDisplay value={cart.depositReference} /></div>}
+      <div className="flex items-center gap-1.5 w-full flex-wrap">
         {cart.receiptImage ? (
           <button onClick={() => onViewReceipt(cart.receiptImage)}
             className="inline-flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-emerald-500/20 bg-emerald-50 text-xs font-medium text-emerald-700 min-h-[36px]">

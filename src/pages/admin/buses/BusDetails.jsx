@@ -9,6 +9,7 @@ import Section from '../../../components/ui/Section'
 import StatusBadge from '../../../components/ui/StatusBadge'
 import ResponsiveKpiGrid from '../../../components/ui/ResponsiveKpiGrid'
 import { SkeletonCard } from '../../../components/ui/Skeleton'
+import { getStudentGenderTone } from '../../../lib/studentGender'
 
 export default function BusDetails() {
   const { id } = useParams()
@@ -225,14 +226,14 @@ export default function BusDetails() {
                 const isOutgoing = !!outgoingInfo
                 return (
                   <div key={bs.id} draggable={!isOutgoing} onDragStart={() => !isOutgoing && handleDragStart(idx)} onDragOver={(e) => !isOutgoing && handleDragOver(e, idx)} onDrop={!isOutgoing ? handleDrop : undefined} onDragEnd={() => !isOutgoing && setDragIndex(null)}
-                    className={`grid gap-2 p-2 sm:p-3 rounded-xl transition-colors sm:grid-cols-[1fr_auto] ${isOutgoing ? 'opacity-40' : dragIndex === idx ? 'opacity-50 bg-[var(--color-primary-lighter)]' : 'hover:bg-[var(--color-border-light)]'}`}>
+                    className={`grid gap-2 p-2 sm:p-3 rounded-xl border transition-colors sm:grid-cols-[1fr_auto] ${isOutgoing ? 'opacity-40 border-slate-200 bg-slate-50' : dragIndex === idx ? 'opacity-50 bg-[var(--color-primary-lighter)] border-[var(--color-primary)]/40' : getStudentGenderTone(bs.student?.gender).card}`}>
                     <div className="grid gap-2 min-w-0">
                       <div className="flex flex-wrap items-center gap-2 w-full sm:justify-between">
                         <div className="flex items-center gap-2 min-w-0">
                           <input type="checkbox" disabled={isOutgoing} checked={selectedForTransfer.has(studentId)} onChange={() => setSelectedForTransfer(prev => { const n = new Set(prev); if (n.has(studentId)) n.delete(studentId); else n.add(studentId); return n })}
                             className="rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]/50 shrink-0" />
                           {!isOutgoing && <div className="cursor-grab active:cursor-grabbing text-[var(--color-text-muted)] shrink-0"><GripVertical size={16} /></div>}
-                          <div className="w-8 h-8 rounded-full bg-[var(--color-primary-lighter)] flex items-center justify-center text-sm font-bold text-[var(--color-primary-dark)] shrink-0">{bs.student?.name?.[0] || '?'}</div>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${getStudentGenderTone(bs.student?.gender).avatar}`}>{bs.student?.name?.[0] || '?'}</div>
                           <p className="text-sm font-medium truncate">{bs.student?.name || 'غير معروف'}</p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2 justify-end sm:justify-start lg:justify-end">

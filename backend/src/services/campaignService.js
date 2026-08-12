@@ -11,7 +11,7 @@ export async function isNewStudent(studentId) {
     where: {
       studentId,
       status: { in: validSubscriptionStatuses },
-      plan: { in: weeklyPlans },
+      type: { in: weeklyPlans },
     },
   })
   if (hasWeeklySubscription) return false

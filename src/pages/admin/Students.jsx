@@ -45,6 +45,7 @@ const emptyForm = {
   level: "",
   institutionName: "",
   offDays: [],
+  gender: "",
   pickupLocation: "",
   transportMode: "LINE",
   homeAddress: "",
@@ -69,6 +70,7 @@ export default function AdminStudents() {
   const [filterZone, setFilterZone] = useState("");
   const [filterDestinationId, setFilterDestinationId] = useState("");
   const [filterMode, setFilterMode] = useState("");
+  const [filterGender, setFilterGender] = useState("");
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [credentials, setCredentials] = useState(null);
   const [showConfirm, setShowConfirm] = useState(null);
@@ -79,6 +81,7 @@ export default function AdminStudents() {
       if (filterZone) params.zone = filterZone;
       if (filterDestinationId) params.destinationId = filterDestinationId;
       if (filterMode) params.transportMode = filterMode;
+      if (filterGender) params.gender = filterGender;
       const [data, zones, dests] = await Promise.all([
         api.students.list(params),
         api.pricing.zones().catch(() => []),
@@ -96,16 +99,20 @@ export default function AdminStudents() {
 
   useEffect(() => {
     load();
-  }, [search, filterZone, filterDestinationId, filterMode]);
+  }, [search, filterZone, filterDestinationId, filterMode, filterGender]);
 
   function handleResetFilters() {
     setFilterZone("");
     setFilterDestinationId("");
     setFilterMode("");
+    setFilterGender("");
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (!form.gender) {
+      return alert("يرجى اختيار جنس الطالب");
+    }
     if (form.transportMode === "LINE" && !form.pickupLocation?.trim()) {
       return alert("يرجى إدخال نقطة الانتظار للطلاب على الخط العام");
     }
@@ -170,6 +177,7 @@ export default function AdminStudents() {
       level: s.level || "",
       institutionName: s.institutionName || "",
       offDays: s.offDays || [],
+      gender: s.gender || "",
       pickupLocation: pickupValue,
       transportMode: s.transportMode || "LINE",
       homeAddress: s.homeAddress || "",
@@ -213,6 +221,11 @@ export default function AdminStudents() {
     },
     { key: "major", label: "التخصص", hideOnMobile: true },
     { key: "level", label: "المستوى", hideOnMobile: true },
+    {
+      key: "gender",
+      label: "الجنس",
+      render: (r) => <StatusBadge status={r.gender === "MALE" ? "male" : r.gender === "FEMALE" ? "female" : "gray"} />,
+    },
     {
       key: "transportMode",
       label: "التوصيل",
@@ -288,7 +301,7 @@ export default function AdminStudents() {
       </PageHeader>
 
       <div className="bg-white rounded-xl shadow-sm border border-[var(--color-border)] p-4 mb-4">
-        <div className="grid gap-3 lg:grid-cols-4">
+        <div className="grid gap-3 lg:grid-cols-5">
           <div>
             <label className="block text-[11px] font-semibold text-slate-600 mb-2">المنطقة</label>
             <select
@@ -327,6 +340,18 @@ export default function AdminStudents() {
               <option value="HOME">توصيل منزلي</option>
             </select>
           </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-600 mb-2">الجنس</label>
+            <select
+              value={filterGender}
+              onChange={(e) => setFilterGender(e.target.value)}
+              className="w-full input-field"
+            >
+              <option value="">الكل</option>
+              <option value="MALE">ذكر</option>
+              <option value="FEMALE">أنثى</option>
+            </select>
+          </div>
           <div className="flex items-end">
             <button
               type="button"
@@ -343,6 +368,7 @@ export default function AdminStudents() {
         columns={columns}
         data={students}
         mobileCards
+        rowClassName={(row) => row.gender === 'MALE' ? 'bg-blue-50/70' : row.gender === 'FEMALE' ? 'bg-pink-50/70' : ''}
         searchPlaceholder="بحث باسم الطالب أو رقم الجوال..."
         emptyTitle="لا يوجد طلاب"
         emptyDescription="لم يتم إضافة أي طالب بعد. أضف طالباً جديداً للبدء."
@@ -424,6 +450,22 @@ export default function AdminStudents() {
                     المعلومات الأساسية
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="sm:col-span-2">
+                      <div className="grid grid-cols-2 gap-3">
+                        <GenderOptionCard
+                          selected={form.gender === 'MALE'}
+                          label="ذكر"
+                          tone="male"
+                          onClick={() => setForm({ ...form, gender: 'MALE' })}
+                        />
+                        <GenderOptionCard
+                          selected={form.gender === 'FEMALE'}
+                          label="أنثى"
+                          tone="female"
+                          onClick={() => setForm({ ...form, gender: 'FEMALE' })}
+                        />
+                      </div>
+                    </div>
                     <FormField label="الاسم" required>
                       <input
                         value={form.name}
@@ -861,6 +903,27 @@ function TransportModeCard({ selected, label, desc, onClick }) {
         {label}
       </p>
       <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{desc}</p>
+    </button>
+  );
+}
+
+function GenderOptionCard({ selected, label, tone, onClick }) {
+  const toneClasses =
+    tone === 'male'
+      ? selected
+        ? 'border-blue-500 bg-blue-200 text-blue-900'
+        : 'border-blue-300 bg-blue-100 text-blue-700 hover:bg-blue-200'
+      : selected
+        ? 'border-pink-500 bg-pink-200 text-pink-900'
+        : 'border-pink-300 bg-pink-100 text-pink-700 hover:bg-pink-200';
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`min-h-[52px] rounded-xl border-2 px-4 py-3 text-center font-semibold transition-all ${toneClasses}`}
+    >
+      {label}
     </button>
   );
 }

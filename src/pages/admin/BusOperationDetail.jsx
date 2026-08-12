@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, Bus, Users, Clock, Search, Plus, ChevronDown, ArrowUpDown, Phone, MapPin, ArrowLeftRight, Check } from 'lucide-react'
 import Modal from '../../components/ui/Modal'
 import { api } from '../../lib/api'
+import { getStudentGenderTone } from '../../lib/studentGender'
 import { connectSocket, joinBusRoom, leaveBusRoom, onTrackingUpdate, offTrackingUpdate } from '../../lib/socket'
 import StatusBadge from '../../components/ui/StatusBadge'
 import ConfirmModal from '../../components/ui/ConfirmModal'
@@ -258,16 +259,6 @@ export default function BusOperationDetail({ busId, onClose, onRefresh }) {
               <button onClick={() => setShowBulk(true)} className="btn-ghost btn-sm">
                 <Clock size={14} /> تعديل وقت الجميع (مؤقت)
               </button>
-              {detail.todayActiveBuses?.length > 0 && (
-                <button onClick={() => { setShowTransfer('SELECT'); setTransferStudentId(''); setTransferBusId('') }} className="btn-ghost btn-sm text-[var(--color-info)]">
-                  <ArrowLeftRight size={14} /> نقل طالب إلى باص آخر
-                </button>
-              )}
-              {detail.todayActiveBuses?.length > 0 && (
-                <button onClick={() => { setShowTransfer('ALL'); setTransferStudentId(''); setTransferBusId('') }} className="btn-ghost btn-sm text-[var(--color-info)]">
-                  <ArrowUpDown size={14} /> نقل جميع الطلاب من هذا الباص
-                </button>
-              )}
             </div>
 
             {showAdd && (
@@ -311,15 +302,15 @@ export default function BusOperationDetail({ busId, onClose, onRefresh }) {
                     const subStatus = item.subscription?.paymentStatus
                     const attStatus = item.attendance?.status
                     return (
-                      <tr key={item.assignment?.id || item.student?.id || `temp-${idx}`} className="transition-colors hover:bg-[var(--color-border-light)] max-sm:block max-sm:mb-2 max-sm:rounded-xl max-sm:border max-sm:bg-white max-sm:p-3 max-sm:hover:bg-white">
+                      <tr key={item.assignment?.id || item.student?.id || `temp-${idx}`} className={`transition-colors hover:bg-[var(--color-border-light)] max-sm:block max-sm:mb-2 max-sm:rounded-xl max-sm:border max-sm:bg-white max-sm:p-3 max-sm:hover:bg-white ${getStudentGenderTone(item.student?.gender).card}`}>
 
                         {/* Mobile card */}
                         <td colSpan={9} className="sm:hidden block p-0 border-0">
-                          <div className="flex flex-col gap-1.5">
+                          <div className={`flex flex-col gap-1.5 rounded-xl border p-2 ${getStudentGenderTone(item.student?.gender).card}`}>
                             {/* Header: avatar + name/inst | trip status */}
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2 min-w-0">
-                                <div className="w-7 h-7 rounded-full bg-[var(--color-primary-lighter)] flex items-center justify-center text-xs font-bold text-[var(--color-primary-dark)] shrink-0">
+                                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${getStudentGenderTone(item.student?.gender).avatar}`}>
                                   {item.student.name?.[0] || '?'}
                                 </div>
                                 <div className="min-w-0">
@@ -407,7 +398,7 @@ export default function BusOperationDetail({ busId, onClose, onRefresh }) {
                         <td className="px-3 sm:px-4 py-2 sm:py-3 border-b border-[var(--color-border-light)] text-xs text-[var(--color-text-muted)] max-sm:hidden">{idx + 1}</td>
                         <td className="px-3 sm:px-4 py-2 sm:py-3 border-b border-[var(--color-border-light)] max-sm:hidden">
                           <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full bg-[var(--color-primary-lighter)] flex items-center justify-center text-xs font-bold text-[var(--color-primary-dark)]">
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${getStudentGenderTone(item.student?.gender).avatar}`}>
                               {item.student.name?.[0] || '?'}
                             </div>
                             <div>

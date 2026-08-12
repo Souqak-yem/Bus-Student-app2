@@ -234,6 +234,7 @@
 @utility badge-orange { @apply badge; background: var(--color-accent-lighter); color: var(--color-accent-dark); }
 @utility badge-red { @apply badge; background: var(--color-danger-light); color: #DC2626; }
 @utility badge-purple { @apply badge; background: #F3E8FF; color: #9333EA; }
+@utility badge-pink { @apply badge; background: #FBCFE8; color: #BE185D; }
 @utility badge-gray { @apply badge; background: #EEF2F7; color: var(--color-text-secondary); }
 
 @utility input-field {

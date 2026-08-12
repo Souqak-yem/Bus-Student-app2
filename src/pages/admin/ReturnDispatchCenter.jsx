@@ -5,6 +5,7 @@ import { Bus, Users, Search, Plus, X, GripVertical, Phone, MessageCircle, MapPin
 import PageHeader from '../../components/ui/PageHeader'
 import ConfirmModal from '../../components/ui/ConfirmModal'
 import StatusBadge from '../../components/ui/StatusBadge'
+import { getStudentGenderTone } from '../../lib/studentGender'
 import { onAdminReadinessUpdate, offAdminReadinessUpdate, onAdminBoardingTimerUpdate, offAdminBoardingTimerUpdate, onAdminReadinessStats, offAdminReadinessStats } from '../../lib/socket'
 
 const STATUS_BADGE = {
@@ -275,7 +276,7 @@ export default function ReturnDispatchCenter() {
                   ? (item.student?.homeAddress || '---')
                   : (item.student?.pickupLocation || item.student?.address || '---')
                 return (
-                  <div key={item.id} className="bg-slate-50 rounded-lg p-2 border border-slate-100">
+                  <div key={item.id} className={`rounded-lg p-2 border ${getStudentGenderTone(item.student?.gender).card}`}>
                     <div className="flex items-center gap-1.5">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
@@ -484,7 +485,7 @@ export default function ReturnDispatchCenter() {
                           onDragOver={(e) => !isDeparted && handleDragOver(e, idx)}
                           onDragEnd={!isDeparted ? handleDragEnd : undefined}
                           className={`flex items-center gap-1.5 p-1.5 rounded-lg border transition-colors ${
-                            draggedIdx === idx ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5' : 'border-slate-100 bg-slate-50'
+                            draggedIdx === idx ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5' : getStudentGenderTone(s?.gender).card
                           }`}
                         >
                           {!isDeparted && (

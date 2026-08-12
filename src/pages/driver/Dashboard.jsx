@@ -23,6 +23,12 @@ function formatTime(timeStr) {
   return `${displayHours}:${String(minutes).padStart(2, '0')} ${period}`
 }
 
+function getLineLabel(line) {
+  if (line === 'JEBALI') return 'جبلي'
+  if (line === 'BAHRY') return 'بحري'
+  return 'غير محدد'
+}
+
 const WHATSAPP_MSG = encodeURIComponent(
   'السلام عليكم، أنا قريب من موقعك، يرجى التواجد في نقطة الانتظار. شكراً.'
 )
@@ -346,6 +352,7 @@ export default function DriverDashboard() {
             <div>
               <h1 className="text-lg font-bold text-slate-800">باص {bus.busNumber}</h1>
               <p className="text-xs text-slate-500">السائق: {driverName}</p>
+              <p className="text-xs text-slate-500">الخط: {getLineLabel(busData.line)}</p>
             </div>
             <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium ${
               navigator.onLine ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'
@@ -354,10 +361,14 @@ export default function DriverDashboard() {
               {navigator.onLine ? 'متصل' : 'غير متصل'}
             </span>
           </div>
-          <div className="grid grid-cols-3 gap-2 mb-4">
+          <div className="grid grid-cols-2 gap-2 mb-4">
             <div className="bg-slate-50 rounded-lg p-2 text-center">
               <p className="text-lg font-bold text-slate-800">{students.length}</p>
               <p className="text-[10px] text-slate-500">الطلاب</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-2 text-center">
+              <p className="text-lg font-bold text-slate-800">{getLineLabel(busData.line)}</p>
+              <p className="text-[10px] text-slate-500">الخط</p>
             </div>
           </div>
 
@@ -368,7 +379,7 @@ export default function DriverDashboard() {
             </div>
             <div className="space-y-2 max-h-[34vh] sm:max-h-[48vh] overflow-y-auto pr-1">
               {students.map((item, index) => (
-                <div key={item.student?.id || index} className="rounded-lg border border-slate-200 bg-white p-2 sm:p-2.5">
+                <div key={item.student?.id || index} className={`rounded-lg border p-2 sm:p-2.5 ${getStudentGenderTone(item.student?.gender).card}`}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-bold text-slate-800">{index + 1}. {item.student?.name || 'طالب'}</p>
@@ -481,7 +492,10 @@ export default function DriverDashboard() {
       {/* Progress bar */}
       <div className="card px-3 py-2.5">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-bold text-slate-800">باص {bus.busNumber}</span>
+          <div>
+            <span className="text-sm font-bold text-slate-800">باص {bus.busNumber}</span>
+            <p className="text-[10px] text-slate-500">الخط: {getLineLabel(busData.line)}</p>
+          </div>
           <div className="text-left">
             <p className="text-xs font-bold text-[var(--color-primary)]">
               {currentIndex + 1} / {students.length}
@@ -611,7 +625,7 @@ export default function DriverDashboard() {
             else if (isCurrent) { dotClass = 'bg-yellow-500'; label = 'الحالي' }
 
             return (
-              <div key={s.student?.id || i} className={`flex items-center gap-1.5 py-1 px-2 rounded-lg text-xs ${isCurrent ? 'bg-yellow-50 ring-1 ring-yellow-200/70' : ''}`}>
+              <div key={s.student?.id || i} className={`flex items-center gap-1.5 py-1 px-2 rounded-lg text-xs ${isCurrent ? 'bg-yellow-50 ring-1 ring-yellow-200/70' : getStudentGenderTone(s.student?.gender).card}`}>
                 <span className={`w-2 h-2 rounded-full shrink-0 ${dotClass}`} />
                 <span className="flex-1 truncate text-slate-700">{s.student?.name}</span>
                 <span className="text-[10px] text-slate-400">{label}</span>

@@ -42,6 +42,10 @@ router.post('/register', async (req, res) => {
   try {
     const {
       name,
+      firstName,
+      fatherName,
+      grandfatherName,
+      familyName,
       phone,
       whatsapp,
       parentName,
@@ -54,13 +58,26 @@ router.post('/register', async (req, res) => {
       level,
       institutionName,
       offDays,
+      gender,
       transportMode,
       pickupLocation,
       homeAddress,
     } = req.body
 
-    if (!name || !phone || !whatsapp || !parentName || !parentPhone || !parentRelation || !address || !zone || !major || !level || !transportMode) {
+    const fullName = name || [firstName, fatherName, grandfatherName, familyName].filter(Boolean).join(' ')
+
+    if (!fullName || !phone || !whatsapp || !parentName || !parentPhone || !parentRelation || !address || !zone || !major || !level || !transportMode) {
       return res.status(400).json({ error: 'جميع الحقول الأساسية مطلوبة' })
+    }
+    if (!gender || !['MALE', 'FEMALE'].includes(gender)) {
+      return res.status(400).json({ error: 'الجنس مطلوب' })
+    }
+
+    const nameParts = [firstName, fatherName, grandfatherName, familyName]
+    if (!name) {
+      if (nameParts.some((part) => !part || typeof part !== 'string' || !/^[^\s]+$/.test(part))) {
+        return res.status(400).json({ error: 'يجب إدخال الاسم كأربعة كلمات منفصلة بدون مسافات إضافية' })
+      }
     }
 
     if (transportMode === 'LINE' && !pickupLocation) {
@@ -86,7 +103,7 @@ router.post('/register', async (req, res) => {
 
     const request = await prisma.studentRegistrationRequest.create({
       data: {
-        name,
+        name: fullName,
         phone,
         whatsapp,
         parentName,
@@ -99,6 +116,7 @@ router.post('/register', async (req, res) => {
         level,
         institutionName: institutionName || '',
         offDays: Array.isArray(offDays) ? offDays : [],
+        gender,
         transportMode,
         pickupLocation: transportMode === 'LINE' ? pickupLocation : null,
         homeAddress: transportMode === 'HOME' ? homeAddress : null,
@@ -111,7 +129,7 @@ router.post('/register', async (req, res) => {
         userId: admin.id,
         type: 'student_registration_request',
         title: 'طلب تسجيل جديد',
-        message: `طلب تسجيل طالب جديد من ${name}`,
+        message: `طلب تسجيل طالب جديد من ${fullName}`,
         dedupKey: `student_registration_request_${admin.id}_${request.id}`,
       })
     ))
@@ -185,6 +203,7 @@ router.post('/requests/:id/approve', authorize('admin'), async (req, res) => {
           level: request.level,
           institutionName: request.institutionName,
           offDays: request.offDays || [],
+          gender: request.gender,
           transportMode: request.transportMode,
           pickupLocation: request.transportMode === 'LINE' ? request.pickupLocation : null,
           homeAddress: request.transportMode === 'HOME' ? request.homeAddress : null,
@@ -463,6 +482,7 @@ router.get('/campaign-price/:campaignId', async (req, res) => {
       finalAmount: price.finalAmount,
     })
   } catch (error) {
+    console.error('campaign-price error', error)
     res.status(500).json({ error: error.message })
   }
 })
@@ -580,11 +600,13 @@ router.post('/subscription-request-legacy', async (req, res) => {
     const studentId = await resolveStudentId(req.user)
     if (!studentId) return res.status(404).json({ error: 'الطالب غير موجود' })
 
-    const { selectedDays, durationWeeks, receiptImage } = req.body
+    const { selectedDays, durationWeeks, receiptImage, depositReference } = req.body
 
     if (!selectedDays || !Array.isArray(selectedDays) || selectedDays.length === 0) {
       return res.status(400).json({ error: 'يرجى اختيار يوم واحد على الأقل' })
     }
+    if (!receiptImage) return res.status(400).json({ error: 'يرجى رفع صورة سند التحويل' })
+    if (!depositReference || !String(depositReference).trim()) return res.status(400).json({ error: 'يرجى إدخال رقم الإيداع أو المرجع' })
     if (!durationWeeks || durationWeeks < 1 || durationWeeks > 4) {
       return res.status(400).json({ error: 'مدة الاشتراك يجب أن تكون بين 1 و 4 أسابيع' })
     }
@@ -668,8 +690,8 @@ router.post('/subscription-request-legacy', async (req, res) => {
           amount,
           date: new Date(),
           method: 'transfer',
-          reference: receiptImage,
-          notes: 'بانتظار الموافقة',
+          reference: String(depositReference).trim(),
+          notes: receiptImage,
         },
       })
     }

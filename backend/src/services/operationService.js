@@ -179,15 +179,43 @@ async function hasActiveDailySubscriptionForDate(studentId, date, tx = prisma) {
   return count > 0
 }
 
+export function buildTransferTargetBusIds({ currentBusId, assignmentBusIds = [], activeBusIds = [] }) {
+  const ids = new Set([
+    ...(Array.isArray(assignmentBusIds) ? assignmentBusIds : []),
+    ...(Array.isArray(activeBusIds) ? activeBusIds : []),
+  ].filter(Boolean))
+
+  if (currentBusId) ids.delete(currentBusId)
+  return [...ids]
+}
+
 export async function getAvailableBuses() {
   const today = getLocalDate()
 
-  const excludedIds = await getTodayOperationBusIds()
+  const operationBusIds = await getTodayOperationBusIds()
+  const currentAssignments = await prisma.assignment.groupBy({
+    by: ['busId'],
+    where: { date: today, period: 'MORNING' },
+    _count: { id: true },
+  })
+
+  const emptyOperationBusIds = new Set(
+    currentAssignments
+      .filter(row => (row._count.id ?? 0) === 0)
+      .map(row => row.busId)
+  )
+
+  const allowedBusIds = new Set(
+    [...operationBusIds].filter(busId => emptyOperationBusIds.has(busId))
+  )
 
   const buses = await prisma.bus.findMany({
     where: {
       status: 'active',
-      NOT: { id: { in: [...excludedIds] } }
+      OR: [
+        { id: { notIn: [...operationBusIds] } },
+        { id: { in: [...allowedBusIds] } },
+      ],
     },
     include: {
       driver: { select: { id: true, name: true, phone: true } },
@@ -488,17 +516,30 @@ export async function getBusOperationDetail(busId) {
 
   let todayActiveBuses = []
   if (operation) {
-    todayActiveBuses = await prisma.assignment.findMany({
+    const assignmentBusIds = await prisma.assignment.findMany({
       where: { date: today, period: 'MORNING', busId: { not: busId } },
       select: { busId: true },
       distinct: ['busId']
+    }).then(rows => rows.map(r => r.busId))
+
+    const activeBusIds = await prisma.activeBus.findMany({
+      where: { operationId: operation.id, tripType: { not: 'RETURN' }, busId: { not: busId }, status: { not: 'CANCELLED' } },
+      select: { busId: true },
+      distinct: ['busId']
+    }).then(rows => rows.map(r => r.busId))
+
+    const targetBusIds = buildTransferTargetBusIds({
+      currentBusId: busId,
+      assignmentBusIds,
+      activeBusIds,
     })
-    const activeBusIds = todayActiveBuses.map(a => a.busId)
-    const activeBusesData = await prisma.bus.findMany({
-      where: { id: { in: activeBusIds } },
-      select: { id: true, busNumber: true, plateNumber: true, capacity: true, driver: { select: { name: true } } }
-    })
-    todayActiveBuses = activeBusesData
+
+    if (targetBusIds.length > 0) {
+      todayActiveBuses = await prisma.bus.findMany({
+        where: { id: { in: targetBusIds } },
+        select: { id: true, busNumber: true, plateNumber: true, capacity: true, driver: { select: { name: true } } }
+      })
+    }
   }
 
   const assignments = await prisma.assignment.findMany({
@@ -508,7 +549,7 @@ export async function getBusOperationDetail(busId) {
         select: {
           id: true, name: true, phone: true, whatsapp: true, parentName: true, parentPhone: true,
           zone: true, address: true, major: true, level: true, institutionName: true, offDays: true, pickupLocation: true,
-          transportMode: true, homeAddress: true, homeNotes: true, status: true
+          transportMode: true, homeAddress: true, homeNotes: true, status: true, gender: true
         }
       }
     },
@@ -535,7 +576,7 @@ export async function getBusOperationDetail(busId) {
 
   const availableStudents = await prisma.student.findMany({
     where: { status: 'active', NOT: { id: { in: studentIds } } },
-    select: { id: true, name: true, zone: true, major: true, level: true, institutionName: true, phone: true }
+    select: { id: true, name: true, zone: true, major: true, level: true, institutionName: true, phone: true, gender: true }
   })
 
   const hasAnyAttendance = attendances.length > 0
@@ -758,7 +799,11 @@ export async function updateAssignment(busId, assignmentId, userId, data) {
 }
 
 export async function addBusesToOperation(userId, busIds) {
-  if (!busIds || !Array.isArray(busIds) || busIds.length === 0) {
+  const normalizedBusIds = Array.isArray(busIds)
+    ? busIds.map(id => typeof id === 'string' ? id.trim() : id).filter(Boolean)
+    : []
+
+  if (normalizedBusIds.length === 0) {
     throw new Error('يجب اختيار باص واحد على الأقل')
   }
 
@@ -805,6 +850,7 @@ export async function addBusesToOperation(userId, busIds) {
 
     // Create ActiveBus for return
     let addedBuses = 0
+    let assignmentsCreated = 0
     for (const bus of buses) {
       const existingActive = await tx.activeBus.findFirst({
         where: { operationId: operation.id, busId: bus.id, tripType: 'RETURN', status: { not: 'CANCELLED' } }
@@ -1135,7 +1181,9 @@ export async function getOperationHistory() {
     }
 
     result.push({
+      id: op.id,
       date: op.operationDate,
+      operationDate: op.operationDate,
       status: op.status,
       createdBy: op.createdBy,
       busCount: busIds.length,

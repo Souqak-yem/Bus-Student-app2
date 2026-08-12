@@ -2,7 +2,7 @@ import { prisma } from '../lib/prisma.js'
 import { createAuditLog } from '../lib/audit.js'
 import { createAndBroadcast } from './notificationService.js'
 import { notifyStudent } from './socketService.js'
-import { getLocalDate } from '../utils/dateUtils.js'
+import { getLocalDate, getUtcDateRange } from '../utils/dateUtils.js'
 
 export const FinancialStatus = {
   SETTLED: 'SETTLED',
@@ -66,19 +66,104 @@ export async function computeFinancialStatus(studentId, checkDate = new Date()) 
   return { status: FinancialStatus.OVERDUE, subscription: null }
 }
 
+export async function reconcileSubscriptionPayments(subscriptionId) {
+  if (!subscriptionId) {
+    return { updated: false, paymentCount: 0, paidAmount: 0, paymentStatus: 'unpaid' }
+  }
+
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: { payments: true },
+  })
+
+  if (!subscription) {
+    return { updated: false, paymentCount: 0, paidAmount: 0, paymentStatus: 'unpaid' }
+  }
+
+  const paymentCount = subscription.payments.length
+  const paidAmount = subscription.payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
+  const normalizedAmount = Number(subscription.amount || 0)
+  const paymentStatus = paidAmount <= 0
+    ? 'unpaid'
+    : paidAmount >= normalizedAmount
+      ? 'paid'
+      : 'partial'
+
+  const currentPaidAmount = Number(subscription.paidAmount || 0)
+  const currentStatus = subscription.paymentStatus || 'unpaid'
+
+  if (paymentCount === 0 && currentPaidAmount === 0 && currentStatus === 'unpaid') {
+    return { updated: false, paymentCount, paidAmount: 0, paymentStatus }
+  }
+
+  if (Math.abs(currentPaidAmount - paidAmount) > 0.01 || currentStatus !== paymentStatus) {
+    const updated = await prisma.subscription.update({
+      where: { id: subscriptionId },
+      data: {
+        paidAmount,
+        paymentStatus,
+      },
+    })
+
+    return {
+      updated: true,
+      paymentCount,
+      paidAmount: Number(updated.paidAmount || 0),
+      paymentStatus: updated.paymentStatus,
+    }
+  }
+
+  return {
+    updated: false,
+    paymentCount,
+    paidAmount: Number(subscription.paidAmount || 0),
+    paymentStatus: subscription.paymentStatus,
+  }
+}
+
 export async function getFinancialDashboard() {
   const today = getLocalDate()
-  const allStudents = await prisma.student.findMany({
-    where: { status: 'active' },
-    include: {
-      subscriptions: {
-        where: { status: 'active' },
-        orderBy: { endDate: 'desc' },
-        take: 1,
+  const { start: dayStartUtc, end: dayEndUtc } = getUtcDateRange(today)
+  const startOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1))
+  const startOfNextMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 1))
+
+  const [allStudents, dailyRevenueAggregate, monthlyRevenueAggregate, paymentTotalAggregate, subscriptionPaidAmountAggregate] = await Promise.all([
+    prisma.student.findMany({
+      where: { status: 'active' },
+      include: {
+        subscriptions: {
+          where: { status: 'active' },
+          orderBy: { endDate: 'desc' },
+          take: 1,
+        },
+        financial: true,
       },
-      financial: true,
-    },
-  })
+    }),
+    prisma.payment.aggregate({
+      _sum: { amount: true },
+      where: {
+        date: { gte: dayStartUtc, lt: dayEndUtc },
+        subscription: { status: { in: ['active', 'expired', 'cancelled'] } },
+      },
+    }),
+    prisma.payment.aggregate({
+      _sum: { amount: true },
+      where: {
+        date: { gte: startOfMonth, lt: startOfNextMonth },
+        subscription: { status: { in: ['active', 'expired', 'cancelled'] } },
+      },
+    }),
+    prisma.payment.aggregate({
+      _sum: { amount: true },
+      where: {
+        subscription: { status: { in: ['active', 'expired', 'cancelled'] } },
+      },
+    }),
+    prisma.subscription.aggregate({
+      _sum: { paidAmount: true },
+      where: { status: { in: ['active', 'expired', 'cancelled'] } },
+    }),
+  ])
 
   const counts = {
     total: allStudents.length,
@@ -96,7 +181,20 @@ export async function getFinancialDashboard() {
     statusMap[s.id] = status
   }
 
-  return { counts, statusMap }
+  const dailyRevenue = Number(dailyRevenueAggregate._sum.amount || 0)
+  const monthlyRevenue = Number(monthlyRevenueAggregate._sum.amount || 0)
+  const paymentTotalRevenue = Number(paymentTotalAggregate._sum.amount || 0)
+  const subscriptionPaidTotalRevenue = Number(subscriptionPaidAmountAggregate._sum.paidAmount || 0)
+  const totalRevenue = Math.max(paymentTotalRevenue, subscriptionPaidTotalRevenue)
+
+  return {
+    counts,
+    statusMap,
+    dailyRevenue,
+    todayRevenue: dailyRevenue,
+    monthlyRevenue,
+    totalRevenue,
+  }
 }
 
 export async function getStudentsByFinancialStatus(targetStatus, checkDate = new Date()) {

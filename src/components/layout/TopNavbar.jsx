@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Bell, Menu, Wifi, WifiOff, ChevronDown } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
@@ -30,7 +30,8 @@ export default function TopNavbar({ onMenuToggle, unreadCount: _unreadCount }) {
   const [online, setOnline] = useState(navigator.onLine)
   const [dateStr, setDateStr] = useState('')
   const location = useLocation()
-  const { user } = useAuth()
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
   const { unreadCount } = useNotifications()
 
   useEffect(() => {
@@ -62,6 +63,11 @@ export default function TopNavbar({ onMenuToggle, unreadCount: _unreadCount }) {
   const currentTitle = Object.entries(pageTitles).find(([path]) =>
     location.pathname === path || location.pathname.startsWith(path + '/')
   )?.[1] || ''
+
+  function handleLogout() {
+    logout()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <>
@@ -152,7 +158,7 @@ export default function TopNavbar({ onMenuToggle, unreadCount: _unreadCount }) {
                     <p className="text-sm font-medium">{user?.name}</p>
                     <p className="text-xs text-[var(--color-text-muted)]">{user?.phone}</p>
                   </div>
-                  <button onClick={() => { window.location.href = '/login' }} className="w-full text-right px-3 py-2 text-sm text-[var(--color-danger)] hover:bg-[var(--color-danger-light)] flex items-center gap-2">
+                  <button onClick={handleLogout} className="w-full text-right px-3 py-2 text-sm text-[var(--color-danger)] hover:bg-[var(--color-danger-light)] flex items-center gap-2">
                     تسجيل الخروج
                   </button>
                 </motion.div>

@@ -4,6 +4,80 @@ import { broadcastEmergencyReport, broadcastReportUpdate, notifyStudent } from '
 import { createAndBroadcast } from './notificationService.js'
 import { getLocalDate } from '../utils/dateUtils.js'
 
+export function buildEmergencyBusList({ assignments = [], activeBuses = [], busRecords = [] }) {
+  const activeStatusMap = new Map(activeBuses.map(ab => [ab.busId, ab.status]))
+  const busMap = new Map()
+
+  for (const activeBus of activeBuses) {
+    const busId = activeBus?.busId
+    if (!busId) continue
+
+    const busInfo = activeBus.bus || null
+    if (!busMap.has(busId)) {
+      busMap.set(busId, {
+        busId,
+        busNumber: busInfo?.busNumber || busInfo?.bus?.busNumber || null,
+        capacity: busInfo?.capacity || busInfo?.bus?.capacity || null,
+        driver: busInfo?.driver || busInfo?.bus?.driver || null,
+        studentCount: 0,
+        students: [],
+        status: activeStatusMap.get(busId) || 'AVAILABLE',
+      })
+    }
+  }
+
+  for (const record of busRecords) {
+    if (!record?.busId) continue
+    if (!busMap.has(record.busId)) {
+      busMap.set(record.busId, {
+        busId: record.busId,
+        busNumber: record.busNumber,
+        capacity: record.capacity,
+        driver: record.driver,
+        studentCount: 0,
+        students: [],
+        status: activeStatusMap.get(record.busId) || 'AVAILABLE',
+      })
+    } else {
+      const existing = busMap.get(record.busId)
+      if (!existing.busNumber) existing.busNumber = record.busNumber
+      if (!existing.capacity) existing.capacity = record.capacity
+      if (!existing.driver) existing.driver = record.driver
+    }
+  }
+
+  for (const a of assignments) {
+    const bus = a.bus
+    if (!busMap.has(bus.id)) {
+      busMap.set(bus.id, {
+        busId: bus.id,
+        busNumber: bus.busNumber,
+        capacity: bus.capacity,
+        driver: bus.driver,
+        studentCount: 0,
+        students: [],
+        status: activeStatusMap.get(bus.id) || 'AVAILABLE',
+      })
+    }
+
+    const bd = busMap.get(bus.id)
+    bd.studentCount++
+    bd.students.push({
+      assignmentId: a.id,
+      studentId: a.studentId,
+      studentName: a.student.name,
+      sortOrder: a.sortOrder,
+      status: a.status,
+    })
+  }
+
+  return Array.from(busMap.values()).map(b => ({
+    ...b,
+    remainingCapacity: (b.capacity || 0) - (b.studentCount || 0),
+    fillPercent: b.capacity > 0 ? Math.round(((b.studentCount || 0) / b.capacity) * 100) : 0,
+  }))
+}
+
 export async function getEmergencyBuses() {
   const today = getLocalDate()
 
@@ -18,40 +92,31 @@ export async function getEmergencyBuses() {
 
   const activeBuses = await prisma.activeBus.findMany({
     where: { operation: { operationDate: today }, status: { not: 'CANCELLED' } },
-    select: { busId: true, status: true }
+    include: {
+      bus: {
+        select: {
+          id: true,
+          busNumber: true,
+          capacity: true,
+          driver: { select: { id: true, name: true, phone: true } },
+        },
+      },
+    },
+    orderBy: [{ busId: 'asc' }],
   })
-  const activeStatusMap = new Map(activeBuses.map(ab => [ab.busId, ab.status]))
 
-  const busMap = new Map()
-  for (const a of assignments) {
-    if (!busMap.has(a.busId)) {
-      const bus = a.bus
-      busMap.set(a.busId, {
-        busId: bus.id,
-        busNumber: bus.busNumber,
-        capacity: bus.capacity,
-        driver: bus.driver,
-        studentCount: 0,
-        students: [],
-        status: activeStatusMap.get(a.busId) || 'AVAILABLE',
-      })
-    }
-    const bd = busMap.get(a.busId)
-    bd.studentCount++
-    bd.students.push({
-      assignmentId: a.id,
-      studentId: a.studentId,
-      studentName: a.student.name,
-      sortOrder: a.sortOrder,
-      status: a.status,
-    })
-  }
+  const activeBusIds = activeBuses.map(ab => ab.busId)
+  const busRecords = activeBusIds.length > 0 ? await prisma.bus.findMany({
+    where: { id: { in: activeBusIds }, status: 'active' },
+    select: {
+      id: true,
+      busNumber: true,
+      capacity: true,
+      driver: { select: { id: true, name: true, phone: true } },
+    },
+  }) : []
 
-  return Array.from(busMap.values()).map(b => ({
-    ...b,
-    remainingCapacity: b.capacity - b.studentCount,
-    fillPercent: b.capacity > 0 ? Math.round((b.studentCount / b.capacity) * 100) : 0,
-  }))
+  return buildEmergencyBusList({ assignments, activeBuses, busRecords })
 }
 
 export async function declareBreakdown(busId, userId, reason) {

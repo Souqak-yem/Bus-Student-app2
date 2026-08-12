@@ -3,6 +3,7 @@ import { NavLink, Navigate, useLocation } from 'react-router-dom'
 import { CalendarDays, CreditCard, Clock, FileText, Upload, ShoppingCart, Trash2 } from 'lucide-react'
 import { resolveDailyExecutionDates } from '../../../backend/src/utils/dateUtils.js'
 import { api } from '../../lib/api'
+import { formatCurrency, formatNumber } from '../../lib/format'
 import ConfirmModal from '../../components/ui/ConfirmModal'
 import DiscountExpiryBadge from '../../components/ui/DiscountExpiryBadge'
 
@@ -60,6 +61,7 @@ export default function Subscriptions() {
 
   const [cart, setCart] = useState(null)
   const [cartReceipt, setCartReceipt] = useState('')
+  const [cartDepositReference, setCartDepositReference] = useState('')
   const [cartSubmitting, setCartSubmitting] = useState(false)
   const [cartSuccess, setCartSuccess] = useState('')
   const [cartError, setCartError] = useState('')
@@ -74,8 +76,12 @@ export default function Subscriptions() {
       setCartError('يرجى رفع صورة سند التحويل')
       return
     }
+    if (!cartDepositReference.trim()) {
+      setCartError('يرجى إدخال رقم الإيداع أو المرجع')
+      return
+    }
     setShowSubmitConfirm(true)
-  }, [cartReceipt])
+  }, [cartReceipt, cartDepositReference])
 
   useEffect(() => {
     let cancelled = false
@@ -456,17 +462,17 @@ export default function Subscriptions() {
             <>
               <div className="flex justify-between items-center px-2">
                 <span className="text-slate-500">السعر الأصلي</span>
-                <span className="text-sm line-through text-slate-400">{displayOriginal.toLocaleString()} ريال</span>
+                <span className="text-sm line-through text-slate-400">{formatNumber(displayOriginal)} ريال</span>
               </div>
               <div className="flex justify-between items-center px-2">
                 <span className="font-medium text-slate-700">السعر بعد الخصم</span>
-                <span className="text-sm font-bold text-green-600">{displayPrice.toLocaleString()} ريال</span>
+                <span className="text-sm font-bold text-green-600">{formatNumber(displayPrice)} ريال</span>
               </div>
             </>
           ) : (
             <div className="flex justify-between items-center px-2">
               <span className="font-medium text-slate-700">سعر الاشتراك</span>
-              <span className="text-sm font-bold text-[var(--color-primary)]">{displayOriginal.toLocaleString()} ريال</span>
+              <span className="text-sm font-bold text-[var(--color-primary)]">{formatNumber(displayOriginal)} ريال</span>
             </div>
           )}
 
@@ -474,7 +480,7 @@ export default function Subscriptions() {
           {(existingEnrollment ? Number(existingEnrollment.surcharge || 0) : Number(price?.surcharge || 0)) > 0 && (
             <div className="flex justify-between items-center px-2">
               <span className="text-slate-500">رسوم التوصيل المنزلي</span>
-              <span className="text-xs font-medium text-slate-700">+{(existingEnrollment ? Number(existingEnrollment.surcharge) : Number(price?.surcharge)).toLocaleString()} ريال</span>
+              <span className="text-xs font-medium text-slate-700">+{formatNumber(existingEnrollment ? existingEnrollment.surcharge : price?.surcharge)} ريال</span>
             </div>
           )}
 
@@ -489,7 +495,7 @@ export default function Subscriptions() {
               return (
                 <div className="flex justify-between items-center px-2">
                   <span className="text-slate-500">{efLabel}</span>
-                  <span className="text-xs font-medium text-amber-600">+{efAmount.toLocaleString()} ريال</span>
+                  <span className="text-xs font-medium text-amber-600">+{formatNumber(efAmount)} ريال</span>
                 </div>
               )
             }
@@ -500,7 +506,7 @@ export default function Subscriptions() {
           <div className="flex justify-between items-center bg-gradient-to-l from-[var(--color-primary)]/10 to-[var(--color-primary)]/5 rounded-xl px-3 py-2.5 mt-1">
             <span className="text-sm font-bold text-slate-800">الإجمالي</span>
             <span className="text-base font-extrabold text-[var(--color-primary)]">
-              {Number(existingEnrollment ? existingEnrollment.finalAmount : (price?.finalAmount || 0)).toLocaleString()} <span className="text-xs font-medium">ريال</span>
+              {formatNumber(existingEnrollment ? existingEnrollment.finalAmount : (price?.finalAmount || 0))} <span className="text-xs font-medium">ريال</span>
             </span>
           </div>
         </div>
@@ -636,10 +642,10 @@ export default function Subscriptions() {
                 </div>
                 <div className="flex justify-between font-bold text-slate-800 pt-2 border-t border-slate-200">
                   <span className="text-sm">الإجمالي:</span>
-                  <span className="text-base text-[var(--color-primary)]">{dailyTotal.toLocaleString()} ريال</span>
+                  <span className="text-base text-[var(--color-primary)]">{formatNumber(dailyTotal)} ريال</span>
                 </div>
                 {dailyHomeFee > 0 && (
-                  <div className="text-xs text-slate-400">* شامل رسوم التوصيل المنزلي {dailyHomeFee.toLocaleString()} ريال لكل يوم</div>
+                  <div className="text-xs text-slate-400">* شامل رسوم التوصيل المنزلي {formatNumber(dailyHomeFee)} ريال لكل يوم</div>
                 )}
               </div>
             )}
@@ -753,10 +759,10 @@ export default function Subscriptions() {
                       {isMyZone && <span className="mr-1.5 text-[10px] text-slate-400 font-medium">(منطقتي)</span>}
                     </td>
                     <td className={`px-4 py-3 text-sm ${isDestPrice ? 'text-green-600 font-extrabold' : isMyZone ? 'text-[var(--color-primary)] font-bold' : 'text-slate-700'}`}>
-                      {(fourWeeksPrice != null) ? fourWeeksPrice.toLocaleString() : '-'}
+                      {(fourWeeksPrice != null) ? formatNumber(fourWeeksPrice) : '-'}
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-600">{(threeWeeksPrice != null) ? threeWeeksPrice.toLocaleString() : '-'}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600">{(dailyPrice != null) ? dailyPrice.toLocaleString() : '-'}</td>
+                    <td className="px-4 py-3 text-sm text-slate-600">{(threeWeeksPrice != null) ? formatNumber(threeWeeksPrice) : '-'}</td>
+                    <td className="px-4 py-3 text-sm text-slate-600">{(dailyPrice != null) ? formatNumber(dailyPrice) : '-'}</td>
                   </tr>
                 )
               }) : (
@@ -795,11 +801,11 @@ export default function Subscriptions() {
                   <StatusBadge status={sub.status} />
                 </div>
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
-                  <span>المبلغ: <span className="font-bold text-slate-800">{Number(sub.amount).toLocaleString()} ريال</span></span>
+                  <span>المبلغ: <span className="font-bold text-slate-800">{formatNumber(sub.amount)} ريال</span></span>
                   {sub.homeDeliveryFee != null && Number(sub.homeDeliveryFee) > 0 && (
-                    <span>التوصيل: <span className="font-bold text-slate-800">{Number(sub.homeDeliveryFee).toLocaleString()} ريال</span></span>
+                    <span>التوصيل: <span className="font-bold text-slate-800">{formatNumber(sub.homeDeliveryFee)} ريال</span></span>
                   )}
-                  <span>المدفوع: <span className="font-bold text-green-600">{Number(sub.paidAmount).toLocaleString()} ريال</span></span>
+                  <span>المدفوع: <span className="font-bold text-green-600">{formatNumber(sub.paidAmount)} ريال</span></span>
                 </div>
               </div>
             ))}
@@ -815,10 +821,11 @@ export default function Subscriptions() {
     setShowSubmitConfirm(false)
     setCartSubmitting(true)
     try {
-      await api.cart.submit(cartReceipt)
+      await api.cart.submit(cartReceipt, cartDepositReference)
       setCartSuccess('تم إرسال طلب السلة بنجاح، بانتظار الموافقة')
       setCart(null)
       setCartReceipt('')
+      setCartDepositReference('')
     } catch (e) {
       setCartError(e.message)
     } finally {
@@ -861,7 +868,7 @@ export default function Subscriptions() {
                       <span>{item.data.selectedDays.map(d => DAY_NAMES_AR[d]).join('، ')} · </span>
                     )}
                     {item.data?.weeksCount && <span>{item.data.weeksCount} {item.data.weeksCount === 1 ? 'أسبوع' : 'أسابيع'} · </span>}
-                    <span className="font-medium text-slate-700">{Number(item.amount).toLocaleString()} ريال</span>
+                    <span className="font-medium text-slate-700">{formatNumber(item.amount)} ريال</span>
                   </div>
                 </div>
                 <button onClick={() => handleRemoveItem(item.id)} className="p-2 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors">
@@ -873,13 +880,23 @@ export default function Subscriptions() {
 
           <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-200">
             <span className="text-sm font-bold text-slate-800">الإجمالي</span>
-            <span className="text-base font-extrabold text-[var(--color-primary)]">{Number(cart.totalAmount).toLocaleString()} <span className="text-xs font-medium">ريال</span></span>
+            <span className="text-base font-extrabold text-[var(--color-primary)]">{formatNumber(cart.totalAmount)} <span className="text-xs font-medium">ريال</span></span>
           </div>
 
           {cartSuccess ? (
             <p className="mt-3 text-sm text-green-600 bg-green-50 p-3 rounded-xl font-medium">{cartSuccess}</p>
           ) : (
             <div className="mt-3 space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">رقم الإيداع / المرجع</label>
+                <input
+                  type="text"
+                  value={cartDepositReference}
+                  onChange={(e) => setCartDepositReference(e.target.value.trimStart())}
+                  placeholder="أدخل رقم الإيداع أو المرجع"
+                  className="input-field w-full"
+                />
+              </div>
               <div>
                 <label className="flex items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-2xl py-3 cursor-pointer hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 transition-colors">
                   <Upload size={18} className="text-slate-400" />
@@ -895,7 +912,7 @@ export default function Subscriptions() {
                 {cartReceipt && <img src={cartReceipt} alt="السند" className="mt-2 max-h-24 rounded-xl border border-slate-200 shadow-sm" />}
               </div>
               {cartError && <p className="text-sm text-red-500 bg-red-50 p-2 rounded-lg">{cartError}</p>}
-              <button onClick={handleCartSubmit} disabled={cartSubmitting || !cartReceipt}
+              <button onClick={handleCartSubmit} disabled={cartSubmitting || !cartReceipt || !cartDepositReference.trim()}
                 className="w-full gradient-primary text-white py-3 rounded-xl text-sm font-bold disabled:opacity-50 min-h-[48px] shadow-[0_6px_16px_-8px_rgba(37,99,235,0.6)] active:scale-[0.98] transition-all">
                 {cartSubmitting ? 'جاري الإرسال...' : 'إرسال الطلب'}
               </button>
@@ -910,8 +927,8 @@ export default function Subscriptions() {
             className={({ isActive }) =>
               `rounded-xl py-2.5 text-sm font-bold text-center transition-all ${
                 isActive
-                  ? 'gradient-primary text-white shadow-[0_4px_12px_-4px_rgba(37,99,235,0.5)]'
-                  : 'text-slate-600 hover:bg-slate-100'
+                  ? 'bg-blue-600 text-white shadow-[0_4px_12px_-4px_rgba(37,99,235,0.5)]'
+                  : 'bg-white text-slate-700 hover:bg-slate-50'
               }`
             }>
             {tab.label}
@@ -962,13 +979,13 @@ export default function Subscriptions() {
                 )}
                 {item.data?.weeksCount && <p><span className="text-slate-400">المدة:</span> {item.data.weeksCount} {item.data.weeksCount === 1 ? 'أسبوع' : 'أسابيع'}</p>}
               </div>
-              <div className="text-xs font-bold text-[var(--color-primary)] mt-1">{Number(item.amount).toLocaleString()} ريال</div>
+              <div className="text-xs font-bold text-[var(--color-primary)] mt-1">{formatNumber(item.amount)} ريال</div>
             </div>
           ))}
         </div>
         <div className="flex items-center justify-between bg-gradient-to-l from-[var(--color-primary)]/10 to-[var(--color-primary)]/5 rounded-xl p-3">
           <span className="text-sm font-bold text-slate-800">الإجمالي</span>
-          <span className="text-sm font-extrabold text-[var(--color-primary)]">{Number(cart?.totalAmount).toLocaleString()} <span className="text-xs">ريال</span></span>
+          <span className="text-sm font-extrabold text-[var(--color-primary)]">{formatNumber(cart?.totalAmount)} <span className="text-xs">ريال</span></span>
         </div>
         <p className="text-xs text-slate-400 mt-3">بإرسال الطلب، توافق على شروط الاشتراك في الخدمة.</p>
       </ConfirmModal>

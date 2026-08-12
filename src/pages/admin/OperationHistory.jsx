@@ -66,7 +66,13 @@ export default function OperationHistory() {
                   </div>
                   <div>
                     <p className="font-medium">
-                      {day.operationDate ? new Date(day.operationDate).toLocaleDateString('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'تاريخ غير معروف'}
+                      {(() => {
+                        const rawDate = day.operationDate || day.date
+                        if (!rawDate) return 'تاريخ غير معروف'
+                        const parsed = new Date(rawDate)
+                        if (Number.isNaN(parsed.getTime())) return 'تاريخ غير معروف'
+                        return parsed.toLocaleDateString('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+                      })()}
                     </p>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-xs text-[var(--color-text-muted)]"><Bus size={12} className="inline" /> {day.busCount || day._count?.activeBuses || 0} باص</span>

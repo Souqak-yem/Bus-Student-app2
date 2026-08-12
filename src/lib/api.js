@@ -12,7 +12,7 @@ async function request(endpoint, options = {}) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+  const res = await fetch(`${API_URL}${endpoint}`, { ...options, headers, cache: 'no-store' });
 
   const text = await res.text();
   let data = {};
@@ -300,7 +300,7 @@ export const api = {
     get: () => api.get('/student/cart'),
     addItem: (data) => api.post('/student/cart/items', data),
     removeItem: (itemId) => api.delete(`/student/cart/items/${itemId}`),
-    submit: (receiptImage) => api.post('/student/cart/submit', { receiptImage }),
+    submit: (receiptImage, depositReference) => api.post('/student/cart/submit', { receiptImage, depositReference }),
     approvals: {
       list: () => api.get('/approvals/carts'),
       get: (id) => api.get(`/approvals/carts/${id}`),

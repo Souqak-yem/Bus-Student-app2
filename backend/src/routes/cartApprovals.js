@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { authenticate, authorize } from '../middleware/auth.js'
 import { createSubscriptionNotification, setExecutionDates, hasActiveSameTypeSubscription } from '../services/subscriptionService.js'
-import { reactivateStudent } from '../services/financialService.js'
+import { reactivateStudent, reconcileSubscriptionPayments } from '../services/financialService.js'
 import { getLocalDate, resolveDailyExecutionDates } from '../utils/dateUtils.js'
 import { broadcastDailyExceptionsUpdate } from '../services/socketService.js'
 import { createAndBroadcast } from '../services/notificationService.js'
@@ -133,6 +133,19 @@ router.post('/:id/approve', authorize('admin'), async (req, res) => {
         })
 
         await setExecutionDates(sub.id, dates)
+        if (cart.receiptImage || cart.depositReference) {
+          await prisma.payment.create({
+            data: {
+              subscriptionId: sub.id,
+              amount: sub.amount,
+              date: new Date(),
+              method: 'transfer',
+              reference: String(cart.depositReference || cart.receiptImage || 'غير محدد').trim(),
+              notes: cart.receiptImage || 'موافقة على اشتراك يومي',
+            },
+          })
+        }
+        await reconcileSubscriptionPayments(sub.id)
         subscriptions.push(sub)
       } else {
         const weeksCount = itemData.weeksCount || (type === 'THREE_WEEKS' ? 3 : 4)
@@ -169,6 +182,19 @@ router.post('/:id/approve', authorize('admin'), async (req, res) => {
           },
         })
 
+        if (cart.receiptImage || cart.depositReference) {
+          await prisma.payment.create({
+            data: {
+              subscriptionId: sub.id,
+              amount: sub.amount,
+              date: new Date(),
+              method: 'transfer',
+              reference: String(cart.depositReference || cart.receiptImage || 'غير محدد').trim(),
+              notes: cart.receiptImage || 'موافقة على اشتراك سلة',
+            },
+          })
+        }
+        await reconcileSubscriptionPayments(sub.id)
         subscriptions.push(sub)
       }
     }

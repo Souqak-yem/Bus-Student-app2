@@ -56,17 +56,32 @@ async function bootstrapInitialAdmin() {
       return
     }
 
-    const username = process.env.ADMIN_USERNAME?.trim()
-    const password = process.env.ADMIN_PASSWORD
+    const isDev = process.env.NODE_ENV !== 'production'
+    let username = process.env.ADMIN_USERNAME?.trim()
+    let password = process.env.ADMIN_PASSWORD
     const phone = process.env.ADMIN_PHONE?.trim() || null
+
+    if (!username && isDev) {
+      username = 'admin1'
+    }
+    if (!password && isDev) {
+      password = process.env.ADMIN_INITIAL_PASSWORD || '123'
+    }
 
     if (!username || !password) {
       console.warn('Skipping initial admin creation: ADMIN_USERNAME and ADMIN_PASSWORD must be set')
+      if (isDev) {
+        console.warn('In development you can use the default admin credentials admin1/123 or set ADMIN_USERNAME and ADMIN_PASSWORD.')
+      }
       return
     }
 
     const existingUser = await prisma.user.findUnique({ where: { username } })
     if (existingUser) {
+      if (existingUser.role === 'admin') {
+        return
+      }
+      console.warn(`Initial admin username ${username} already exists with role ${existingUser.role}`)
       return
     }
 
@@ -84,6 +99,9 @@ async function bootstrapInitialAdmin() {
     })
 
     console.log('Initial admin created successfully')
+    if (isDev) {
+      console.log(`Default development admin created: ${username}/${password}`)
+    }
   } catch (error) {
     if (error?.code === 'P2002') {
       return

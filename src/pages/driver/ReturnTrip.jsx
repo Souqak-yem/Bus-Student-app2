@@ -5,6 +5,7 @@ import { api } from '../../lib/api'
 import { connectSocket, joinBusRoom, leaveBusRoom, onReadinessUpdate, offReadinessUpdate, onBoardingTimerUpdate, offBoardingTimerUpdate, onDriverOperationUpdate, offDriverOperationUpdate, joinDriverBusRoom, leaveDriverBusRoom } from '../../lib/socket'
 import { useNotifications } from '../../context/NotificationContext'
 import { MapPin, Home, Check, Clock, Users, Bus, CheckSquare, Square, X, PlayCircle, StopCircle } from 'lucide-react'
+import { getStudentGenderTone } from '../../lib/studentGender'
 
 const READINESS_LABELS = {
   NO_RESPONSE: { label: 'لم يرد', cls: 'bg-red-100 text-red-700 border-red-200' },
@@ -12,6 +13,12 @@ const READINESS_LABELS = {
   DELAYED: { label: 'متأخر', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
   ON_BOARD: { label: 'صعد', cls: 'bg-blue-100 text-blue-700 border-blue-200' },
   MISSED_BUS: { label: 'فات', cls: 'bg-slate-200 text-slate-600 border-slate-300' },
+}
+
+function getLineLabel(line) {
+  if (line === 'JEBALI') return 'جبلي'
+  if (line === 'BAHRY') return 'بحري'
+  return 'غير محدد'
 }
 
 function BoardingTimerBar({ timer }) {
@@ -388,7 +395,7 @@ export default function ReturnTrip() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: direction * -60 }}
             transition={{ duration: 0.2 }}
-            className="card p-3.5 shadow-pop"
+            className={`card p-3.5 shadow-pop ${getStudentGenderTone(currentStudent?.gender).card}`}
           >
             <div className="text-center mb-2">
               <h2 className="text-lg font-bold text-slate-800">{currentStudent?.name}</h2>
@@ -562,16 +569,11 @@ export default function ReturnTrip() {
               const rl = READINESS_LABELS[rs] || READINESS_LABELS.NO_RESPONSE
               const isOnBoard = rs === 'ON_BOARD'
               const isMissed = rs === 'MISSED_BUS'
+              const tone = getStudentGenderTone(s?.gender).card
               return (
                 <div
                   key={load.id || load.studentId}
-                  className={`flex items-center gap-2 p-2 rounded-xl border transition-all ${
-                    isOnBoard ? 'bg-blue-50 border-blue-200' :
-                    rs === 'READY' ? 'bg-green-50 border-green-100' :
-                    rs === 'DELAYED' ? 'bg-amber-50 border-amber-100' :
-                    isMissed ? 'bg-slate-50 border-slate-200 opacity-70' :
-                    'bg-white border-slate-100'
-                  }`}
+                  className={`flex items-center gap-2 p-2 rounded-xl border transition-all ${tone} ${isMissed ? 'opacity-70' : ''}`}
                 >
                   <button
                     onClick={() => handleMarkOnBoard(load.studentId)}
@@ -674,7 +676,7 @@ export default function ReturnTrip() {
             <p className="text-[10px] text-slate-500">إجمالي الطلاب</p>
           </div>
           <div className="bg-slate-50 rounded-xl p-2.5 text-center">
-            <p className="text-lg font-bold text-slate-800">{lineLabel}</p>
+            <p className="text-lg font-bold text-slate-800">{getLineLabel(selectedBus.line)}</p>
             <p className="text-[10px] text-slate-500">الطريق</p>
           </div>
         </div>
@@ -766,15 +768,11 @@ export default function ReturnTrip() {
               const rs = load.readinessStatus || 'NO_RESPONSE'
               const rl = READINESS_LABELS[rs] || READINESS_LABELS.NO_RESPONSE
               const isHome = s?.transportMode === 'HOME'
+              const tone = getStudentGenderTone(s?.gender).card
               return (
                 <div
                   key={load.id || load.studentId}
-                  className={`flex items-center gap-2 p-2 rounded-lg border transition-all ${
-                    rs === 'READY' ? 'bg-green-50/50 border-green-100' :
-                    rs === 'DELAYED' ? 'bg-amber-50/50 border-amber-100' :
-                    rs === 'MISSED_BUS' ? 'bg-slate-50 border-slate-200 opacity-60' :
-                    'bg-white border-slate-100'
-                  }`}
+                  className={`flex items-center gap-2 p-2 rounded-lg border transition-all ${tone} ${rs === 'MISSED_BUS' ? 'opacity-60' : ''}`}
                 >
                   <button
                     onClick={() => handleMarkOnBoard(load.studentId)}
@@ -827,10 +825,11 @@ export default function ReturnTrip() {
             <div className="space-y-0.5 max-h-36 overflow-y-auto">
               {onBoardLoads.map((load) => {
                 const s = load.student
+                const tone = getStudentGenderTone(s?.gender).card
                 return (
                   <div
                     key={load.id || load.studentId}
-                    className="flex items-center gap-1.5 p-1.5 rounded-lg bg-blue-50/50 border border-blue-100"
+                    className={`flex items-center gap-1.5 p-1.5 rounded-lg border ${tone}`}
                   >
                     <div className="shrink-0 w-5 h-5 rounded bg-blue-500 text-white flex items-center justify-center">
                       <Check size={12} strokeWidth={3} />

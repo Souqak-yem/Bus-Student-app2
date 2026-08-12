@@ -19,7 +19,7 @@ const STUDENT_FULL = {
   select: {
     id: true, name: true, zone: true, transportMode: true, homeAddress: true,
     homeDeliveryFee: true, homeNotes: true, institutionName: true, pickupLocation: true,
-    address: true, phone: true, whatsapp: true,
+    address: true, phone: true, whatsapp: true, gender: true,
     destination: { select: { id: true, name: true } },
   },
 }

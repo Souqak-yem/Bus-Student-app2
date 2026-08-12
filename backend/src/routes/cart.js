@@ -190,7 +190,7 @@ router.post('/submit', async (req, res) => {
     const studentId = await resolveStudentId(req.user)
     if (!studentId) return res.status(404).json({ error: 'الطالب غير موجود' })
 
-    const { receiptImage } = req.body
+    const { receiptImage, depositReference } = req.body
 
     const cart = await prisma.cart.findFirst({
       where: { studentId, status: 'DRAFT' },
@@ -199,10 +199,16 @@ router.post('/submit', async (req, res) => {
     if (!cart) return res.status(400).json({ error: 'السلة فارغة' })
     if (cart.items.length === 0) return res.status(400).json({ error: 'السلة فارغة' })
     if (!receiptImage) return res.status(400).json({ error: 'يرجى رفع صورة سند التحويل' })
+    if (!depositReference || !String(depositReference).trim()) return res.status(400).json({ error: 'يرجى إدخال رقم الإيداع أو المرجع' })
 
     const updated = await prisma.cart.update({
       where: { id: cart.id },
-      data: { status: 'PENDING', receiptImage, submittedAt: new Date() },
+      data: {
+        status: 'PENDING',
+        receiptImage,
+        depositReference: String(depositReference).trim(),
+        submittedAt: new Date(),
+      },
     })
 
     const admins = await prisma.user.findMany({ where: { role: 'admin' }, select: { id: true } })

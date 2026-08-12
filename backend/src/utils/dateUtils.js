@@ -10,6 +10,13 @@ export function getLocalDate(input = new Date()) {
   return d
 }
 
+export function getUtcDateRange(input = new Date()) {
+  const d = new Date(input)
+  const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+  const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1))
+  return { start, end }
+}
+
 export function formatLocalDate(input = new Date()) {
   const d = getLocalDate(input)
   const year = d.getFullYear()

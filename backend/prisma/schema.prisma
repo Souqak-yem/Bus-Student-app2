@@ -88,6 +88,11 @@ enum TransportMode {
   HOME
 }
 
+enum StudentGender {
+  MALE
+  FEMALE
+}
+
 enum OperationStatus {
   OPEN
   CLOSED
@@ -259,6 +264,7 @@ model Student {
   offDays           Json?              @default("[]")
   pickupLocation    String?
   status            RecordStatus       @default(active)
+  gender            StudentGender?
   transportMode     TransportMode      @default(LINE)
   homeAddress       String?
   homeDeliveryFee   Decimal            @default(0) @db.Decimal(10, 2)
@@ -309,6 +315,7 @@ model StudentRegistrationRequest {
   institutionName  String
   offDays          Json          @default("[]")
   transportMode    TransportMode @default(LINE)
+  gender           StudentGender?
   pickupLocation   String?
   homeAddress      String?
   status           RequestStatus @default(PENDING)
@@ -553,6 +560,7 @@ model CampaignEnrollment {
   extraFeeAmount  Decimal?       @db.Decimal(10, 2)
   finalAmount     Decimal        @db.Decimal(10, 2)
   receiptImage    String?
+  depositReference String?
   receiptStatus   ReceiptStatus  @default(PENDING)
   rejectionReason String?
   approvedById    String?
@@ -754,6 +762,7 @@ model Cart {
   student         Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
   status          CartStatus    @default(DRAFT)
   receiptImage    String?
+  depositReference String?
   totalAmount     Decimal       @default(0) @db.Decimal(10, 2)
   rejectionReason String?
   submittedAt     DateTime?

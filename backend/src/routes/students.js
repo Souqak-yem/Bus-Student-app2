@@ -10,13 +10,14 @@ router.use(authenticate)
 
 router.get('/', async (req, res) => {
   try {
-    const { zone, status, search, transportMode, destinationId } = req.query
+    const { zone, status, search, transportMode, destinationId, gender } = req.query
     const where = {}
 
     if (zone) where.zone = zone
     if (status) where.status = status
     if (transportMode) where.transportMode = transportMode
     if (destinationId) where.destinationId = destinationId
+    if (gender) where.gender = gender
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -83,10 +84,13 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', authorize('admin'), async (req, res) => {
   try {
-    const { name, phone, whatsapp, parentName, parentRelation, parentPhone, address, zone, destinationId, major, level, institutionName, offDays, pickupLocation, transportMode, homeAddress, homeDeliveryFee, homeDeliveryFeeDaily, homeDeliveryFeeThreeWeeks, homeDeliveryFeeFourWeeks, homeNotes, homeDeliveryActive } = req.body
+    const { name, phone, whatsapp, parentName, parentRelation, parentPhone, address, zone, destinationId, major, level, institutionName, offDays, pickupLocation, gender, transportMode, homeAddress, homeDeliveryFee, homeDeliveryFeeDaily, homeDeliveryFeeThreeWeeks, homeDeliveryFeeFourWeeks, homeNotes, homeDeliveryActive } = req.body
 
     if (!name) {
       return res.status(400).json({ error: 'اسم الطالب مطلوب' })
+    }
+    if (!gender || !['MALE', 'FEMALE'].includes(gender)) {
+      return res.status(400).json({ error: 'الجنس مطلوب' })
     }
 
     const student = await prisma.student.create({
@@ -95,6 +99,7 @@ router.post('/', authorize('admin'), async (req, res) => {
         address, zone, destinationId: destinationId || null, major, level, institutionName,
         offDays: offDays || [],
         pickupLocation,
+        gender,
         transportMode: transportMode || 'LINE',
         homeAddress,
         homeDeliveryFee: homeDeliveryFee ? Number(homeDeliveryFee) : 0,
@@ -134,7 +139,7 @@ router.post('/', authorize('admin'), async (req, res) => {
 
 router.put('/:id', authorize('admin'), async (req, res) => {
   try {
-    const { name, phone, whatsapp, parentName, parentRelation, parentPhone, address, zone, destinationId, major, level, institutionName, offDays, pickupLocation, status, transportMode, homeAddress, homeDeliveryFee, homeDeliveryFeeDaily, homeDeliveryFeeThreeWeeks, homeDeliveryFeeFourWeeks, homeNotes, homeDeliveryActive } = req.body
+    const { name, phone, whatsapp, parentName, parentRelation, parentPhone, address, zone, destinationId, major, level, institutionName, offDays, pickupLocation, gender, status, transportMode, homeAddress, homeDeliveryFee, homeDeliveryFeeDaily, homeDeliveryFeeThreeWeeks, homeDeliveryFeeFourWeeks, homeNotes, homeDeliveryActive } = req.body
 
     const existingStudent = await prisma.student.findUnique({
       where: { id: req.params.id },
@@ -158,6 +163,7 @@ router.put('/:id', authorize('admin'), async (req, res) => {
         name, phone, whatsapp, parentName, parentRelation, parentPhone,
         address, zone, destinationId: destinationId !== undefined ? (destinationId || null) : undefined,
         major, level, institutionName, status, pickupLocation,
+        gender: gender !== undefined ? gender : undefined,
         offDays: offDays !== undefined ? offDays : undefined,
         transportMode,
         homeAddress,

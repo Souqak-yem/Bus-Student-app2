@@ -1,4 +1,4 @@
-const CACHE = 'mashawerk-v1'
+const CACHE = 'mashawerk-v2'
 const STATIC = [
   '/manifest.json',
   '/app-icon.svg',

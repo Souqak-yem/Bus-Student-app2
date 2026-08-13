@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: bus-students-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate
+    startCommand: npx prisma migrate deploy --schema=prisma/schema.prisma && npx prisma generate && node src/index.js
+    plan: free
+    region: frankfurt
+    autoDeploy: true

@@ -7,23 +7,51 @@ import AppSplashScreen from './components/AppSplashScreen'
 import App from './App.jsx'
 import './index.css'
 
+const APP_VERSION = __APP_VERSION__ || 'dev'
+
+async function clearStaleServiceWorkerState() {
+  try {
+    const registrations = await navigator.serviceWorker.getRegistrations()
+    await Promise.all(registrations.map((reg) => reg.unregister()))
+    const cacheKeys = await caches.keys()
+    await Promise.all(cacheKeys.map((key) => caches.delete(key)))
+    localStorage.setItem('mashawerk_app_version', APP_VERSION)
+  } catch (error) {
+    console.warn('[App] Failed to clear stale SW/cache state:', error)
+  }
+}
+
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
+  window.addEventListener('load', async () => {
     const isDev = import.meta.env.DEV
     const shouldRegister = !isDev && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    const lastSeenVersion = localStorage.getItem('mashawerk_app_version')
+
+    if (lastSeenVersion && lastSeenVersion !== APP_VERSION) {
+      console.warn('[App] App version changed from', lastSeenVersion, 'to', APP_VERSION, '— clearing stale cache and SW')
+      await clearStaleServiceWorkerState()
+      window.location.reload()
+      return
+    }
 
     if (!shouldRegister) {
       // In development (or when not on a supported origin) never let the
       // service worker intercept requests. A stale SW from a previous session
       // can otherwise hijack navigation and return the offline 503 fallback.
-      navigator.serviceWorker.getRegistrations().then((regs) => {
-        regs.forEach((reg) => reg.unregister())
-      })
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(regs.map((reg) => reg.unregister()))
+      } catch (error) {
+        console.warn('[App] Unable to unregister SW in unsupported origin:', error)
+      }
+      localStorage.setItem('mashawerk_app_version', APP_VERSION)
       return
     }
 
-    navigator.serviceWorker.register('/sw.js', { scope: '/' }).then((reg) => {
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
       console.log('[App] SW registered, scope:', reg.scope)
+      localStorage.setItem('mashawerk_app_version', APP_VERSION)
 
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing
@@ -47,9 +75,9 @@ if ('serviceWorker' in navigator) {
           reg.update().catch(() => {})
         }
       })
-    }).catch((error) => {
+    } catch (error) {
       console.error('[App] SW registration failed:', error)
-    })
+    }
 
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       console.log('[App] New SW took control, reloading...')

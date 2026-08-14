@@ -49,7 +49,10 @@ if ('serviceWorker' in navigator) {
     }
 
     try {
-      const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      const reg = await navigator.serviceWorker.register('/sw.js', {
+        scope: '/',
+        updateViaCache: 'none',
+      })
       console.log('[App] SW registered, scope:', reg.scope)
       localStorage.setItem('mashawerk_app_version', APP_VERSION)
 

@@ -1,8 +1,9 @@
 import { io } from 'socket.io-client'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002/api'
+const defaultOrigin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : ''
+const API_URL = (import.meta.env.VITE_API_URL || `${defaultOrigin}/api`).replace(/\/$/, '')
 const defaultSocketUrl = API_URL.replace(/\/api\/?$/, '')
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || defaultSocketUrl
+const SOCKET_URL = (import.meta.env.VITE_SOCKET_URL || defaultSocketUrl || defaultOrigin).replace(/\/$/, '')
 let socket = null
 let reconnectCallbacks = []
 

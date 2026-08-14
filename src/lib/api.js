@@ -1,18 +1,12 @@
 const defaultApiUrl = (() => {
-  if (typeof window !== 'undefined') {
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return 'http://localhost:3002/api';
-    }
-
-    if (window.location.origin) {
-      return `${window.location.origin}/api`;
-    }
+  if (typeof window !== 'undefined' && window.location.origin) {
+    return `${window.location.origin}/api`
   }
 
-  return 'http://localhost:3002/api';
-})();
+  return '/api'
+})()
 
-const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '') || defaultApiUrl;
+const API_URL = (import.meta.env.VITE_API_URL || defaultApiUrl).replace(/\/$/, '')
 
 function getToken() {
   return localStorage.getItem("token");

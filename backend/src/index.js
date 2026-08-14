@@ -47,6 +47,33 @@ import returnReadinessRoutes from './routes/returnReadiness.js'
 const app = express()
 const PORT = process.env.PORT || 3000
 
+async function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function ensureDatabaseReady(maxAttempts = 24, delayMs = 5000) {
+  let attempt = 0
+
+  while (attempt < maxAttempts) {
+    try {
+      await prisma.$connect()
+      await prisma.$queryRaw`SELECT 1`
+      console.log('[DB] Connected successfully')
+      return
+    } catch (error) {
+      attempt += 1
+      console.error(`[DB] Connection failed (attempt ${attempt}/${maxAttempts}). Retrying in ${delayMs / 1000}s...`)
+      console.error(error.message || error)
+
+      if (attempt >= maxAttempts) {
+        throw new Error('Database connection failed after retries')
+      }
+
+      await wait(delayMs)
+    }
+  }
+}
+
 async function bootstrapInitialAdmin() {
   try {
     await prisma.$connect()
@@ -218,13 +245,31 @@ app.use((_req, res) => {
 })
 
 app.use((err, _req, res, _next) => {
-  console.error('Unhandled error:', err.message || err)
-  res.status(err.status || 500).json({
-    error: process.env.NODE_ENV === 'production' ? 'خطأ داخلي في الخادم' : err.message,
+  const isDbFailure = err?.code?.startsWith('P') || /database|db|connection|timeout/i.test(err?.message || '')
+
+  console.error('Unhandled error:', err?.message || err)
+
+  res.status(isDbFailure ? 503 : (err?.status || 500)).json({
+    error: isDbFailure
+      ? 'قاعدة البيانات غير متاحة حالياً، جارٍ إعادة المحاولة...'
+      : (process.env.NODE_ENV === 'production' ? 'خطأ داخلي في الخادم' : (err?.message || 'خطأ داخلي')),
+    retryable: isDbFailure,
   })
 })
 
-await bootstrapInitialAdmin()
+async function startServer() {
+  try {
+    await ensureDatabaseReady()
+    await bootstrapInitialAdmin()
 
-const server = initSocketServer(app)
-server.listen(PORT, () => {})
+    const server = initSocketServer(app)
+    server.listen(PORT, () => {
+      console.log(`[HTTP] Server listening on port ${PORT}`)
+    })
+  } catch (error) {
+    console.error('[BOOT] Unable to start server because database is unavailable:', error.message || error)
+    process.exit(1)
+  }
+}
+
+startServer()

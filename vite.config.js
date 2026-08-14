@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { VitePWA } from 'vite-plugin-pwa'
 import { readFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 import { execSync } from 'child_process'
@@ -53,7 +54,24 @@ const gitHash = getGitHash()
 const buildTime = getBuildTime()
 
 export default defineConfig({
-  plugins: [tailwindcss(), react(), autoVersionPlugin(), swCacheVersionPlugin()],
+  plugins: [
+    tailwindcss(),
+    react(),
+    autoVersionPlugin(),
+    swCacheVersionPlugin(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      injectRegister: 'auto',
+      workbox: {
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
+      },
+      devOptions: {
+        enabled: false,
+      },
+    }),
+  ],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __BUILD_HASH__: JSON.stringify(gitHash),

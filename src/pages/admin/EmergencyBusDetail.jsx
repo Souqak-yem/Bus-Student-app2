@@ -7,6 +7,7 @@ import {
   ArrowRight, List, LayoutDashboard
 } from 'lucide-react'
 import { api } from '../../lib/api'
+import { getStudentGenderTone } from '../../lib/studentGender'
 import Section from '../../components/ui/Section'
 import StatusBadge from '../../components/ui/StatusBadge'
 

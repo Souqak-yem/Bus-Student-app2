@@ -11,6 +11,7 @@ import { SkeletonCard } from '../../components/ui/Skeleton'
 import ResponsiveKpiGrid from '../../components/ui/ResponsiveKpiGrid'
 import BusOperationDetail from './BusOperationDetail'
 import ConfirmModal from '../../components/ui/ConfirmModal'
+import { getStudentGenderTone } from '../../lib/studentGender'
 import { onDailyExceptionsUpdate, offDailyExceptionsUpdate } from '../../lib/socket'
 
 export default function AdminDailyOperation() {

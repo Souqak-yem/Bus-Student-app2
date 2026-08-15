@@ -667,7 +667,7 @@ export async function updateBusLine(busId, userId, line) {
   return { updated: result.count }
 }
 
-export async function addStudentToOperation(busId, studentId, userId) {
+export async function addStudentToOperation(busId, studentId, userId, pickupTimeOverride = null) {
   const today = getLocalDate()
 
   const student = await prisma.student.findUnique({ where: { id: studentId }, select: { id: true } })
@@ -685,6 +685,16 @@ export async function addStudentToOperation(busId, studentId, userId) {
     where: { studentId_date_period: { studentId, date: today, period: 'MORNING' } }
   })
   if (existing) throw new Error('الطالب لديه رحلة مسجلة اليوم بالفعل')
+
+  const defaultBusStudent = await prisma.busStudent.findFirst({
+    where: { studentId, isActive: true },
+    orderBy: [{ createdAt: 'desc' }, { updatedAt: 'desc' }],
+    select: { pickupTime: true }
+  })
+  const hasExplicitPickupTime = pickupTimeOverride !== undefined && pickupTimeOverride !== null
+  const normalizedPickupTime = hasExplicitPickupTime
+    ? (String(pickupTimeOverride).trim() === '' ? null : pickupTimeOverride)
+    : defaultBusStudent?.pickupTime || undefined
 
   // Ensure today's operation exists
   const operation = await prisma.dailyOperation.findUnique({ where: { operationDate: today } })
@@ -704,6 +714,7 @@ export async function addStudentToOperation(busId, studentId, userId) {
   const assignment = await prisma.assignment.create({
     data: {
       studentId, busId, date: today, period: 'MORNING', line: 'JEBALI',
+      pickupTime: normalizedPickupTime,
       status: 'scheduled', isGenerated: false, sortOrder: (maxOrder._max.sortOrder ?? -1) + 1
     },
     include: {

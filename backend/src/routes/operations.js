@@ -84,7 +84,7 @@ router.post('/today/bus/:busId/assignments', authorize('admin'), async (req, res
   try {
     const { studentId, pickupTime } = req.body
     if (!studentId) return res.status(400).json({ error: 'الطالب مطلوب' })
-    const assignment = await addStudentToOperation(req.params.busId, studentId, req.user.id)
+    const assignment = await addStudentToOperation(req.params.busId, studentId, req.user.id, pickupTime)
     const student = await prisma.student.findUnique({ where: { id: studentId }, select: { name: true } })
     notifyAndBroadcastToBus(req.params.busId, {
       type: 'driver_student_added', title: 'تم إضافة طالب', message: `تم إضافة الطالب ${student?.name || ''} إلى رحلتك`,

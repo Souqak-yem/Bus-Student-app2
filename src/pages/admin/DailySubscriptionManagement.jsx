@@ -15,6 +15,7 @@ export default function DailySubscriptionManagement() {
   const [assigningId, setAssigningId] = useState(null)
   const [selectedSub, setSelectedSub] = useState(null)
   const [busesLoading, setBusesLoading] = useState(false)
+  const [busPickupTimes, setBusPickupTimes] = useState({})
 
   useEffect(() => {
     onDailyExceptionsUpdate(() => { load() })
@@ -36,7 +37,9 @@ export default function DailySubscriptionManagement() {
   useEffect(() => { load() }, [])
 
   async function handleOpenAssign(studentId) {
+    const sub = dailySubs.find(item => item.studentId === studentId)
     setSelectedSub(studentId)
+    setBusPickupTimes({ default: sub?.pickupTime || '' })
     setBusesLoading(true)
     try {
       const op = await api.operations.getToday()
@@ -48,13 +51,14 @@ export default function DailySubscriptionManagement() {
     }
   }
 
-  async function handleConfirmBus(busId) {
+  async function handleConfirmBus(busId, pickupTime) {
     const studentId = selectedSub
     if (!studentId) return
     setAssigningId(studentId)
     try {
-      await api.operations.addStudent(busId, studentId)
+      await api.operations.addStudent(busId, studentId, pickupTime)
       setSelectedSub(null)
+      setBusPickupTimes({})
       await load()
     } catch (err) {
       alert(err.message)
@@ -91,12 +95,14 @@ export default function DailySubscriptionManagement() {
         onOpenAssign={handleOpenAssign}
         onConfirmBus={handleConfirmBus}
         onClose={() => setSelectedSub(null)}
+        busPickupTimes={busPickupTimes}
+        setBusPickupTimes={setBusPickupTimes}
       />
     </div>
   )
 }
 
-function DailyTab({ subscriptions, buses, busesLoading, assigningId, selectedSub, onOpenAssign, onConfirmBus, onClose }) {
+function DailyTab({ subscriptions, buses, busesLoading, assigningId, selectedSub, onOpenAssign, onConfirmBus, onClose, busPickupTimes, setBusPickupTimes }) {
   if (subscriptions.length === 0) {
     return (
       <motion.div
@@ -210,13 +216,14 @@ function DailyTab({ subscriptions, buses, busesLoading, assigningId, selectedSub
               const remaining = capacity - used
               const isFull = remaining <= 0
               const fillPercent = capacity > 0 ? Math.round((used / capacity) * 100) : 0
+              const currentStudent = subscriptions.find(sub => sub.studentId === selectedSub)
+              const defaultPickup = currentStudent?.pickupTime || busPickupTimes.default || ''
+              const localPickup = busPickupTimes[bd.bus?.id] ?? defaultPickup
               return (
-                <button
+                <div
                   key={bd.bus?.id}
-                  onClick={() => !isFull && onConfirmBus(bd.bus?.id)}
-                  disabled={isFull}
                   className={`w-full text-right px-4 py-3.5 rounded-xl border transition-all flex items-center gap-3 ${
-                    isFull ? 'border-red-200 bg-red-50 opacity-60 cursor-not-allowed' : 'border-[var(--color-border)] hover:bg-[var(--color-primary-lighter)] hover:border-[var(--color-primary-light)]'
+                    isFull ? 'border-red-200 bg-red-50 opacity-60' : 'border-[var(--color-border)] bg-white'
                   }`}
                 >
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
@@ -235,15 +242,43 @@ function DailyTab({ subscriptions, buses, busesLoading, assigningId, selectedSub
                       <span>{bd.driver?.name || 'بدون سائق'}</span>
                       <span>{used} / {capacity}</span>
                     </div>
-                    <div className="w-full h-1.5 rounded-full bg-[var(--color-border-light)] overflow-hidden">
+                    <div className="w-full h-1.5 rounded-full bg-[var(--color-border-light)] overflow-hidden mb-2">
                       <div className="h-full rounded-full transition-all" style={{
                         width: `${Math.min(fillPercent, 100)}%`,
                         backgroundColor: isFull ? '#DC2626' : fillPercent >= 80 ? '#D97706' : '#16A34A',
                       }} />
                     </div>
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <label className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                        <span>وقت الطالب</span>
+                        <input
+                          type="time"
+                          value={localPickup}
+                          onChange={(e) => setBusPickupTimes(prev => ({ ...prev, [bd.bus?.id]: e.target.value }))}
+                          className="input-field px-2 py-1 text-xs w-28"
+                          disabled={isFull}
+                        />
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => !isFull && onConfirmBus(bd.bus?.id, localPickup)}
+                          disabled={isFull}
+                          className="btn-primary btn-sm"
+                        >
+                          تأكيد
+                        </button>
+                        <button
+                          onClick={() => !isFull && onConfirmBus(bd.bus?.id, '')}
+                          disabled={isFull}
+                          className="btn-ghost btn-sm"
+                        >
+                          تحديد لاحقاً
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   {isFull && <X size={16} className="text-red-400 shrink-0" />}
-                </button>
+                </div>
               )
             })}
           </div>

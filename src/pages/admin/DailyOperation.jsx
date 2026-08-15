@@ -29,6 +29,7 @@ export default function AdminDailyOperation() {
   const [exceptionsLoading, setExceptionsLoading] = useState(false)
   const [showExceptions, setShowExceptions] = useState(false)
   const [exceptionStudentForBus, setExceptionStudentForBus] = useState(null)
+  const [assignmentTimeByBus, setAssignmentTimeByBus] = useState({})
   const [showConfirm, setShowConfirm] = useState(null)
 
   const load = useCallback(async () => {
@@ -68,15 +69,25 @@ export default function AdminDailyOperation() {
   }
 
   function handleExceptionSelectBus(studentId) {
+    const student = unassignedStudents.find(s => s.studentId === studentId)
+    const defaultTime = student?.pickupTime || ''
+    setAssignmentTimeByBus({})
     setExceptionStudentForBus(studentId)
+    setTimeout(() => {
+      setAssignmentTimeByBus(prev => ({
+        ...prev,
+        default: defaultTime,
+      }))
+    }, 0)
   }
 
-  async function handleExceptionConfirmBus(busId) {
+  async function handleExceptionConfirmBus(busId, pickupTime) {
     const studentId = exceptionStudentForBus
     if (!studentId) return
     try {
-      await api.operations.addStudent(busId, studentId)
+      await api.operations.addStudent(busId, studentId, pickupTime)
       setExceptionStudentForBus(null)
+      setAssignmentTimeByBus({})
       await load()
     } catch (err) {
       alert(err.message)
@@ -494,31 +505,59 @@ export default function AdminDailyOperation() {
         }
         wide
       >
-        <p className="text-sm text-[var(--color-text-muted)] mb-4">اختر الباص لإضافة الطالب إليه مباشرة:</p>
+        <p className="text-sm text-[var(--color-text-muted)] mb-4">اختر الباص ثم حدد وقت الصعود أو استخدم الوقت الافتراضي:</p>
         <div className="space-y-2">
           {buses.length === 0 && <p className="text-xs text-[var(--color-text-muted)]">لا توجد باصات في التشغيل</p>}
-          {buses.map(bd => (
-            <button
-              key={bd.bus?.id}
-              onClick={() => handleExceptionConfirmBus(bd.bus?.id)}
-              className="w-full text-right px-4 py-3.5 rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-primary-lighter)] hover:border-[var(--color-primary-light)] transition-all flex items-center gap-3"
-            >
-              <div className="w-10 h-10 rounded-xl bg-[var(--color-primary-lighter)] flex items-center justify-center shrink-0">
-                <Bus size={18} className="text-[var(--color-primary-dark)]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold">{bd.bus?.busNumber}</span>
-                  <span className="text-xs text-[var(--color-text-muted)]">{bd.studentCount}/{bd.bus?.capacity}</span>
+          {buses.map(bd => {
+            const defaultPickup = unassignedStudents.find(s => s.studentId === exceptionStudentForBus)?.pickupTime || assignmentTimeByBus.default || ''
+            const selectedPickup = assignmentTimeByBus[bd.bus?.id] ?? defaultPickup
+            return (
+              <div
+                key={bd.bus?.id}
+                className="w-full text-right px-4 py-3.5 rounded-xl border border-[var(--color-border)] bg-white flex items-center gap-3"
+              >
+                <div className="w-10 h-10 rounded-xl bg-[var(--color-primary-lighter)] flex items-center justify-center shrink-0">
+                  <Bus size={18} className="text-[var(--color-primary-dark)]" />
                 </div>
-                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-[var(--color-text-muted)] mt-0.5">
-                  <span>{bd.driver?.name || 'بدون سائق'}</span>
-                  <span>الخط: {bd.line === 'JEBALI' ? 'جبالي' : 'بحري'}</span>
-                  <span>المقاعد المتبقية: {(bd.bus?.capacity || 0) - (bd.studentCount || 0)}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-bold">{bd.bus?.busNumber}</span>
+                    <span className="text-xs text-[var(--color-text-muted)]">{bd.studentCount}/{bd.bus?.capacity}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-[var(--color-text-muted)] mb-2">
+                    <span>{bd.driver?.name || 'بدون سائق'}</span>
+                    <span>الخط: {bd.line === 'JEBALI' ? 'جبالي' : 'بحري'}</span>
+                    <span>المقاعد المتبقية: {(bd.bus?.capacity || 0) - (bd.studentCount || 0)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <label className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                      <span>وقت الطالب</span>
+                      <input
+                        type="time"
+                        value={selectedPickup}
+                        onChange={(e) => setAssignmentTimeByBus(prev => ({ ...prev, [bd.bus?.id]: e.target.value }))}
+                        className="input-field px-2 py-1 text-xs w-28"
+                      />
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleExceptionConfirmBus(bd.bus?.id, selectedPickup)}
+                        className="btn-primary btn-sm"
+                      >
+                        تأكيد
+                      </button>
+                      <button
+                        onClick={() => handleExceptionConfirmBus(bd.bus?.id, '')}
+                        className="btn-ghost btn-sm"
+                      >
+                        تحديد لاحقاً
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </button>
-          ))}
+            )
+          })}
         </div>
       </Modal>
     </div>

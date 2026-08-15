@@ -968,11 +968,11 @@ export default function Subscriptions() {
 
       <div className="grid grid-cols-4 gap-1 bg-white/80 border border-slate-200/80 rounded-2xl p-1.5 shadow-card backdrop-blur">
         {tabItems.map((tab) => (
-          <NavLink key={tab.key} to={tab.key} end
+          <NavLink key={tab.key} to={`/student/subscriptions/${tab.key}`} end
             className={({ isActive }) =>
               `rounded-xl py-2.5 text-sm font-bold text-center transition-all ${
                 isActive
-                  ? 'bg-blue-600 text-white shadow-[0_4px_12px_-4px_rgba(37,99,235,0.5)]'
+                  ? 'bg-[var(--color-primary)] text-white shadow-[0_4px_12px_-4px_rgba(15,23,42,0.18)]'
                   : 'bg-white text-slate-700 hover:bg-slate-50'
               }`
             }>

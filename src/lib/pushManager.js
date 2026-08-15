@@ -1,5 +1,17 @@
 import { api } from './api'
 
+const PUSH_NOTIFICATIONS_KEY = 'studentPushNotifications'
+
+export function isPushNotificationsEnabled() {
+  const stored = localStorage.getItem(PUSH_NOTIFICATIONS_KEY)
+  return stored !== 'off'
+}
+
+export function setPushNotificationsEnabled(enabled) {
+  localStorage.setItem(PUSH_NOTIFICATIONS_KEY, enabled ? 'on' : 'off')
+  return enabled
+}
+
 const PUBLIC_KEY_CACHE = { key: null, available: false }
 
 async function getVapidPublicKey() {

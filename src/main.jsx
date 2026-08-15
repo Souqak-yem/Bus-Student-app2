@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
 import AppSplashScreen from './components/AppSplashScreen'
 import App from './App.jsx'
+import { applyDisplaySettings, getDisplaySettings } from './lib/displaySettings'
 import './index.css'
 
 const APP_VERSION = __APP_VERSION__ || 'dev'
@@ -94,6 +95,10 @@ function Root() {
     const val = sessionStorage.getItem('mashawerk_session_splash')
     return val !== 'true'
   })
+
+  if (!document.documentElement.dataset.theme) {
+    applyDisplaySettings(getDisplaySettings())
+  }
 
   const handleSplashFinish = useCallback(() => {
     setShowSplash(false)

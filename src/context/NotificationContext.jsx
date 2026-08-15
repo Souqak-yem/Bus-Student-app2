@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from './AuthContext'
 import { api } from '../lib/api'
-import { subscribeToPush, unsubscribeFromPush } from '../lib/pushManager'
+import { subscribeToPush, unsubscribeFromPush, isPushNotificationsEnabled } from '../lib/pushManager'
 import { canAccessAdminPage } from '../lib/adminPermissions'
 import {
   connectSocket, onNotificationNew, offNotificationNew,
@@ -71,11 +71,17 @@ export function NotificationProvider({ children }) {
   }, [user])
 
   useEffect(() => {
-    if (user) {
-      refreshUnreadCount()
+    if (!user) {
+      unsubscribeFromPush().catch(() => {})
+      return
+    }
+
+    refreshUnreadCount()
+
+    if (isPushNotificationsEnabled()) {
       subscribeToPush().catch((err) => console.error('[Push] subscribe failed:', err))
     } else {
-      unsubscribeFromPush()
+      unsubscribeFromPush().catch(() => {})
     }
   }, [user, refreshUnreadCount])
 

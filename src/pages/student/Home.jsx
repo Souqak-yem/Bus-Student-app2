@@ -272,8 +272,6 @@ export default function Home() {
 
       {!isReturnStage && weeklySchedule?.days?.length > 0 && <WeeklySchedule days={weeklySchedule.days} />}
 
-      {!isReturnStage && <QuickContactCard />}
-
       {stage === Stage.NO_TRIP && (
         <div className="card p-6 text-center fade-in">
           <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center">

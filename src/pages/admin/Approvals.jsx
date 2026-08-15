@@ -167,7 +167,7 @@ export default function AdminApprovals() {
       setErrorCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(interval)
-          setErrorMsg(null)
+          setTimeout(() => setErrorMsg(null), 0)
           return 0
         }
         return prev - 1

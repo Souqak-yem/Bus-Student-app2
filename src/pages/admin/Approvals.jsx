@@ -133,6 +133,7 @@ export default function AdminApprovals() {
   const [selectedAddBus, setSelectedAddBus] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState(null)
+  const [errorCountdown, setErrorCountdown] = useState(0)
   const [suspensionModal, setSuspensionModal] = useState(null)
   const [dailyCarts, setDailyCarts] = useState([])
   const [weeklyCarts, setWeeklyCarts] = useState([])
@@ -155,9 +156,26 @@ export default function AdminApprovals() {
         setMixedCarts(cartRes.mixedCarts || [])
         setCartsHistory(cartRes.history || [])
       })
-      .catch((err) => { console.error(err); setErrorMsg(err.message || 'خطأ'); })
+      .catch((err) => { console.error(err); setErrorMsg(err.message || 'خطأ'); setErrorCountdown(5) })
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (!errorMsg) return
+    setErrorCountdown(5)
+    const interval = setInterval(() => {
+      setErrorCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval)
+          setErrorMsg(null)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [errorMsg])
 
   async function handleApprove(id) {
     setActionLoading(true)
@@ -238,7 +256,9 @@ export default function AdminApprovals() {
       removeCartFromAll(cartId)
       setCartDetail(null)
     } catch (err) {
-      setErrorMsg(err.response?.data?.error || err.message)
+      const msg = err.response?.data?.error || err.message
+      setErrorMsg(msg)
+      setErrorCountdown(5)
     } finally { setActionLoading(false) }
   }
 
@@ -881,10 +901,31 @@ export default function AdminApprovals() {
       {/* Error Modal */}
       {errorMsg && (
         <div className="modal-overlay" onClick={() => setErrorMsg(null)}>
-          <div className="modal-content max-w-[min(95vw,720px)] lg:max-w-[960px] p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold text-slate-800">خطأ</h3>
-            <p className="text-sm text-slate-500 mb-3">{errorMsg}</p>
-            <div className="flex justify-end"><button onClick={() => setErrorMsg(null)} className="btn-ghost">إغلاق</button></div>
+          <div className="modal-content max-w-[min(95vw,640px)] p-6 border border-red-200 bg-white" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="font-bold text-red-700">تنبيه</h3>
+              <button onClick={() => setErrorMsg(null)} className="text-slate-400 hover:text-slate-600" aria-label="إغلاق">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-right">
+              <p className="text-base font-bold text-red-700 leading-relaxed">{errorMsg}</p>
+            </div>
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <button
+                onClick={() => setErrorMsg(null)}
+                className="btn-ghost text-slate-500"
+              >
+                إغلاق
+              </button>
+              <button
+                onClick={() => setErrorMsg(null)}
+                disabled={errorCountdown > 0}
+                className={`rounded-xl px-4 py-2.5 text-sm font-bold text-white transition-all ${errorCountdown > 0 ? 'bg-red-300 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}`}
+              >
+                {errorCountdown > 0 ? `تأكيد (${errorCountdown}s)` : 'تأكيد'}
+              </button>
+            </div>
           </div>
         </div>
       )}

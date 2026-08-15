@@ -58,6 +58,6 @@ export async function assertDepositReferenceIsUnique(reference, prismaClient = p
 
   const existing = await findDuplicateDepositReference(normalized, prismaClient, options)
   if (existing) {
-    throw new Error(`رقم الإيداع "${normalized}" مستخدم مسبقاً، الرجاء إدخال رقم مختلف.`)
+    throw new Error(`رقم الإيداع هذا تم إدخاله مسبقاً، يرجى التأكد ثم المحاولة مرة أخرى.`)
   }
 }

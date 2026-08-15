@@ -6,6 +6,7 @@ import { reactivateStudent, reconcileSubscriptionPayments } from '../services/fi
 import { getLocalDate, resolveDailyExecutionDates } from '../utils/dateUtils.js'
 import { broadcastDailyExceptionsUpdate } from '../services/socketService.js'
 import { createAndBroadcast } from '../services/notificationService.js'
+import { assertDepositReferenceIsUnique } from '../services/depositReferenceService.js'
 
 const router = Router()
 router.use(authenticate)
@@ -81,6 +82,13 @@ router.post('/:id/approve', authorize('admin'), async (req, res) => {
     if (cart.status !== 'PENDING') return res.status(400).json({ error: 'السلة غير معلقة' })
 
     if (cart.items.length === 0) return res.status(400).json({ error: 'السلة فارغة' })
+    if (cart.depositReference) {
+      try {
+        await assertDepositReferenceIsUnique(cart.depositReference, prisma)
+      } catch (err) {
+        return res.status(409).json({ error: err.message })
+      }
+    }
 
     const subscriptions = []
 

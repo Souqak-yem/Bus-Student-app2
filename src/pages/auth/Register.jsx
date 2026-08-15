@@ -36,11 +36,23 @@ const emptyForm = {
 }
 
 const arabicNamePattern = /[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g
+const arabicTextPattern = /[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s]/g
 const repeatedCharPattern = /(.)\1\1+/g
 
+function sanitizeArabicText(value, allowSpaces = true) {
+  const cleaned = value
+    .replace(/\u200F|\u200E/g, '')
+    .replace(arabicTextPattern, '')
+
+  if (!allowSpaces) {
+    return cleaned.replace(/\s+/g, '').replace(repeatedCharPattern, '$1$1')
+  }
+
+  return cleaned.replace(/\s{2,}/g, ' ')
+}
+
 function sanitizeArabicName(value) {
-  const onlyArabic = value.replace(/\s+/g, '').replace(arabicNamePattern, '')
-  return onlyArabic.replace(repeatedCharPattern, '$1$1')
+  return sanitizeArabicText(value, false).replace(/[0-9]/g, '')
 }
 
 export default function Register() {
@@ -117,6 +129,16 @@ export default function Register() {
 
   function handleBlur(field) {
     setTouched((prev) => ({ ...prev, [field]: true }))
+  }
+
+  function updateTextField(field, value, options = {}) {
+    const { allowSpaces = true } = options
+    const sanitized = allowSpaces ? sanitizeArabicText(value, true) : sanitizeArabicName(value)
+
+    if (sanitized !== value) setInputError('لا يمكن كتابة رموز أو أحرف غير عربية أو إيموجي')
+    else setInputError('')
+
+    setForm((prev) => ({ ...prev, [field]: sanitized }))
   }
 
   function toggleOffDay(value) {
@@ -224,12 +246,7 @@ export default function Register() {
           <input
             type="text"
             value={form.firstName}
-            onChange={(e) => {
-              const sanitized = sanitizeArabicName(e.target.value)
-              if (sanitized !== e.target.value) setInputError('لا يمكن كتابة رموز أو أحرف غير عربية أو تكرار حرف أكثر من مرتين')
-              else setInputError('')
-              setForm((prev) => ({ ...prev, firstName: sanitized }))
-            }}
+            onChange={(e) => updateTextField('firstName', e.target.value, { allowSpaces: false })}
             onBlur={() => handleBlur('firstName')}
             placeholder="الاسم"
             className="input-field w-full"
@@ -242,12 +259,7 @@ export default function Register() {
           <input
             type="text"
             value={form.fatherName}
-            onChange={(e) => {
-              const sanitized = sanitizeArabicName(e.target.value)
-              if (sanitized !== e.target.value) setInputError('لا يمكن كتابة رموز أو أحرف غير عربية أو تكرار حرف أكثر من مرتين')
-              else setInputError('')
-              setForm((prev) => ({ ...prev, fatherName: sanitized }))
-            }}
+            onChange={(e) => updateTextField('fatherName', e.target.value, { allowSpaces: false })}
             onBlur={() => handleBlur('fatherName')}
             placeholder="اسم الأب"
             className="input-field w-full"
@@ -262,12 +274,7 @@ export default function Register() {
           <input
             type="text"
             value={form.grandfatherName}
-            onChange={(e) => {
-              const sanitized = sanitizeArabicName(e.target.value)
-              if (sanitized !== e.target.value) setInputError('لا يمكن كتابة رموز أو أحرف غير عربية أو تكرار حرف أكثر من مرتين')
-              else setInputError('')
-              setForm((prev) => ({ ...prev, grandfatherName: sanitized }))
-            }}
+            onChange={(e) => updateTextField('grandfatherName', e.target.value, { allowSpaces: false })}
             onBlur={() => handleBlur('grandfatherName')}
             placeholder="اسم الجد"
             className="input-field w-full"
@@ -280,12 +287,7 @@ export default function Register() {
           <input
             type="text"
             value={form.familyName}
-            onChange={(e) => {
-              const sanitized = sanitizeArabicName(e.target.value)
-              if (sanitized !== e.target.value) setInputError('لا يمكن كتابة رموز أو أحرف غير عربية أو تكرار حرف أكثر من مرتين')
-              else setInputError('')
-              setForm((prev) => ({ ...prev, familyName: sanitized }))
-            }}
+            onChange={(e) => updateTextField('familyName', e.target.value, { allowSpaces: false })}
             onBlur={() => handleBlur('familyName')}
             placeholder="اللقب"
             className="input-field w-full"
@@ -350,7 +352,7 @@ export default function Register() {
                   <label className="block text-sm font-medium text-[var(--color-text)] mb-1">المنطقة</label>
                   <select
                     value={form.zone}
-                    onChange={(e) => setForm({ ...form, zone: e.target.value })}
+                    onChange={(e) => updateTextField('zone', e.target.value)}
                     onBlur={() => handleBlur('zone')}
                     className="input-field w-full"
                   >
@@ -385,7 +387,7 @@ export default function Register() {
                   <input
                     type="text"
                     value={form.major}
-                    onChange={(e) => setForm({ ...form, major: e.target.value })}
+                    onChange={(e) => updateTextField('major', e.target.value, { allowSpaces: true })}
                     onBlur={() => handleBlur('major')}
                     placeholder="التخصص"
                     className="input-field w-full"
@@ -399,7 +401,7 @@ export default function Register() {
                   <label className="block text-sm font-medium text-[var(--color-text)] mb-1">المستوى</label>
                   <select
                     value={form.level}
-                    onChange={(e) => setForm({ ...form, level: e.target.value })}
+                    onChange={(e) => updateTextField('level', e.target.value)}
                     onBlur={() => handleBlur('level')}
                     className="input-field w-full"
                   >
@@ -420,12 +422,11 @@ export default function Register() {
                     type="text"
                     value={form.address}
                     onChange={(e) => {
-                      const address = e.target.value
-                      setForm((prev) => ({
-                        ...prev,
-                        address,
-                        pickupLocation: prev.transportMode === 'LINE' && !prev.pickupLocation.trim() ? address : prev.pickupLocation,
-                      }))
+                      const nextValue = e.target.value
+                      updateTextField('address', nextValue, { allowSpaces: true })
+                      if (form.transportMode === 'LINE' && !form.pickupLocation.trim()) {
+                        setForm((prev) => ({ ...prev, pickupLocation: nextValue }))
+                      }
                     }}
                     onBlur={() => handleBlur('address')}
                     placeholder="مكان السكن"
@@ -441,7 +442,7 @@ export default function Register() {
                   <input
                     type="text"
                     value={form.parentName}
-                    onChange={(e) => setForm({ ...form, parentName: e.target.value })}
+                    onChange={(e) => updateTextField('parentName', e.target.value, { allowSpaces: true })}
                     onBlur={() => handleBlur('parentName')}
                     placeholder="اسم ولي الأمر"
                     className="input-field w-full"
@@ -470,7 +471,7 @@ export default function Register() {
                 <input
                   type="text"
                   value={form.parentRelation}
-                  onChange={(e) => setForm({ ...form, parentRelation: e.target.value })}
+                  onChange={(e) => updateTextField('parentRelation', e.target.value, { allowSpaces: true })}
                   onBlur={() => handleBlur('parentRelation')}
                   placeholder="صلة القرابة"
                   className="input-field w-full"
@@ -533,7 +534,7 @@ export default function Register() {
                   <input
                     type="text"
                     value={form.pickupLocation}
-                    onChange={(e) => setForm({ ...form, pickupLocation: e.target.value })}
+                    onChange={(e) => updateTextField('pickupLocation', e.target.value)}
                     onBlur={() => handleBlur('pickupLocation')}
                     placeholder="نقطة التجميع على الخط"
                     className="input-field w-full"
@@ -547,7 +548,7 @@ export default function Register() {
                   <label className="block text-sm font-medium text-[var(--color-text)] mb-1">عنوان المنزل</label>
                   <textarea
                     value={form.homeAddress}
-                    onChange={(e) => setForm({ ...form, homeAddress: e.target.value })}
+                    onChange={(e) => updateTextField('homeAddress', e.target.value)}
                     onBlur={() => handleBlur('homeAddress')}
                     placeholder="عنوان التوصيل بالمنزل"
                     className="input-field w-full min-h-[100px]"

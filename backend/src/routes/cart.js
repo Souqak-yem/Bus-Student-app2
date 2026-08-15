@@ -5,6 +5,7 @@ import { hasActiveSameTypeSubscription } from '../services/subscriptionService.j
 import { getLocalDate } from '../utils/dateUtils.js'
 import { createAndBroadcast } from '../services/notificationService.js'
 import { calculateFinalSubscriptionPrice } from '../services/pricingService.js'
+import { assertDepositReferenceIsUnique } from '../services/depositReferenceService.js'
 
 const router = Router()
 router.use(authenticate)
@@ -200,6 +201,12 @@ router.post('/submit', async (req, res) => {
     if (cart.items.length === 0) return res.status(400).json({ error: 'السلة فارغة' })
     if (!receiptImage) return res.status(400).json({ error: 'يرجى رفع صورة سند التحويل' })
     if (!depositReference || !String(depositReference).trim()) return res.status(400).json({ error: 'يرجى إدخال رقم الإيداع أو المرجع' })
+
+    try {
+      await assertDepositReferenceIsUnique(depositReference, prisma)
+    } catch (err) {
+      return res.status(409).json({ error: err.message })
+    }
 
     const updated = await prisma.cart.update({
       where: { id: cart.id },

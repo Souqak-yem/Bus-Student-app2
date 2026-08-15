@@ -8,6 +8,7 @@ import { getStudentOperationStage, Stage } from '../services/operationStage.js'
 import { calculateFinalSubscriptionPrice } from '../services/pricingService.js'
 import { generateStudentUsername, ensureUniqueUsername, hashPassword } from '../services/authService.js'
 import { generateRandomPassword } from '../utils/secrets.js'
+import { assertDepositReferenceIsUnique } from '../services/depositReferenceService.js'
 
 const router = Router()
 
@@ -607,6 +608,11 @@ router.post('/subscription-request-legacy', async (req, res) => {
     }
     if (!receiptImage) return res.status(400).json({ error: 'يرجى رفع صورة سند التحويل' })
     if (!depositReference || !String(depositReference).trim()) return res.status(400).json({ error: 'يرجى إدخال رقم الإيداع أو المرجع' })
+    try {
+      await assertDepositReferenceIsUnique(depositReference, prisma)
+    } catch (err) {
+      return res.status(409).json({ error: err.message })
+    }
     if (!durationWeeks || durationWeeks < 1 || durationWeeks > 4) {
       return res.status(400).json({ error: 'مدة الاشتراك يجب أن تكون بين 1 و 4 أسابيع' })
     }

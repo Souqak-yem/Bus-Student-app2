@@ -4,6 +4,7 @@ import { authenticate, authorize } from '../middleware/auth.js'
 import { createSubscriptionNotification } from '../services/subscriptionService.js'
 import { createAndBroadcast } from '../services/notificationService.js'
 import { calculateFinalSubscriptionPrice } from '../services/pricingService.js'
+import { assertDepositReferenceIsUnique } from '../services/depositReferenceService.js'
 
 const router = Router()
 router.use(authenticate)
@@ -48,6 +49,11 @@ router.post('/', async (req, res) => {
     }
     if (!receiptImage) return res.status(400).json({ error: 'يرجى رفع صورة سند التحويل' })
     if (!depositReference || !String(depositReference).trim()) return res.status(400).json({ error: 'يرجى إدخال رقم الإيداع أو المرجع' })
+    try {
+      await assertDepositReferenceIsUnique(depositReference, prisma)
+    } catch (err) {
+      return res.status(409).json({ error: err.message })
+    }
     if (req.user.role === 'student') {
       const sid = resolveStudentId(req.user)
       if (!sid || sid !== studentId) return res.status(403).json({ error: 'غير مصرح' })

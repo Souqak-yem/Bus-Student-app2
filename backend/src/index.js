@@ -88,17 +88,10 @@ async function bootstrapInitialAdmin() {
     let password = process.env.ADMIN_PASSWORD
     const phone = process.env.ADMIN_PHONE?.trim() || null
 
-    if (!username && isDev) {
-      username = 'admin1'
-    }
-    if (!password && isDev) {
-      password = process.env.ADMIN_INITIAL_PASSWORD || '123'
-    }
-
     if (!username || !password) {
       console.warn('Skipping initial admin creation: ADMIN_USERNAME and ADMIN_PASSWORD must be set')
       if (isDev) {
-        console.warn('In development you can use the default admin credentials admin1/123 or set ADMIN_USERNAME and ADMIN_PASSWORD.')
+        console.warn('Development mode requires explicit admin env values; no placeholder or hardcoded password is used.')
       }
       return
     }
@@ -126,9 +119,6 @@ async function bootstrapInitialAdmin() {
     })
 
     console.log('Initial admin created successfully')
-    if (isDev) {
-      console.log(`Default development admin created: ${username}/${password}`)
-    }
   } catch (error) {
     if (error?.code === 'P2002') {
       return

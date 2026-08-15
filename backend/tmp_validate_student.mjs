@@ -31,7 +31,7 @@ if (!user) {
       mustChangePassword: false
     }
   });
-  console.log(JSON.stringify({ status: 'created', username, password, studentId: student.id }));
+  console.log(JSON.stringify({ status: 'created', username, studentId: student.id }));
 } else {
   console.log(JSON.stringify({ status: 'exists', username, studentId: user.studentId ?? null }));
 }

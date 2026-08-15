@@ -22,7 +22,15 @@ export async function comparePassword(password, hash) {
 
 export function signToken(user) {
   return jwt.sign(
-    { id: user.id, username: user.username, name: user.name, role: user.role, mustChangePassword: user.mustChangePassword, studentId: user.studentId },
+    {
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      role: user.role,
+      adminPermissions: user.adminPermissions || [],
+      mustChangePassword: user.mustChangePassword,
+      studentId: user.studentId,
+    },
     getJwtSecret(),
     { expiresIn: '7d' }
   )

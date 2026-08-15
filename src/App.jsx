@@ -46,6 +46,7 @@ import DriverDashboard from './pages/driver/Dashboard'
 import DriverReturnTrip from './pages/driver/ReturnTrip'
 import DriverSettings from './pages/driver/Settings'
 import Debug from './pages/Debug'
+import { canAccessAdminPage, getFirstAllowedAdminPath } from './lib/adminPermissions'
 
 function ProtectedRoute({ children, allowedRole }) {
   const { user, loading } = useAuth()
@@ -55,6 +56,9 @@ function ProtectedRoute({ children, allowedRole }) {
   if (user.mustChangePassword && location.pathname !== '/settings/change-password') return <Navigate to="/settings/change-password" replace />
   const role = user.role
   if (allowedRole && role !== allowedRole) return <Navigate to={`/${role}`} replace />
+  if (allowedRole === 'admin' && role === 'admin' && user.adminPermissions?.length && !canAccessAdminPage(user, location.pathname)) {
+    return <Navigate to={getFirstAllowedAdminPath(user)} replace />
+  }
   return children
 }
 
@@ -62,6 +66,7 @@ function RoleRedirect() {
   const { user, loading } = useAuth()
   if (loading) return null
   if (!user) return <Navigate to="/login" replace />
+  if (user.role === 'admin') return <Navigate to={getFirstAllowedAdminPath(user)} replace />
   return <Navigate to={`/${user.role}`} replace />
 }
 

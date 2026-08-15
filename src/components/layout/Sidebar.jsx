@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { canAccessAdminPage } from '../../lib/adminPermissions'
 
 const navGroups = [
   {
@@ -59,6 +60,17 @@ export default function Sidebar({ collapsed, onToggle }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
+  const visibleNavGroups = navGroups
+    .map(group => ({
+      ...group,
+      items: group.items.filter(item => {
+        if (user?.role !== 'admin') return true
+        if (!user?.adminPermissions?.length) return true
+        return canAccessAdminPage(user, item.to)
+      }),
+    }))
+    .filter(group => group.items.length > 0)
+
   function handleLogout() {
     logout()
     navigate('/login')
@@ -109,7 +121,7 @@ export default function Sidebar({ collapsed, onToggle }) {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-thin">
-          {navGroups.map(group => (
+          {visibleNavGroups.map(group => (
             <div key={group.label}>
               {!collapsed && (
                 <p className="px-3 text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-1">

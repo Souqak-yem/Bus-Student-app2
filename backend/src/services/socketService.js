@@ -1,6 +1,7 @@
 import http from 'http'
 import { Server } from 'socket.io'
 import jwt from 'jsonwebtoken'
+import { prisma } from '../lib/prisma.js'
 
 const getJwtSecret = () => {
   if (!process.env.JWT_SECRET) {
@@ -8,6 +9,98 @@ const getJwtSecret = () => {
   }
   return process.env.JWT_SECRET
 }
+
+function isNonEmptyId(value) {
+  if (typeof value !== 'string') return false
+  return value.trim().length > 0
+}
+
+export function socketAuthMiddleware(socket, next) {
+  const token = socket.handshake.auth?.token
+  if (!token) return next(new Error('No token'))
+  try {
+    const decoded = jwt.verify(token, getJwtSecret())
+    socket.user = decoded
+    return next()
+  } catch {
+    return next(new Error('Invalid token'))
+  }
+}
+
+export async function canAccessActiveBusRoom(user, activeBusId, client = prisma) {
+  if (!user || !isNonEmptyId(activeBusId)) return false
+  if (user.role === 'admin') return true
+
+  const activeBus = await client.activeBus.findUnique({
+    where: { id: activeBusId },
+    select: { id: true, busId: true, driverId: true, operationId: true, tripType: true },
+  })
+  if (!activeBus) return false
+
+  if (user.role === 'driver') {
+    return activeBus.driverId === user.id
+  }
+
+  if (user.role === 'student') {
+    if (!user.studentId) return false
+
+    const busLoadMatch = await client.busLoad.findFirst({
+      where: { activeBusId, studentId: user.studentId },
+      select: { id: true },
+    })
+    if (busLoadMatch) return true
+
+    const operation = await client.dailyOperation.findUnique({
+      where: { id: activeBus.operationId },
+      select: { operationDate: true },
+    })
+    if (!operation) return false
+
+    const assignmentMatch = await client.assignment.findFirst({
+      where: {
+        busId: activeBus.busId,
+        studentId: user.studentId,
+        date: operation.operationDate,
+        period: activeBus.tripType,
+      },
+      select: { id: true },
+    })
+
+    return Boolean(assignmentMatch)
+  }
+
+  return false
+}
+
+export async function canAccessDriverBusRoom(user, busId, client = prisma) {
+  if (!user || !isNonEmptyId(busId)) return false
+  if (user.role === 'admin') return true
+  if (user.role !== 'driver') return false
+
+  const bus = await client.bus.findUnique({
+    where: { id: busId },
+    select: { id: true, driverId: true },
+  })
+  if (!bus) return false
+
+  if (bus.driverId === user.id) return true
+
+  const activeBusMatch = await client.activeBus.findFirst({
+    where: { busId, driverId: user.id },
+    select: { id: true },
+  })
+
+  return Boolean(activeBusMatch)
+}
+
+export async function authorizeSocketRoomJoin(user, roomType, roomId, client = prisma) {
+  if (!user) return false
+  if (roomType === 'tracking') return canAccessActiveBusRoom(user, roomId, client)
+  if (roomType === 'driver_bus') return canAccessDriverBusRoom(user, roomId, client)
+  if (roomType === 'user') return user.id === roomId || user.studentId === roomId || user.role === 'admin'
+  return false
+}
+
 let io = null
 
 export function initSocketServer(app) {
@@ -19,24 +112,22 @@ export function initSocketServer(app) {
     cors: { origin: allowedOrigins.length ? allowedOrigins : false, methods: ['GET', 'POST'], credentials: true },
   })
 
-  io.use((socket, next) => {
-    const token = socket.handshake.auth?.token
-    if (!token) return next(new Error('No token'))
-    try {
-      const decoded = jwt.verify(token, getJwtSecret())
-      socket.user = decoded
-      next()
-    } catch {
-      next(new Error('Invalid token'))
-    }
-  })
+  io.use(socketAuthMiddleware)
 
   io.on('connection', (socket) => {
     const { role, id, studentId } = socket.user
 
     socket.join(`user:${id}`)
+    if (role === 'admin') {
+      socket.join('admin:events')
+    }
 
-    socket.on('tracking:join', (activeBusId) => {
+    socket.on('tracking:join', async (activeBusId) => {
+      const allowed = await canAccessActiveBusRoom(socket.user, activeBusId)
+      if (!allowed) {
+        socket.emit('auth:error', { code: 'ROOM_ACCESS_DENIED', message: 'You do not have access to this bus tracking room.' })
+        return
+      }
       socket.join(`bus:${activeBusId}`)
     })
 
@@ -50,7 +141,6 @@ export function initSocketServer(app) {
 
     socket.on('notification:get-missed', async (since) => {
       try {
-        const { prisma } = await import('../lib/prisma.js')
         const { getUnreadCount } = await import('./notificationService.js')
         const sinceDate = new Date(since)
         const missed = await prisma.notification.findMany({
@@ -62,7 +152,12 @@ export function initSocketServer(app) {
       } catch (e) { /* silent */ }
     })
 
-    socket.on('driver_bus:join', (busId) => {
+    socket.on('driver_bus:join', async (busId) => {
+      const allowed = await canAccessDriverBusRoom(socket.user, busId)
+      if (!allowed) {
+        socket.emit('auth:error', { code: 'ROOM_ACCESS_DENIED', message: 'You do not have access to this driver bus room.' })
+        return
+      }
       socket.join(`driver_bus:${busId}`)
     })
 
@@ -104,7 +199,7 @@ export function broadcastUnreadCount(userId) {
 
 export function broadcastEmergencyReport(report) {
   if (io) {
-    io.emit('emergency:new-report', report)
+    io.to('admin:events').emit('emergency:new-report', report)
   }
 }
 
@@ -123,7 +218,7 @@ export function broadcastDriverOperationUpdate(busId, data) {
 export function broadcastDailyExceptionsUpdate(data) {
   if (!io) return
   const payload = { ...data, timestamp: new Date().toISOString() }
-  io.emit('dailyExceptions:update', payload)
+  io.to('admin:events').emit('dailyExceptions:update', payload)
 }
 
 export function broadcastStudentUpdate(studentId, data) {
@@ -236,19 +331,19 @@ export function broadcastReadinessUpdate(activeBusId, data) {
   if (!io) return
   const payload = { activeBusId, ...data, timestamp: new Date().toISOString() }
   io.to(`bus:${activeBusId}`).emit('readiness:update', payload)
-  io.emit('readiness:admin-update', payload)
+  io.to('admin:events').emit('readiness:admin-update', payload)
 }
 
 export function broadcastBoardingTimerUpdate(activeBusId, data) {
   if (!io) return
   const payload = { activeBusId, ...data, timestamp: new Date().toISOString() }
   io.to(`bus:${activeBusId}`).emit('boarding-timer:update', payload)
-  io.emit('boarding-timer:admin-update', payload)
+  io.to('admin:events').emit('boarding-timer:admin-update', payload)
 }
 
 export function broadcastReturnReadinessStats(activeBusId, stats) {
   if (!io) return
   const payload = { activeBusId, stats, timestamp: new Date().toISOString() }
   io.to(`bus:${activeBusId}`).emit('readiness:stats', payload)
-  io.emit('readiness:admin-stats', payload)
+  io.to('admin:events').emit('readiness:admin-stats', payload)
 }

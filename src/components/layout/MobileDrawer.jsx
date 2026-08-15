@@ -6,6 +6,7 @@ import {
   CreditCard, MapPin, CalendarRange, Shield, MessageSquare,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { canAccessAdminPage } from '../../lib/adminPermissions'
 
 const navGroups = [
   {
@@ -59,6 +60,17 @@ export default function MobileDrawer({ open, onClose }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
+  const visibleNavGroups = navGroups
+    .map(group => ({
+      ...group,
+      items: group.items.filter(item => {
+        if (user?.role !== 'admin') return true
+        if (!user?.adminPermissions?.length) return true
+        return canAccessAdminPage(user, item.to)
+      }),
+    }))
+    .filter(group => group.items.length > 0)
+
   function handleLogout() {
     logout()
     navigate('/login')
@@ -99,7 +111,7 @@ export default function MobileDrawer({ open, onClose }) {
 
             {/* Nav items */}
             <nav className="p-3 sm:p-4 space-y-4">
-              {navGroups.map(group => (
+              {visibleNavGroups.map(group => (
                 <div key={group.label}>
                   <p className="px-3 text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-1">
                     {group.label}

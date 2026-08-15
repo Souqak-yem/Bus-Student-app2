@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js'
 import { authenticate, authorize } from '../middleware/auth.js'
 import { hashPassword, generateStudentUsername, generateDriverUsername, ensureUniqueUsername, authAudit } from '../services/authService.js'
 import { generateRandomPassword, getAdminInitialPassword } from '../utils/secrets.js'
+import { normalizeAdminPermissions } from '../utils/adminPermissions.js'
 
 const router = Router()
 router.use(authenticate)
@@ -25,7 +26,7 @@ router.get('/', authorize('admin'), async (req, res) => {
       orderBy: { createdAt: 'desc' },
       select: {
         id: true, username: true, name: true, phone: true,
-        role: true, status: true, mustChangePassword: true,
+        role: true, status: true, adminPermissions: true, mustChangePassword: true,
         failedAttempts: true, lockedUntil: true,
         lastLogin: true, lastIp: true,
         studentId: true,
@@ -47,7 +48,7 @@ router.get('/:id', authorize('admin'), async (req, res) => {
       where: { id: req.params.id },
       select: {
         id: true, username: true, name: true, phone: true,
-        role: true, status: true, mustChangePassword: true,
+        role: true, status: true, adminPermissions: true, mustChangePassword: true,
         failedAttempts: true, lockedUntil: true,
         lastLogin: true, lastIp: true, studentId: true,
         createdAt: true, updatedAt: true,
@@ -64,7 +65,7 @@ router.get('/:id', authorize('admin'), async (req, res) => {
 
 router.post('/', authorize('admin'), async (req, res) => {
   try {
-    const { username, name, phone, password, role } = req.body
+    const { username, name, phone, password, adminPermissions } = req.body
     if (!username || !name || !password) {
       return res.status(400).json({ error: 'اسم المستخدم والاسم وكلمة المرور مطلوبون' })
     }
@@ -74,18 +75,37 @@ router.post('/', authorize('admin'), async (req, res) => {
       return res.status(400).json({ error: 'اسم المستخدم موجود مسبقاً' })
     }
 
+    const normalizedPermissions = normalizeAdminPermissions(adminPermissions)
     const hashed = await hashPassword(password)
-    const mustChangePassword = role !== 'admin'
+    const role = 'admin'
+    const mustChangePassword = false
+
+    const createData = {
+      username,
+      name,
+      password: hashed,
+      role,
+      adminPermissions: normalizedPermissions,
+      mustChangePassword,
+    }
+
+    if (phone !== undefined && phone !== null && String(phone).trim() !== '') {
+      createData.phone = String(phone).trim()
+    }
 
     const user = await prisma.user.create({
-      data: { username, name, phone, password: hashed, role: role || 'driver', mustChangePassword },
+      data: createData,
     })
 
-    await authAudit('USER_CREATED', req.user.id, { username, role })
+    await authAudit('USER_CREATED', req.user.id, { username, role, adminPermissions: normalizedPermissions })
 
     res.status(201).json({
-      id: user.id, username: user.username, name: user.name,
-      role: user.role, mustChangePassword: user.mustChangePassword,
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      role: user.role,
+      adminPermissions: user.adminPermissions,
+      mustChangePassword: user.mustChangePassword,
     })
   } catch (error) {
     if (error.code === 'P2002') return res.status(400).json({ error: 'اسم المستخدم موجود مسبقاً' })

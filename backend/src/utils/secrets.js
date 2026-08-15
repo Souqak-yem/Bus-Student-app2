@@ -24,8 +24,5 @@ export function requireDev(message = 'This operation is only allowed in developm
 export function getAdminInitialPassword() {
   const envPassword = process.env.ADMIN_INITIAL_PASSWORD
   if (envPassword) return envPassword
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('ADMIN_INITIAL_PASSWORD environment variable is required in production')
-  }
-  return '123'
+  throw new Error('ADMIN_INITIAL_PASSWORD environment variable is required')
 }

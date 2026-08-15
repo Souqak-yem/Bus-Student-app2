@@ -8,6 +8,13 @@ import { generateRandomPassword } from '../utils/secrets.js'
 const router = Router()
 router.use(authenticate)
 
+export function canAccessStudentRecord(user, studentId) {
+  if (!user || !studentId) return false
+  if (user.role === 'admin') return true
+  if (user.role === 'student') return user.studentId === studentId
+  return false
+}
+
 router.get('/', async (req, res) => {
   try {
     const { zone, status, search, transportMode, destinationId, gender } = req.query
@@ -56,6 +63,10 @@ router.get('/destinations-summary', authorize('admin'), async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
+    if (!canAccessStudentRecord(req.user, req.params.id)) {
+      return res.status(403).json({ error: 'لا تملك صلاحية الوصول إلى هذا الطالب' })
+    }
+
     const student = await prisma.student.findUnique({
       where: { id: req.params.id },
       include: {

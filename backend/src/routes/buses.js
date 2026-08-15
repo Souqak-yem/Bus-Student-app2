@@ -7,13 +7,51 @@ import { generateRandomPassword } from '../utils/secrets.js'
 const router = Router()
 router.use(authenticate)
 
+async function canAccessBusRecord(user, busId) {
+  if (!user || !busId) return false
+  if (user.role === 'admin') return true
+  if (user.role === 'driver') {
+    const bus = await prisma.bus.findUnique({ where: { id: busId }, select: { id: true, driverId: true } })
+    return !!bus && bus.driverId === user.id
+  }
+  if (user.role === 'student' && user.studentId) {
+    const bus = await prisma.bus.findFirst({
+      where: {
+        id: busId,
+        OR: [
+          { assignments: { some: { studentId: user.studentId } } },
+          { templateStudents: { some: { studentId: user.studentId, isActive: true } } },
+        ],
+      },
+      select: { id: true },
+    })
+    return !!bus
+  }
+  return false
+}
+
 router.get('/', async (req, res) => {
   try {
     const { status, driverId } = req.query
     const where = {}
 
-    if (status) where.status = status
-    if (driverId) where.driverId = driverId
+    if (req.user.role === 'admin') {
+      if (status) where.status = status
+      if (driverId) where.driverId = String(driverId)
+    } else if (req.user.role === 'driver') {
+      where.driverId = req.user.id
+      if (status) where.status = status
+      if (driverId && String(driverId) !== req.user.id) return res.status(403).json({ error: 'لا تملك صلاحية الوصول إلى هذه الحافلات' })
+    } else if (req.user.role === 'student') {
+      where.OR = [
+        { assignments: { some: { studentId: req.user.studentId } } },
+        { templateStudents: { some: { studentId: req.user.studentId, isActive: true } } },
+      ]
+      if (status) where.status = status
+      if (driverId) return res.status(403).json({ error: 'لا تملك صلاحية الوصول إلى هذه الحافلات' })
+    } else {
+      return res.status(403).json({ error: 'لا تملك صلاحية الوصول إلى الحافلات' })
+    }
 
     const buses = await prisma.bus.findMany({
       where,
@@ -54,6 +92,11 @@ router.get('/:id', async (req, res) => {
 
     if (!bus) {
       return res.status(404).json({ error: 'الحافلة غير موجودة' })
+    }
+
+    const allowed = await canAccessBusRecord(req.user, req.params.id)
+    if (!allowed) {
+      return res.status(403).json({ error: 'لا تملك صلاحية الوصول إلى هذه الحافلة' })
     }
 
     res.json(bus)

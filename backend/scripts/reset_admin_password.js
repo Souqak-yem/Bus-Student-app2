@@ -15,10 +15,10 @@ async function main() {
 
   for (const a of admins) {
     await prisma.user.update({ where: { id: a.id }, data: { password: hash, mustChangePassword: false } })
-    console.log(`Reset password for ${a.username}`)
+    console.log(`Reset password for admin user: ${a.username}`)
   }
 
-  console.log(`\nNew admin password: ${password}`)
+  console.log('Admin password reset completed successfully')
 }
 
 main().catch(e=>{ console.error(e); process.exit(1) }).finally(()=>prisma.$disconnect())

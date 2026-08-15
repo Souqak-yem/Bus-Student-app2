@@ -158,6 +158,7 @@ model User {
   phone             String?
   role              UserRole             @default(driver)
   status            RecordStatus         @default(active)
+  adminPermissions  String[]             @default([])
   mustChangePassword Boolean              @default(false)
   failedAttempts    Int                  @default(0)
   lockedUntil       DateTime?

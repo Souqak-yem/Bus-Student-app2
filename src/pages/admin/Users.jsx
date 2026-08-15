@@ -23,7 +23,7 @@ export default function AdminUsers() {
   const [filterStatus, setFilterStatus] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [showCreate, setShowCreate] = useState(false)
-  const [createForm, setCreateForm] = useState({ username: '', name: '', phone: '', password: '', role: 'driver' })
+  const [createForm, setCreateForm] = useState({ username: '', name: '', password: '', adminPermissions: [] })
   const [actionLoading, setActionLoading] = useState(null)
 
   async function load() {
@@ -42,9 +42,12 @@ export default function AdminUsers() {
   async function handleCreate(e) {
     e.preventDefault()
     try {
-      await api.users.create(createForm)
+      await api.users.create({
+        ...createForm,
+        role: 'admin',
+      })
       setShowCreate(false)
-      setCreateForm({ username: '', name: '', phone: '', password: '', role: 'driver' })
+      setCreateForm({ username: '', name: '', password: '', adminPermissions: [] })
       load()
     } catch (err) { alert(err.message) }
   }
@@ -139,7 +142,7 @@ export default function AdminUsers() {
   return (
     <div>
       <PageHeader title="المستخدمين" subtitle="إدارة حسابات المستخدمين">
-        <button onClick={() => setShowCreate(true)} className="btn-primary"><UserPlus size={16} /> إضافة مستخدم</button>
+        <button onClick={() => setShowCreate(true)} className="btn-primary"><UserPlus size={16} /> إضافة مشرف</button>
       </PageHeader>
 
       {/* Filters */}
@@ -176,36 +179,64 @@ export default function AdminUsers() {
       {showCreate && (
         <div className="modal-overlay" onClick={() => setShowCreate(false)}>
           <div className="modal-content max-w-[min(95vw,760px)] lg:max-w-[920px] p-6" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-bold mb-4">إضافة مستخدم جديد</h2>
-            <form onSubmit={handleCreate} className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium mb-1">الدور</label>
-                <select value={createForm.role} onChange={(e) => setCreateForm({ ...createForm, role: e.target.value })} className="select-field" required>
-                  <option value="driver">سائق</option>
-                  <option value="admin">مشرف</option>
-                </select>
-              </div>
+            <h2 className="text-lg font-bold mb-4">إضافة مشرف جديد</h2>
+            <form onSubmit={handleCreate} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">الاسم</label>
                 <input value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} className="input-field" required />
               </div>
-              {createForm.role === 'admin' && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">اسم المستخدم</label>
-                  <input value={createForm.username} onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })} className="input-field" required />
-                </div>
-              )}
               <div>
-                <label className="block text-sm font-medium mb-1">رقم الهاتف</label>
-                <input value={createForm.phone} onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })} className="input-field" />
+                <label className="block text-sm font-medium mb-1">اسم المستخدم</label>
+                <input value={createForm.username} onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })} className="input-field" required />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">كلمة المرور</label>
                 <input type="password" value={createForm.password} onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })} className="input-field" required />
-                {createForm.role === 'driver' && (
-                  <p className="text-[10px] text-[var(--color-text-muted)] mt-1">سيتم تعيين mustChangePassword تلقائياً</p>
-                )}
               </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">الصلاحيات</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-xl border border-[var(--color-border)] p-3 bg-[var(--color-surface-soft)]">
+                  {[
+                    { key: 'dashboard', label: 'لوحة التحكم' },
+                    { key: 'students', label: 'الطلاب' },
+                    { key: 'buses', label: 'الباصات' },
+                    { key: 'operations', label: 'التشغيل' },
+                    { key: 'emergency', label: 'مركز الطوارئ' },
+                    { key: 'destinations', label: 'الوجهات' },
+                    { key: 'subscriptions', label: 'الاشتراكات' },
+                    { key: 'financialControl', label: 'الإدارة المالية' },
+                    { key: 'reports', label: 'الكشوف الأسبوعية' },
+                    { key: 'manageUsers', label: 'إدارة المستخدمين' },
+                    { key: 'manageSettings', label: 'الإعدادات' },
+                    { key: 'manageSystem', label: 'إدارة النظام' },
+                    { key: 'controlTransfers', label: 'التحويلات' },
+                    { key: 'controlAudit', label: 'التدقيق' },
+                  ].map((page) => {
+                    const checked = createForm.adminPermissions.includes(page.key)
+                    return (
+                      <label key={page.key} className="flex items-center gap-2 rounded-lg px-2 py-2 bg-white border border-[var(--color-border)] cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const value = e.target.checked
+                            setCreateForm((prev) => ({
+                              ...prev,
+                              adminPermissions: value
+                                ? [...prev.adminPermissions, page.key]
+                                : prev.adminPermissions.filter((item) => item !== page.key),
+                            }))
+                          }}
+                        />
+                        <span className="text-sm">{page.label}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+                <p className="text-[10px] text-[var(--color-text-muted)] mt-1">اختر الصفحات التي يسمح لهذا المشرف بالوصول إليها.</p>
+              </div>
+
               <div className="flex gap-2 pt-3 border-t border-[var(--color-border)] sticky bottom-0 bg-white -mx-3 sm:-mx-6 px-3 sm:px-6 pb-0 max-sm:pb-[80px] mt-4">
                 <button type="submit" className="btn-primary flex-1 sm:flex-none justify-center min-h-[44px]">إضافة</button>
                 <button type="button" onClick={() => setShowCreate(false)} className="btn-ghost flex-1 sm:flex-none justify-center min-h-[44px]">إلغاء</button>

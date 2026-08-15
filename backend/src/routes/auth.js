@@ -62,6 +62,7 @@ router.post('/login', async (req, res) => {
         username: user.username,
         name: user.name,
         role: user.role,
+        adminPermissions: user.adminPermissions || [],
         mustChangePassword: user.mustChangePassword,
       },
       profile,
@@ -114,7 +115,7 @@ router.get('/me', authenticate, async (req, res) => {
       where: { id: req.user.id },
       select: {
         id: true, username: true, name: true, phone: true,
-        role: true, status: true, mustChangePassword: true,
+        role: true, status: true, adminPermissions: true, mustChangePassword: true,
         lastLogin: true, studentId: true,
       },
     })

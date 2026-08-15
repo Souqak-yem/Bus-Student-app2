@@ -1,7 +1,7 @@
 {
   "name": "bus-students-co",
   "private": true,
-  "version": "1.0.160",
+  "version": "1.0.170",
   "type": "module",
   "scripts": {
     "dev": "vite",

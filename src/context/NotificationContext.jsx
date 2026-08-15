@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 import { useAuth } from './AuthContext'
 import { api } from '../lib/api'
 import { subscribeToPush, unsubscribeFromPush } from '../lib/pushManager'
+import { canAccessAdminPage } from '../lib/adminPermissions'
 import {
   connectSocket, onNotificationNew, offNotificationNew,
   onUnreadCount, offUnreadCount,
@@ -31,6 +32,14 @@ export function NotificationProvider({ children }) {
   const playSoundRef = useRef(null)
   const lastSoundIdRef = useRef(null)
   const unassignedCheckedRef = useRef(null)
+
+  const isVisibleForCurrentUser = useCallback((notification) => {
+    if (!user || user.role !== 'admin' || !Array.isArray(user.adminPermissions)) return true
+    if (user.adminPermissions.length === 0) return false
+    const route = notification?.targetRoute || notification?.route || notification?.data?.route || null
+    if (!route) return false
+    return canAccessAdminPage(user, route)
+  }, [user])
 
   const playNotificationSound = useCallback((priority, notifId) => {
     if (lastSoundIdRef.current === notifId) return
@@ -88,6 +97,7 @@ export function NotificationProvider({ children }) {
     }
 
     const handleNewNotification = (notification) => {
+      if (!isVisibleForCurrentUser(notification)) return
       setUnreadCount(prev => prev + 1)
       lastNotifTimeRef.current = new Date().toISOString()
       const id = ++popupIdRef.current
@@ -115,9 +125,11 @@ export function NotificationProvider({ children }) {
     })
 
     onMissedNotifications((data) => {
-      if (data?.notifications?.length > 0) {
-        setUnreadCount(prev => prev + data.notifications.length)
-        data.notifications.forEach(n => {
+      const notifications = Array.isArray(data?.notifications) ? data.notifications.filter((n) => isVisibleForCurrentUser(n)) : []
+
+      if (notifications.length > 0) {
+        setUnreadCount(prev => prev + notifications.length)
+        notifications.forEach(n => {
           lastNotifTimeRef.current = new Date().toISOString()
           const id = ++popupIdRef.current
           setPopups(prev => [...prev, { ...n, _popupId: id }])

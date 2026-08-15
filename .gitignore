@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+.vapid.json
 cookies.txt
 
 # Dependencies

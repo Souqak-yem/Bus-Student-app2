@@ -5,49 +5,48 @@ import webpush from 'web-push'
 import { prisma } from '../lib/prisma.js'
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url))
-const VAPID_FILE = path.resolve(currentDir, '../../.vapid.json')
+const VAPID_FILE = process.env.VAPID_FILE_PATH ? path.resolve(process.env.VAPID_FILE_PATH) : path.resolve(currentDir, '../../.vapid.json')
+const isProduction = process.env.NODE_ENV === 'production'
 
 let VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY
 let VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY
 
+function configureVapidKeys(publicKey, privateKey) {
+  webpush.setVapidDetails(
+    process.env.VAPID_MAILTO || 'mailto:admin@mashawerk.app',
+    publicKey,
+    privateKey
+  )
+  VAPID_PUBLIC_KEY = publicKey
+  VAPID_PRIVATE_KEY = privateKey
+}
+
 function ensureVapidKeys() {
   if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
-    webpush.setVapidDetails(
-      process.env.VAPID_MAILTO || 'mailto:admin@mashawerk.app',
-      VAPID_PUBLIC_KEY,
-      VAPID_PRIVATE_KEY
-    )
+    configureVapidKeys(VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
     return
   }
 
-  try {
-    if (fs.existsSync(VAPID_FILE)) {
+  if (isProduction) {
+    throw new Error('VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY environment variables are required in production')
+  }
+
+  if (fs.existsSync(VAPID_FILE)) {
+    try {
       const saved = JSON.parse(fs.readFileSync(VAPID_FILE, 'utf8'))
       if (saved?.publicKey && saved?.privateKey) {
-        VAPID_PUBLIC_KEY = saved.publicKey
-        VAPID_PRIVATE_KEY = saved.privateKey
-        webpush.setVapidDetails(
-          process.env.VAPID_MAILTO || 'mailto:admin@mashawerk.app',
-          VAPID_PUBLIC_KEY,
-          VAPID_PRIVATE_KEY
-        )
+        configureVapidKeys(saved.publicKey, saved.privateKey)
         return
       }
-    }
-  } catch {}
+    } catch {}
+  }
 
   const generated = webpush.generateVAPIDKeys()
-  VAPID_PUBLIC_KEY = generated.publicKey
-  VAPID_PRIVATE_KEY = generated.privateKey
+  configureVapidKeys(generated.publicKey, generated.privateKey)
+
   try {
     fs.writeFileSync(VAPID_FILE, JSON.stringify({ publicKey: VAPID_PUBLIC_KEY, privateKey: VAPID_PRIVATE_KEY }, null, 2))
   } catch {}
-
-  webpush.setVapidDetails(
-    process.env.VAPID_MAILTO || 'mailto:admin@mashawerk.app',
-    VAPID_PUBLIC_KEY,
-    VAPID_PRIVATE_KEY
-  )
 }
 
 ensureVapidKeys()

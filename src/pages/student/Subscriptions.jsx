@@ -39,6 +39,48 @@ const WEEKDAYS = [
   { value: 'THURSDAY', label: 'الخميس' },
 ]
 
+function convertImageToWebP(file) {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type.startsWith('image/')) {
+      reject(new Error('ملف غير صالح'))
+      return
+    }
+
+    const image = new Image()
+    const url = URL.createObjectURL(file)
+
+    image.onload = () => {
+      try {
+        const canvas = document.createElement('canvas')
+        const maxSize = 1600
+        const scale = Math.min(1, maxSize / Math.max(image.width, image.height))
+        canvas.width = Math.max(1, Math.round(image.width * scale))
+        canvas.height = Math.max(1, Math.round(image.height * scale))
+
+        const ctx = canvas.getContext('2d')
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
+
+        const toDataUrl = () => canvas.toDataURL('image/webp', 0.82)
+        const result = toDataUrl()
+        URL.revokeObjectURL(url)
+        resolve(result)
+      } catch (error) {
+        URL.revokeObjectURL(url)
+        reject(error)
+      }
+    }
+
+    image.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('فشل قراءة الصورة'))
+    }
+
+    image.src = url
+  })
+}
+
 export default function Subscriptions() {
   const [subscriptions, setSubscriptions] = useState([])
   const [pricing, setPricing] = useState([])
@@ -901,12 +943,15 @@ export default function Subscriptions() {
                 <label className="flex items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-2xl py-3 cursor-pointer hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 transition-colors">
                   <Upload size={18} className="text-slate-400" />
                   <span className="text-sm text-slate-500 font-medium">{cartReceipt ? 'تغيير صورة السند' : 'إرفاق صورة سند التحويل'}</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                  <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
                     const file = e.target.files?.[0]
                     if (!file) return
-                    const reader = new FileReader()
-                    reader.onload = (ev) => setCartReceipt(ev.target.result)
-                    reader.readAsDataURL(file)
+                    try {
+                      const webpDataUrl = await convertImageToWebP(file)
+                      setCartReceipt(webpDataUrl)
+                    } catch (error) {
+                      setCartError('تعذر معالجة الصورة، حاول صورة أخرى')
+                    }
                   }} />
                 </label>
                 {cartReceipt && <img src={cartReceipt} alt="السند" className="mt-2 max-h-24 rounded-xl border border-slate-200 shadow-sm" />}

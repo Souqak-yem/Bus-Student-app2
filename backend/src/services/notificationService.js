@@ -2,8 +2,22 @@ import { prisma } from '../lib/prisma.js'
 import { broadcastNotification, broadcastUnreadCount, broadcastNotificationRead, broadcastNotificationReadAll, broadcastNotificationDeleted, broadcastNotificationDeletedAll } from './socketService.js'
 import { getNotificationDefaults, PRIORITY } from '../config/notificationConfig.js'
 import { sendPushToUser } from './pushNotificationService.js'
+import { canAccessAdminPage, normalizeAdminPermissions } from '../utils/adminPermissions.js'
 
 const DEDUP_WINDOW_MS = 30 * 1000
+
+function isAdminNotificationVisibleToUser(user, notification) {
+  if (!user || user.role !== 'admin') return true
+  if (!Array.isArray(user.adminPermissions)) return true
+
+  const permissions = normalizeAdminPermissions(user.adminPermissions)
+  if (permissions.length === 0) return false
+
+  const route = notification?.targetRoute || notification?.data?.route || null
+  if (!route) return false
+
+  return canAccessAdminPage(user, route)
+}
 
 export async function createAndBroadcast({ userId, type, title, message, data, priority, targetRoute, icon, dedupKey }) {
   if (dedupKey) {
@@ -40,10 +54,30 @@ export async function createAndBroadcast({ userId, type, title, message, data, p
 }
 
 export async function getUnreadCount(userId) {
-  return prisma.notification.count({ where: { userId, isRead: false } })
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, adminPermissions: true },
+  })
+
+  const where = { userId, isRead: false }
+  const notifications = await prisma.notification.findMany({
+    where,
+    select: { id: true, targetRoute: true, data: true },
+  })
+
+  const visible = user?.role === 'admin' && Array.isArray(user.adminPermissions)
+    ? notifications.filter((notification) => isAdminNotificationVisibleToUser(user, notification))
+    : notifications
+
+  return visible.length
 }
 
 export async function listNotifications(userId, { filter, priority: priorityFilter, limit, offset } = {}) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, adminPermissions: true },
+  })
+
   const where = { userId }
   if (filter === 'unread') where.isRead = false
   else if (filter === 'read') where.isRead = true
@@ -59,7 +93,11 @@ export async function listNotifications(userId, { filter, priority: priorityFilt
     prisma.notification.count({ where }),
   ])
 
-  return { notifications, total }
+  const filteredNotifications = user?.role === 'admin' && Array.isArray(user.adminPermissions)
+    ? notifications.filter((notification) => isAdminNotificationVisibleToUser(user, notification))
+    : notifications
+
+  return { notifications: filteredNotifications, total: filteredNotifications.length }
 }
 
 export async function markAsRead(id, userId) {

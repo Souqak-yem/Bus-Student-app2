@@ -16,7 +16,7 @@ async function main() {
   const campaign = await prisma.campaign.findUnique({ where: { id: 'f7888b97-4369-4688-b98d-9c506079e224' } })
   console.log('campaign record', campaign)
   const token = jwt.sign({ id: studentUser.id, username: studentUser.username, name: studentUser.name, role: studentUser.role, mustChangePassword: studentUser.mustChangePassword, studentId: studentUser.studentId }, process.env.JWT_SECRET, { expiresIn: '7d' })
-  console.log('using token', token.slice(0, 40) + '...')
+  console.log('using auth token for student portal request')
   const url = 'http://localhost:3002/api/student-portal/campaign-price/f7888b97-4369-4688-b98d-9c506079e224'
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
   console.log('status', res.status)

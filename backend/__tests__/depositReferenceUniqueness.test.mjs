@@ -23,4 +23,14 @@ await assert.rejects(
   /رقم الإيداع هذا تم إدخاله مسبقاً، يرجى التأكد/,
 )
 
+const sameCartPrisma = {
+  payment: { findMany: async () => [] },
+  cart: { findMany: async () => [{ id: 'cart-2', studentId: 'student-9', depositReference: '123', status: 'PENDING' }] },
+  campaignEnrollment: { findMany: async () => [] },
+}
+
+await assert.doesNotReject(() =>
+  assertDepositReferenceIsUnique('123', sameCartPrisma, { excludeId: 'cart-2', excludeSource: 'cart' }),
+)
+
 console.log('PASS: deposit reference uniqueness validation works')

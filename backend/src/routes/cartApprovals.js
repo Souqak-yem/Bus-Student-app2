@@ -84,7 +84,10 @@ router.post('/:id/approve', authorize('admin'), async (req, res) => {
     if (cart.items.length === 0) return res.status(400).json({ error: 'السلة فارغة' })
     if (cart.depositReference) {
       try {
-        await assertDepositReferenceIsUnique(cart.depositReference, prisma)
+        await assertDepositReferenceIsUnique(cart.depositReference, prisma, {
+          excludeId: cart.id,
+          excludeSource: 'cart',
+        })
       } catch (err) {
         return res.status(409).json({ error: err.message })
       }

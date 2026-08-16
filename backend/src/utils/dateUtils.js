@@ -25,6 +25,39 @@ export function formatLocalDate(input = new Date()) {
   return `${year}-${month}-${day}`
 }
 
+export function parseLocalDate(value) {
+  if (!value) return null
+  if (value instanceof Date) return getLocalDate(value)
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      const [year, month, day] = trimmed.split('-').map(Number)
+      return new Date(year, month - 1, day)
+    }
+    const parsed = new Date(trimmed)
+    if (Number.isNaN(parsed.getTime())) return null
+    return getLocalDate(parsed)
+  }
+  return null
+}
+
+export function serializeLocalDate(value = new Date()) {
+  const base = value instanceof Date ? value : parseLocalDate(value)
+  if (!base) return null
+  return formatLocalDate(base)
+}
+
+export function toDbDate(value = new Date()) {
+  const base = value instanceof Date ? value : parseLocalDate(value)
+  if (!base) return null
+  const normalized = getLocalDate(base)
+  return new Date(Date.UTC(normalized.getFullYear(), normalized.getMonth(), normalized.getDate(), 12))
+}
+
+export function toLocalDateKey(input = new Date()) {
+  return formatLocalDate(input)
+}
+
 export function snapToSaturday(date) {
   const d = getLocalDate(date)
   const day = d.getDay()

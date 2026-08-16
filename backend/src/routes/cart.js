@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { authenticate } from '../middleware/auth.js'
 import { hasActiveSameTypeSubscription } from '../services/subscriptionService.js'
-import { getLocalDate } from '../utils/dateUtils.js'
+import { getLocalDate, parseLocalDate } from '../utils/dateUtils.js'
 import { createAndBroadcast } from '../services/notificationService.js'
 import { calculateFinalSubscriptionPrice } from '../services/pricingService.js'
 import { assertDepositReferenceIsUnique } from '../services/depositReferenceService.js'
@@ -66,7 +66,7 @@ router.post('/items', async (req, res) => {
     let conflict
     if (type === 'DAILY') {
       const dates = itemData.computedDates
-        ? itemData.computedDates.map(d => new Date(d))
+        ? itemData.computedDates.map(d => parseLocalDate(d) || new Date(d)).filter(Boolean)
         : null
       conflict = await hasActiveSameTypeSubscription(studentId, type, { dates })
     } else {

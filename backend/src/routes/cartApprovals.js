@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma.js'
 import { authenticate, authorize } from '../middleware/auth.js'
 import { createSubscriptionNotification, setExecutionDates, hasActiveSameTypeSubscription } from '../services/subscriptionService.js'
 import { reactivateStudent, reconcileSubscriptionPayments } from '../services/financialService.js'
-import { getLocalDate, resolveDailyExecutionDates } from '../utils/dateUtils.js'
+import { getLocalDate, parseLocalDate, resolveDailyExecutionDates, toDbDate } from '../utils/dateUtils.js'
 import { broadcastDailyExceptionsUpdate } from '../services/socketService.js'
 import { createAndBroadcast } from '../services/notificationService.js'
 import { assertDepositReferenceIsUnique } from '../services/depositReferenceService.js'
@@ -105,8 +105,10 @@ router.post('/:id/approve', authorize('admin'), async (req, res) => {
         const weeksCount = itemData.weeksCount || 1
         let dates, firstDate, lastDate, weekCount
         if (itemData.computedDates && Array.isArray(itemData.computedDates) && itemData.computedDates.length > 0) {
-          dates = itemData.computedDates.map(d => new Date(d))
-          dates.sort((a, b) => a - b)
+          dates = itemData.computedDates
+            .map(d => parseLocalDate(d) || new Date(d))
+            .filter(Boolean)
+            .sort((a, b) => a - b)
           firstDate = dates[0]
           lastDate = dates[dates.length - 1]
           weekCount = dates.length
@@ -130,8 +132,8 @@ router.post('/:id/approve', authorize('admin'), async (req, res) => {
           data: {
             studentId: cart.studentId,
             type: 'DAILY',
-            startDate: firstDate,
-            endDate: lastDate,
+            startDate: toDbDate(firstDate),
+            endDate: toDbDate(lastDate),
             amount: item.amount,
             paidAmount: item.amount,
             paymentStatus: 'paid',
@@ -161,8 +163,8 @@ router.post('/:id/approve', authorize('admin'), async (req, res) => {
       } else {
         const weeksCount = itemData.weeksCount || (type === 'THREE_WEEKS' ? 3 : 4)
         const snapshot = itemData.priceSnapshot
-        const startDate = itemData.startDate ? new Date(itemData.startDate) : new Date(getLocalDate())
-        const endDate = itemData.endDate ? new Date(itemData.endDate) : new Date(startDate)
+        const startDate = itemData.startDate ? (parseLocalDate(itemData.startDate) || new Date(itemData.startDate)) : new Date(getLocalDate())
+        const endDate = itemData.endDate ? (parseLocalDate(itemData.endDate) || new Date(itemData.endDate)) : new Date(startDate)
         if (!itemData.endDate) endDate.setDate(endDate.getDate() + weeksCount * 7 - 1)
 
         const conflict = await hasActiveSameTypeSubscription(cart.studentId, type, { startDate, endDate })
@@ -181,8 +183,8 @@ router.post('/:id/approve', authorize('admin'), async (req, res) => {
           data: {
             studentId: cart.studentId,
             type,
-            startDate,
-            endDate,
+            startDate: toDbDate(startDate),
+            endDate: toDbDate(endDate),
             amount: item.amount,
             paidAmount: item.amount,
             paymentStatus: 'paid',

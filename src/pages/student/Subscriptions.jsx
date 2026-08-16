@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { NavLink, Navigate, useLocation } from 'react-router-dom'
 import { CalendarDays, CreditCard, Clock, FileText, Upload, ShoppingCart, Trash2 } from 'lucide-react'
-import { resolveDailyExecutionDates } from '../../../backend/src/utils/dateUtils.js'
+import { resolveDailyExecutionDates, serializeLocalDate, parseLocalDate } from '../../../backend/src/utils/dateUtils.js'
 import { api } from '../../lib/api'
 import { formatCurrency, formatNumber } from '../../lib/format'
 import ConfirmModal from '../../components/ui/ConfirmModal'
@@ -38,6 +38,17 @@ const WEEKDAYS = [
   { value: 'WEDNESDAY', label: 'الأربعاء' },
   { value: 'THURSDAY', label: 'الخميس' },
 ]
+
+const asLocalDate = (value) => {
+  if (value == null) return null
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+    return parseLocalDate(value)
+  }
+  const parsed = parseLocalDate(value)
+  if (parsed) return parsed
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
 
 function convertImageToWebP(file) {
   return new Promise((resolve, reject) => {
@@ -189,7 +200,11 @@ export default function Subscriptions() {
     return () => { cancelled = true }
   }, [])
 
-  const today = useMemo(() => { const d = new Date(); d.setUTCHours(0,0,0,0); return d }, [])
+  const today = useMemo(() => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d
+  }, [])
 
   // Plan types that student already has an active subscription for → filter out those campaigns
   const subscribedPlans = useMemo(() => {
@@ -202,10 +217,10 @@ export default function Subscriptions() {
   }, [subscriptions])
 
   const activeCampaigns = useMemo(() => {
-    return campaigns.filter(c => new Date(c.startDate) <= today && !subscribedPlans.has(c.type))
+    return campaigns.filter(c => asLocalDate(c.startDate) <= today && !subscribedPlans.has(c.type))
   }, [campaigns, today, subscribedPlans])
   const upcomingCampaigns = useMemo(() => {
-    return campaigns.filter(c => new Date(c.startDate) > today && !subscribedPlans.has(c.type))
+    return campaigns.filter(c => asLocalDate(c.startDate) > today && !subscribedPlans.has(c.type))
   }, [campaigns, today, subscribedPlans])
 
   const zone = student?.zone
@@ -293,7 +308,7 @@ export default function Subscriptions() {
         data: {
           selectedDays: dailyDays,
           weeksCount: dailyWeeks,
-          computedDates: computedDates.map(d => d.toISOString()),
+          computedDates: computedDates.map(d => serializeLocalDate(d)),
         },
       })
       setDailySuccess('تمت إضافة الاشتراك اليومي إلى السلة')
@@ -328,16 +343,16 @@ export default function Subscriptions() {
       }
       const plan = campaign.type === 'subscription_3weeks' ? 'THREE_WEEKS' : 'FOUR_WEEKS'
       const weeksCount = plan === 'THREE_WEEKS' ? 3 : 4
-      const snapStart = new Date(campaign.startDate)
-      const snapEnd = new Date(campaign.endDate)
+      const snapStart = asLocalDate(campaign.startDate)
+      const snapEnd = asLocalDate(campaign.endDate)
       const itemData = {
         weeksCount,
         campaignId: campaign.id,
         campaignTitle: campaign.title,
         baseAmount: price.basePrice,
         discount: price.discount,
-        startDate: snapStart.toISOString(),
-        endDate: snapEnd.toISOString(),
+        startDate: serializeLocalDate(snapStart),
+        endDate: serializeLocalDate(snapEnd),
       }
       if (price.extraFee?.type && price.extraFee?.amount) {
         itemData.extraFeeType = price.extraFee.type
@@ -426,7 +441,7 @@ export default function Subscriptions() {
               <div className="text-sm font-bold text-slate-800">اشتراك يومي</div>
               <div className="text-xs text-slate-500 truncate mt-0.5">
                 <Clock size={12} className="inline ml-1" />
-                {new Date(sub.startDate).toLocaleDateString('ar-SA')} - {new Date(sub.endDate).toLocaleDateString('ar-SA')}
+                {asLocalDate(sub.startDate).toLocaleDateString('ar-SA')} - {asLocalDate(sub.endDate).toLocaleDateString('ar-SA')}
               </div>
             </div>
           </div>
@@ -482,11 +497,11 @@ export default function Subscriptions() {
           <div className="flex items-center gap-2 bg-slate-50/80 border border-slate-100 rounded-xl p-2.5">
             <CalendarDays size={16} className="text-slate-400 shrink-0" />
             <span className="font-medium text-slate-700">
-              {new Date(campaign.startDate).toLocaleDateString('ar-SA')}
+              {asLocalDate(campaign.startDate).toLocaleDateString('ar-SA')}
             </span>
             <span className="text-slate-300">—</span>
             <span className="font-medium text-slate-700">
-              {new Date(campaign.endDate).toLocaleDateString('ar-SA')}
+              {asLocalDate(campaign.endDate).toLocaleDateString('ar-SA')}
             </span>
           </div>
 
@@ -724,7 +739,7 @@ export default function Subscriptions() {
                         <div className="text-sm font-bold text-slate-800">{PLAN_LABELS[sub.type] || sub.type}</div>
                         <div className="text-xs text-slate-500 truncate mt-0.5">
                           <Clock size={12} className="inline ml-1" />
-                          {new Date(sub.startDate).toLocaleDateString('ar-SA')} - {new Date(sub.endDate).toLocaleDateString('ar-SA')}
+                          {(asLocalDate(sub.startDate)?.toLocaleDateString('ar-SA') ?? '')} - {(asLocalDate(sub.endDate)?.toLocaleDateString('ar-SA') ?? '')}
                         </div>
                       </div>
                     </div>
@@ -836,7 +851,7 @@ export default function Subscriptions() {
                     <div className="min-w-0">
                       <div className="text-sm font-bold text-slate-800">{PLAN_LABELS[sub.type] || sub.type}</div>
                       <div className="text-xs text-slate-500 truncate">
-                        {new Date(sub.startDate).toLocaleDateString('ar-SA')} - {new Date(sub.endDate).toLocaleDateString('ar-SA')}
+                        {asLocalDate(sub.startDate).toLocaleDateString('ar-SA')} - {asLocalDate(sub.endDate).toLocaleDateString('ar-SA')}
                       </div>
                     </div>
                   </div>
@@ -968,11 +983,11 @@ export default function Subscriptions() {
 
       <div className="grid grid-cols-4 gap-1 bg-white/80 border border-slate-200/80 rounded-2xl p-1.5 shadow-card backdrop-blur">
         {tabItems.map((tab) => (
-          <NavLink key={tab.key} to={tab.key} end
+          <NavLink key={tab.key} to={`/student/subscriptions/${tab.key}`} end
             className={({ isActive }) =>
               `rounded-xl py-2.5 text-sm font-bold text-center transition-all ${
                 isActive
-                  ? 'bg-blue-600 text-white shadow-[0_4px_12px_-4px_rgba(37,99,235,0.5)]'
+                  ? 'gradient-primary text-white shadow-[0_4px_12px_-4px_rgba(37,99,235,0.5)]'
                   : 'bg-white text-slate-700 hover:bg-slate-50'
               }`
             }>
@@ -1017,7 +1032,7 @@ export default function Subscriptions() {
               </div>
               <div className="text-xs text-slate-500 mt-1 space-y-0.5">
                 {item.data?.startDate && (
-                  <p><span className="text-slate-400">من:</span> {new Date(item.data.startDate).toLocaleDateString('ar-SA')} <span className="text-slate-400">إلى:</span> {new Date(item.data.endDate).toLocaleDateString('ar-SA')}</p>
+                  <p><span className="text-slate-400">من:</span> {(asLocalDate(item.data.startDate)?.toLocaleDateString('ar-SA') ?? '')} <span className="text-slate-400">إلى:</span> {(asLocalDate(item.data.endDate)?.toLocaleDateString('ar-SA') ?? '')}</p>
                 )}
                 {item.data?.selectedDays?.length > 0 && (
                   <p><span className="text-slate-400">الأيام:</span> {item.data.selectedDays.map(d => DAY_NAMES_AR[d]).join('، ')}</p>

@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma.js'
 import { authenticate, authorize } from '../middleware/auth.js'
 import { expireSubscriptions, hasActiveSameTypeSubscription, createSubscriptionNotification, setExecutionDates } from '../services/subscriptionService.js'
 import { createAndBroadcast } from '../services/notificationService.js'
-import { getLocalDate, formatLocalDate, resolveDailyExecutionDates, snapToSaturday } from '../utils/dateUtils.js'
+import { getLocalDate, formatLocalDate, resolveDailyExecutionDates, snapToSaturday, toDbDate } from '../utils/dateUtils.js'
 import { getStudentOperationStage, Stage } from '../services/operationStage.js'
 import { calculateFinalSubscriptionPrice } from '../services/pricingService.js'
 import { generateStudentUsername, ensureUniqueUsername, hashPassword } from '../services/authService.js'
@@ -672,8 +672,8 @@ router.post('/subscription-request-legacy', async (req, res) => {
       data: {
         studentId,
         type: 'DAILY',
-        startDate: firstDate,
-        endDate: lastDate,
+        startDate: toDbDate(firstDate),
+        endDate: toDbDate(lastDate),
         amount,
         paidAmount: 0,
         paymentStatus: 'unpaid',
@@ -804,7 +804,7 @@ router.get('/weekly-schedule', async (req, res) => {
     const coveredDates = new Set()
     for (const sub of activeSubs) {
       for (const ed of sub.executionDates) {
-        coveredDates.add(ed.executionDate.toISOString().slice(0, 10))
+        coveredDates.add(formatLocalDate(ed.executionDate))
       }
     }
 
@@ -815,7 +815,7 @@ router.get('/weekly-schedule', async (req, res) => {
       const date = new Date(weekStart)
       date.setDate(weekStart.getDate() + i)
       const isOffDay = dayName === 'SATURDAY' || offDays.includes(dayName)
-      const hasDaily = coveredDates.has(date.toISOString().slice(0, 10))
+      const hasDaily = coveredDates.has(formatLocalDate(date))
       return {
         date: formatLocalDate(date),
         dayName,

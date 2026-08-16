@@ -3,14 +3,17 @@ import { CheckCircle, XCircle, Eye, X, ZoomIn, ZoomOut, ExternalLink, CalendarDa
 import { api } from '../../lib/api'
 import { getStudentGenderTone } from '../../lib/studentGender'
 import { formatCurrency, formatNumber } from '../../lib/format'
+import { parseLocalDate } from '../../../backend/src/utils/dateUtils.js'
 import PageHeader from '../../components/ui/PageHeader'
 import DataTable from '../../components/ui/DataTable'
 import MobileCard from '../../components/ui/MobileCard'
 
 function formatDate(value) {
   if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '-'
+  const date = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())
+    ? parseLocalDate(value)
+    : new Date(value)
+  if (!date || Number.isNaN(date.getTime())) return '-'
   return date.toLocaleDateString('ar-SA', {
     day: '2-digit',
     month: 'short',
@@ -20,8 +23,10 @@ function formatDate(value) {
 
 function formatDateTime(value) {
   if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '-'
+  const date = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())
+    ? parseLocalDate(value)
+    : new Date(value)
+  if (!date || Number.isNaN(date.getTime())) return '-'
   return `${date.toLocaleDateString('ar-SA', { day: '2-digit', month: 'short', year: 'numeric' })} · ${date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true })}`
 }
 
@@ -1293,11 +1298,11 @@ function CartItemDetail({ item }) {
               <>
                 <div className="flex justify-between">
                   <span className="text-slate-500">من:</span>
-                  <span className="font-medium">{formatDate(new Date(computedDates[0]))}</span>
+                  <span className="font-medium">{formatDate(computedDates[0])}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">إلى:</span>
-                  <span className="font-medium">{formatDate(new Date(computedDates[computedDates.length - 1]))}</span>
+                  <span className="font-medium">{formatDate(computedDates[computedDates.length - 1])}</span>
                 </div>
               </>
             )}
@@ -1307,7 +1312,7 @@ function CartItemDetail({ item }) {
                 <div className="flex flex-wrap gap-0.5 mt-0.5">
                   {computedDates.map((d, i) => (
                     <span key={i} className="text-[9px] bg-slate-50 px-1 py-0.5 rounded text-slate-600 border border-slate-100">
-                      {formatDate(new Date(d))}
+                      {formatDate(d)}
                     </span>
                   ))}
                 </div>
@@ -1344,8 +1349,8 @@ function CartItemDetail({ item }) {
   /* THREE_WEEKS / FOUR_WEEKS */
   const planLabel = item.type === 'FOUR_WEEKS' ? '٤ أسابيع' : '٣ أسابيع'
   const planCls = item.type === 'FOUR_WEEKS' ? 'bg-blue-100 text-blue-700' : 'bg-cyan-100 text-cyan-700'
-  const snapStart = data.startDate ? new Date(data.startDate) : null
-  const snapEnd = data.endDate ? new Date(data.endDate) : null
+  const snapStart = data.startDate ? parseLocalDate(data.startDate) || new Date(data.startDate) : null
+  const snapEnd = data.endDate ? parseLocalDate(data.endDate) || new Date(data.endDate) : null
   const campaignTitle = data.campaignTitle || null
   const surcharge = item.homeDeliveryFee ? Number(item.homeDeliveryFee) : 0
   const baseAmount = data.baseAmount != null

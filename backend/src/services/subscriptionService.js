@@ -1,6 +1,6 @@
 import { prisma } from '../lib/prisma.js'
 import { createAndBroadcast } from './notificationService.js'
-import { getLocalDate, resolveExecutionDate, resolveDailyExecutionDates } from '../utils/dateUtils.js'
+import { getLocalDate, resolveExecutionDate, resolveDailyExecutionDates, toDbDate } from '../utils/dateUtils.js'
 
 const DAY_NAMES = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
 
@@ -38,7 +38,7 @@ export async function setExecutionDates(subscriptionId, dates) {
   await prisma.dailyExecutionDate.createMany({
     data: dates.map(d => ({
       subscriptionId,
-      executionDate: startOfDay(d),
+      executionDate: toDbDate(d),
     })),
   })
   return prisma.dailyExecutionDate.findMany({

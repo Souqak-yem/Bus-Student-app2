@@ -36,9 +36,7 @@ function BoardingCountdownImpl({ timer, onEnded, onSupervisorCall, supervisorPho
   const calc = useMemo(() => {
     if (!timer?.startedAt) return null
     const startedAt = new Date(timer.startedAt)
-    const serverNow = timer.serverNow ? new Date(timer.serverNow) : startedAt
-    const offsetMs = Math.max(0, serverNow.getTime() - Date.now())
-    const effectiveNow = new Date(Date.now() + offsetMs)
+    const effectiveNow = new Date(Date.now())
 
     const durationMin = Number(timer.durationMinutes) || 15
     const durationMs = durationMin * 60 * 1000

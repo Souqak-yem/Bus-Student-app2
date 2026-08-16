@@ -2,7 +2,6 @@ import { memo, useState, useMemo, useCallback, useEffect } from 'react'
 import { Bus, AlertCircle, ArrowRight, CheckCircle2 } from 'lucide-react'
 import { api } from '../../../lib/api'
 import { StatusBadge, STATUS_META } from './StatusBadge'
-import { ReturnTripTimeline } from './ReturnTripTimeline'
 import { ReturnBusCard } from './ReturnBusCard'
 import { DelayBottomSheet } from './DelayBottomSheet'
 import { ReadinessConfirmation } from './ReadinessConfirmation'
@@ -126,26 +125,15 @@ function ReturnTripViewWrapperImpl({
   // --- VISIBILITY RULES (per requirement 10) ---
   const isOnBoard = status === 'ON_BOARD'
   const isMissed = status === 'MISSED_BUS'
-  const isDroppedOffFinal = !!returnBusInfo?.droppedOffAt || !!readiness?.droppedOffAt || busStatus === 'COMPLETED'
+  const droppedOffAt = rd?.droppedOffAt || returnBusInfo?.droppedOffAt || readiness?.droppedOffAt || null
+  const isDroppedOffFinal = !!droppedOffAt || busStatus === 'COMPLETED'
+  const deliveryGraceMs = 60 * 60 * 1000
+  const deliveredBannerExpired = !!droppedOffAt && (Date.now() - new Date(droppedOffAt).getTime()) > deliveryGraceMs
 
   const statusBadgePulse = status === 'DELAYED' || (timer && (timer.durationMinutes || 15) * 60000 - (new Date((timer?.serverNow || timer?.startedAt) || 0).getTime() - new Date(timer?.startedAt || 0).getTime()) < 5 * 60000)
 
-  // --- Context for Timeline + Derived ---
-  const timelineContext = useMemo(() => ({
-    readiness,
-    timer,
-    busStatus,
-    isDroppedOff: isDroppedOffFinal,
-    assignedAt: rd?.assignedAt || returnReadiness?.assignedAt || readiness?.updatedAt,
-    readyAt: (status === 'READY' || status === 'ON_BOARD' || status === 'MISSED_BUS') ? readiness?.updatedAt : null,
-    busArrivedAt: timer?.startedAt,
-    onBoardAt: readiness?.onBoardAt,
-    departedAt: rd?.departedAt,
-    droppedOffAt: rd?.droppedOffAt || returnBusInfo?.droppedOffAt,
-  }), [readiness, timer, busStatus, isDroppedOffFinal, rd, returnBusInfo, status, returnReadiness])
-
-  // Hide entire section once dropped off (per req 10, 17)
-  if (isDroppedOffFinal) {
+  // Hide entire section once dropped off, but only for the first hour so the weekly schedule can return automatically.
+  if (isDroppedOffFinal && !deliveredBannerExpired) {
     return (
       <div className="rt-card-header-gradient-green rounded-xl p-2.5 rt-anim-scale-in">
         <div className="flex items-center gap-2">
@@ -225,8 +213,6 @@ function ReturnTripViewWrapperImpl({
 
   return (
     <div className="space-y-2">
-      <ReturnTripTimeline {...timelineContext} />
-
       {/* Status Hero Wrapper — subtle gradient border reflects state */}
       <div className={`rounded-xl p-2.5 ${wrapperPalette} rt-anim-slide-down`}>
         <div className="flex items-center justify-between gap-2 flex-wrap">

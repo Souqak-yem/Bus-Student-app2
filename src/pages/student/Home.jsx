@@ -75,6 +75,7 @@ export default function Home() {
   const [weeklySchedule, setWeeklySchedule] = useState(null)
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(false)
+  const [now, setNow] = useState(Date.now())
   const notifiedRef = useRef(false)
   const activeBusIdRef = useRef(null)
   const [activeBusId, setActiveBusId] = useState(null)
@@ -122,6 +123,11 @@ export default function Home() {
       if (loading) setLoading(false)
     }
   }
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30000)
+    return () => clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -254,6 +260,10 @@ export default function Home() {
   const bus = todayAssignment?.bus
   const stage = operationStage || Stage.NO_TRIP
   const isReturnStage = stage === Stage.MORNING_COMPLETED
+  const deliveryGraceMs = 60 * 60 * 1000
+  const deliveredAt = returnReadiness?.droppedOffAt || returnBusInfo?.droppedOffAt || null
+  const deliveryExpired = !!deliveredAt && now - new Date(deliveredAt).getTime() > deliveryGraceMs
+  const shouldShowWeeklySchedule = weeklySchedule?.days?.length > 0 && (!deliveredAt || deliveryExpired)
 
   const presentCount = tracking ? tracking.pickedUpCount : (busStudents || []).filter(s => s.attendance === 'present').length
   const totalCount = tracking ? tracking.total : (busStudents?.length || 0)
@@ -270,7 +280,7 @@ export default function Home() {
         <p className="relative text-xs text-white/75 mt-0.5">نتمنى لك يوماً سعيداً</p>
       </div>
 
-      {!isReturnStage && weeklySchedule?.days?.length > 0 && <WeeklySchedule days={weeklySchedule.days} />}
+      {shouldShowWeeklySchedule && <WeeklySchedule days={weeklySchedule.days} />}
 
       {stage === Stage.NO_TRIP && (
         <div className="card p-6 text-center fade-in">
@@ -356,7 +366,7 @@ export default function Home() {
         </div>
       )}
 
-      {stage === Stage.MORNING_COMPLETED && (
+      {stage === Stage.MORNING_COMPLETED && (!deliveredAt || !deliveryExpired) && (
         <ReturnTripViewWrapper
           student={student}
           returnBusInfo={returnBusInfo}
@@ -786,10 +796,8 @@ function BoardingTimerView({ timer }) {
     return () => clearInterval(i)
   }, [])
 
-  const startedAt = timer.serverNow ? new Date(timer.serverNow) : new Date()
-  const offsetMs = timer.startedAt ? (startedAt.getTime() - new Date(timer.startedAt).getTime()) : 0
-  const effectiveNow = new Date(now.getTime() + offsetMs)
   const start = new Date(timer.startedAt)
+  const effectiveNow = new Date(Date.now())
   const durationMs = (timer.durationMinutes || 15) * 60 * 1000
   const endMs = start.getTime() + durationMs
   const remainingMs = Math.max(0, endMs - effectiveNow.getTime())

@@ -671,10 +671,8 @@ function TimerDisplay({ timer }) {
     const i = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(i)
   }, [])
-  const startedAt = timer.serverNow ? new Date(timer.serverNow) : new Date()
-  const offsetMs = timer.startedAt ? (startedAt.getTime() - new Date(timer.startedAt).getTime()) : 0
-  const effectiveNow = new Date(now.getTime() + offsetMs)
   const start = new Date(timer.startedAt)
+  const effectiveNow = new Date(Date.now())
   const durationMs = (timer.durationMinutes || 15) * 60 * 1000
   const endMs = start.getTime() + durationMs
   const remainingMs = Math.max(0, endMs - effectiveNow.getTime())

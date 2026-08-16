@@ -8,7 +8,7 @@ import DiscountExpiryBadge from '../../components/ui/DiscountExpiryBadge'
 import { SkeletonCard } from '../../components/ui/Skeleton'
 import ConfirmModal from '../../components/ui/ConfirmModal'
 
-const emptyForm = { title: '', description: '', type: 'subscription_3weeks', startDate: '', endDate: '', maxStudents: '', hasEarlyDiscount: false, discountAmount: '', discountStart: '', discountExpiry: '', enableExtraRegistrationFee: false, extraRegistrationFee: '2000', extraFeeStart: '' }
+const emptyForm = { title: '', description: '', type: 'subscription_3weeks', startDate: '', endDate: '', hasEarlyDiscount: false, discountAmount: '', discountStart: '', discountExpiry: '', enableExtraRegistrationFee: false, extraRegistrationFee: '2000', extraFeeStart: '' }
 
 export default function AdminCampaigns() {
   const [campaigns, setCampaigns] = useState([])
@@ -34,7 +34,6 @@ export default function AdminCampaigns() {
     try {
       const payload = {
         ...form,
-        maxStudents: form.maxStudents ? Number(form.maxStudents) : null,
         hasEarlyDiscount: form.hasEarlyDiscount,
         discountAmount: form.hasEarlyDiscount ? form.discountAmount : '',
         discountStart: form.hasEarlyDiscount ? form.discountStart : '',
@@ -53,7 +52,6 @@ export default function AdminCampaigns() {
     setForm({
       title: c.title, description: c.description || '', type: c.type,
       startDate: c.startDate?.split('T')[0] || '', endDate: c.endDate?.split('T')[0] || '',
-      maxStudents: String(c.maxStudents || ''),
       hasEarlyDiscount: c.hasEarlyDiscount || false,
       discountAmount: String(c.discountAmount || ''),
       discountStart: c.discountStart ? c.discountStart.slice(0, 16) : '',
@@ -210,10 +208,6 @@ export default function AdminCampaigns() {
                     <input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} className="input-field" required />
                   </FormField>
                 </div>
-                <FormField label="الحد الأقصى للطلاب">
-                  <input type="number" value={form.maxStudents} onChange={(e) => setForm({ ...form, maxStudents: e.target.value })} className="input-field" placeholder="بدون حد" />
-                </FormField>
-
                 {(form.type === 'subscription_3weeks' || form.type === 'subscription_4weeks') && (
                   <div className="border border-[var(--color-border)] rounded-lg p-4 space-y-3">
                     <h4 className="font-semibold text-sm">الخصم المبكر (اختياري)</h4>

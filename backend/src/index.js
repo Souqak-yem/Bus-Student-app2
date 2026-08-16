@@ -212,14 +212,14 @@ setInterval(async () => {
   }
 }, 5 * 60 * 1000)
 
-// Smart Return Readiness boarding timer ticks every 15 seconds
+// Smart Return Readiness boarding timer ticks every second to keep countdowns smooth and accurate
 import { tickBoardingTimers } from './services/returnReadinessService.js'
 setInterval(async () => {
   try {
     await tickBoardingTimers()
   } catch (e) {
   }
-}, 15 * 1000)
+}, 1000)
 
 app.get('/api/health', async (_req, res) => {
   let database = 'disconnected'

@@ -28,10 +28,8 @@ function BoardingTimerBar({ timer }) {
     return () => clearInterval(i)
   }, [])
   if (!timer || timer.endedAt) return null
-  const startedAt = timer.serverNow ? new Date(timer.serverNow) : new Date()
-  const offsetMs = timer.startedAt ? (startedAt.getTime() - new Date(timer.startedAt).getTime()) : 0
-  const effectiveNow = new Date(now.getTime() + offsetMs)
   const start = new Date(timer.startedAt)
+  const effectiveNow = new Date(Date.now())
   const durationMs = (timer.durationMinutes || 15) * 60 * 1000
   const endMs = start.getTime() + durationMs
   const remainingMs = Math.max(0, endMs - effectiveNow.getTime())
@@ -434,10 +432,7 @@ export default function ReturnTrip() {
     const now = new Date()
     const timerStartedAt = boardingTimer?.startedAt ? new Date(boardingTimer.startedAt) : null
     const serverNow = boardingTimer?.serverNow ? new Date(boardingTimer.serverNow) : now
-    const offsetMs = timerStartedAt && boardingTimer?.serverNow
-      ? (serverNow.getTime() - timerStartedAt.getTime())
-      : 0
-    const effectiveNow = boardingTimer ? new Date(now.getTime() + offsetMs) : now
+    const effectiveNow = serverNow
     const durationMs = ((boardingTimer?.durationMinutes || 15)) * 60 * 1000
     const endMs = timerStartedAt ? (timerStartedAt.getTime() + durationMs) : null
     const remainingMs = endMs ? Math.max(0, endMs - effectiveNow.getTime()) : 0

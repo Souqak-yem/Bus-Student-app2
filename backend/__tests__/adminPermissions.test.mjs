@@ -20,7 +20,7 @@ test('permissions are normalized and page access is enforced', () => {
   assert.equal(canAccessAdminPage({ adminPermissions: ['dashboard', 'students'] }, '/admin'), true)
   assert.equal(canAccessAdminPage({ adminPermissions: ['dashboard', 'students'] }, '/admin/students'), true)
   assert.equal(canAccessAdminPage({ adminPermissions: ['dashboard'] }, '/admin/buses'), false)
-  assert.equal(canAccessAdminPage({ adminPermissions: [] }, '/admin'), false)
+  assert.equal(canAccessAdminPage({ adminPermissions: [] }, '/admin'), true)
   assert.equal(canAccessAdminPage({ role: 'admin' }, '/admin/buses'), true)
   assert.equal(canAccessAdminPage({ role: 'admin', adminPermissions: ['buses'] }, '/admin/students'), false)
   assert.equal(canAccessAdminPage({ role: 'admin', adminPermissions: ['financialControl'] }, '/admin/financial-control?tab=summary'), true)

@@ -11,7 +11,7 @@ function isAdminNotificationVisibleToUser(user, notification) {
   if (!Array.isArray(user.adminPermissions)) return true
 
   const permissions = normalizeAdminPermissions(user.adminPermissions)
-  if (permissions.length === 0) return false
+  if (permissions.length === 0) return true
 
   const route = notification?.targetRoute || notification?.data?.route || null
   if (!route) return false
@@ -65,7 +65,7 @@ export async function getUnreadCount(userId) {
     select: { id: true, targetRoute: true, data: true },
   })
 
-  const visible = user?.role === 'admin' && Array.isArray(user.adminPermissions)
+  const visible = user?.role === 'admin' && Array.isArray(user.adminPermissions) && normalizeAdminPermissions(user.adminPermissions).length > 0
     ? notifications.filter((notification) => isAdminNotificationVisibleToUser(user, notification))
     : notifications
 
@@ -93,7 +93,7 @@ export async function listNotifications(userId, { filter, priority: priorityFilt
     prisma.notification.count({ where }),
   ])
 
-  const filteredNotifications = user?.role === 'admin' && Array.isArray(user.adminPermissions)
+  const filteredNotifications = user?.role === 'admin' && Array.isArray(user.adminPermissions) && normalizeAdminPermissions(user.adminPermissions).length > 0
     ? notifications.filter((notification) => isAdminNotificationVisibleToUser(user, notification))
     : notifications
 

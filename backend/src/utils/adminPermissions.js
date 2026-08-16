@@ -66,7 +66,7 @@ export function canAccessAdminPage(user, pagePathOrKey) {
   }
 
   if (permissions.length === 0) {
-    return false
+    return true
   }
 
   const normalizedPath = normalizeAdminPagePath(pagePathOrKey)

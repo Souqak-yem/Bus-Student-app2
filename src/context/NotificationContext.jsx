@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from './AuthContext'
 import { api } from '../lib/api'
-import { subscribeToPush, unsubscribeFromPush, isPushNotificationsEnabled } from '../lib/pushManager'
+import { subscribeToPush, unsubscribeFromPush } from '../lib/pushManager'
 import { canAccessAdminPage } from '../lib/adminPermissions'
 import {
   connectSocket, onNotificationNew, offNotificationNew,
@@ -35,7 +35,7 @@ export function NotificationProvider({ children }) {
 
   const isVisibleForCurrentUser = useCallback((notification) => {
     if (!user || user.role !== 'admin' || !Array.isArray(user.adminPermissions)) return true
-    if (user.adminPermissions.length === 0) return false
+    if (user.adminPermissions.length === 0) return true
     const route = notification?.targetRoute || notification?.route || notification?.data?.route || null
     if (!route) return false
     return canAccessAdminPage(user, route)
@@ -71,17 +71,11 @@ export function NotificationProvider({ children }) {
   }, [user])
 
   useEffect(() => {
-    if (!user) {
-      unsubscribeFromPush().catch(() => {})
-      return
-    }
-
-    refreshUnreadCount()
-
-    if (isPushNotificationsEnabled()) {
+    if (user) {
+      refreshUnreadCount()
       subscribeToPush().catch((err) => console.error('[Push] subscribe failed:', err))
     } else {
-      unsubscribeFromPush().catch(() => {})
+      unsubscribeFromPush()
     }
   }, [user, refreshUnreadCount])
 

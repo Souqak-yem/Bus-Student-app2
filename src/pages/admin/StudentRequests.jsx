@@ -97,7 +97,10 @@ export default function AdminStudentRequests() {
       setRequests((prev) => prev.map((item) => item.id === confirmTarget.id ? { ...item, status: 'APPROVED' } : item))
       setMessage(`تمت الموافقة على طلب ${confirmTarget.name}`)
       const phone = confirmTarget.whatsapp || confirmTarget.phone
-      const text = `مرحبا ${confirmTarget.name}، تمت الموافقة على طلب التسجيل الخاص بك. اسم المستخدم: ${result.credentials.username}، كلمة المرور: ${result.credentials.password}. يرجى تغيير كلمة المرور بعد أول تسجيل دخول.`
+      const text =`مرحباً ${confirmTarget.name}، تم الاطلاع والموافقة على طلب التسجيل الخاص بك.
+اسم المستخدم: ${result.credentials.username}
+كلمة المرور: ${result.credentials.password}
+يرجى تغيير كلمة المرور بعد أول تسجيل دخول.`;
       openWhatsApp(phone, text)
     } catch (err) {
       setMessage(err.message)

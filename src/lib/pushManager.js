@@ -39,6 +39,10 @@ export async function subscribeToPush() {
     return { success: false, reason: 'unsupported' }
   }
 
+  if (typeof localStorage !== 'undefined' && localStorage.getItem('studentPushNotifications') === 'off') {
+    return { success: false, reason: 'disabled' }
+  }
+
   const permission = await requestPermission()
   if (permission !== 'granted') {
     return { success: false, reason: permission }

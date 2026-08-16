@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from './AuthContext'
 import { api } from '../lib/api'
-import { subscribeToPush, unsubscribeFromPush } from '../lib/pushManager'
+import { subscribeToPush, unsubscribeFromPush, isPushNotificationsEnabled } from '../lib/pushManager'
 import { canAccessAdminPage } from '../lib/adminPermissions'
 import {
   connectSocket, onNotificationNew, offNotificationNew,
@@ -71,12 +71,22 @@ export function NotificationProvider({ children }) {
   }, [user])
 
   useEffect(() => {
-    if (user) {
-      refreshUnreadCount()
-      subscribeToPush().catch((err) => console.error('[Push] subscribe failed:', err))
-    } else {
-      unsubscribeFromPush()
+    if (!user) {
+      unsubscribeFromPush().catch(() => {})
+      return
     }
+
+    if (user.role === 'student' && !isPushNotificationsEnabled()) {
+      unsubscribeFromPush().catch(() => {})
+      return
+    }
+
+    refreshUnreadCount()
+    subscribeToPush().catch((err) => {
+      if (err?.message !== 'disabled') {
+        console.error('[Push] subscribe failed:', err)
+      }
+    })
   }, [user, refreshUnreadCount])
 
   // On admin login, check for unassigned daily subscriptions and notify

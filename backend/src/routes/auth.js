@@ -5,6 +5,7 @@ import { safeError } from '../utils/secrets.js'
 import {
   hashPassword, comparePassword, signToken,
   handleLoginAttempt, isAccountLocked, authAudit,
+  findUserByLoginUsername, normalizeUsernameForLogin,
 } from '../services/authService.js'
 import { expireSubscriptions } from '../services/subscriptionService.js'
 
@@ -13,11 +14,13 @@ const router = Router()
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body
-    if (!username || !password) {
+    const normalizedUsername = normalizeUsernameForLogin(username)
+
+    if (!normalizedUsername || !password) {
       return res.status(400).json({ error: 'اسم المستخدم وكلمة المرور مطلوبان' })
     }
 
-    const user = await prisma.user.findUnique({ where: { username } })
+    const user = await findUserByLoginUsername(normalizedUsername)
     if (!user) {
       return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' })
     }

@@ -77,6 +77,9 @@ export default function Login() {
                 required
                 autoFocus
                 autoComplete="username"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
               />
             </div>
           </div>

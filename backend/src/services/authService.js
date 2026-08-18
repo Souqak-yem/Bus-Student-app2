@@ -37,15 +37,37 @@ export function signToken(user) {
 }
 
 export function generateStudentUsername(name) {
-  const parts = name.trim().split(/\s+/)
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean)
   const first = parts[0] || ''
   const last = parts.length > 1 ? parts[parts.length - 1] : ''
   return `${first}.${last}`
 }
 
 export function generateDriverUsername(driverName, busNumber) {
-  const name = driverName.trim().split(/\s+/)[0] || driverName
-  return `${name}${busNumber}`
+  const cleanName = String(driverName || '').trim().replace(/\s+/g, '')
+  const cleanBusNumber = String(busNumber || '').trim()
+  return `${cleanName}${cleanBusNumber}`
+}
+
+export function normalizeUsernameForLogin(value) {
+  if (typeof value !== 'string') return null
+
+  const trimmed = value.normalize('NFKC').trim()
+  if (!trimmed) return null
+
+  const canonical = trimmed.replace(/\s*\.\s*/g, '.').replace(/\s+/g, '')
+  if (!canonical || !/^[\p{L}\p{N}]+(?:[._-][\p{L}\p{N}]+)*$/u.test(canonical)) {
+    return null
+  }
+
+  return canonical
+}
+
+export async function findUserByLoginUsername(rawUsername) {
+  const username = normalizeUsernameForLogin(rawUsername)
+  if (!username) return null
+
+  return prisma.user.findUnique({ where: { username } })
 }
 
 export async function ensureUniqueUsername(baseUsername) {

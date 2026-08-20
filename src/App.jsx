@@ -12,6 +12,7 @@ import ForgotPassword from './pages/auth/ForgotPassword'
 import ChangePassword from './pages/auth/ChangePassword'
 import InstallPWAPopup from './components/ui/InstallPWAPopup'
 import UpdateNotification from './components/ui/UpdateNotification'
+import DynamicMetaTags from './components/DynamicMetaTags'
 import StudentHome from './pages/student/Home'
 import StudentSubscriptions from './pages/student/Subscriptions'
 import StudentNotifications from './pages/student/Notifications'
@@ -105,6 +106,7 @@ export default function App() {
 
   return (
     <>
+      <DynamicMetaTags />
       <Routes>
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<Login />} />

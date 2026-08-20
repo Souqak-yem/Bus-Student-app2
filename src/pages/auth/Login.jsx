@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Eye, EyeOff, LogIn, Bus, User, Copy, Check } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
@@ -59,8 +59,8 @@ export default function Login() {
       <div className={`rounded-2xl shadow-xl p-6 sm:p-8 border transition-colors ${isDarkMode ? 'bg-slate-900/95 border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-900'}`}>
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src="/full-logo.svg" alt="شعار الشركة" className="w-48 h-48 sm:w-56 sm:h-56 lg:w-64 lg:h-64 mx-auto mb-2 object-contain" />
-          <p className={`text-sm ${isDarkMode ? 'text-slate-300' : 'text-[var(--color-text-muted)]'}`}>نظام النقل الذكي</p>
+          <img src="/full-logo.svg" alt="شعار الشركة" className="w-60 h-60 sm:w-72 sm:h-72 lg:w-80 lg:h-80 mx-auto mb-2 object-contain" />
+          <p className={`-mt-10 text-sm ${isDarkMode ? 'text-slate-300' : 'text-[var(--color-text-muted)]'}`}>نظام النقل الذكي</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3.5">
@@ -85,7 +85,12 @@ export default function Login() {
           </div>
 
           <div>
-            <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-slate-200' : 'text-[var(--color-text)]'}`}>كلمة المرور</label>
+            <div className="mb-1 flex items-center justify-between">
+              <label className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-[var(--color-text)]'}`}>كلمة المرور</label>
+              <Link to="/forgot-password" className="text-xs font-medium text-[var(--color-primary)] hover:underline">
+                نسيت كلمة المرور؟
+              </Link>
+            </div>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}

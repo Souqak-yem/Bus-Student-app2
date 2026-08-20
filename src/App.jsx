@@ -8,6 +8,7 @@ import DriverLayout from './components/layout/DriverLayout'
 import StudentLayout from './components/layout/StudentLayout'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
+import ForgotPassword from './pages/auth/ForgotPassword'
 import ChangePassword from './pages/auth/ChangePassword'
 import InstallPWAPopup from './components/ui/InstallPWAPopup'
 import UpdateNotification from './components/ui/UpdateNotification'
@@ -32,6 +33,7 @@ import WeeklySheetPrint from './pages/admin/WeeklySheetPrint'
 import WeeklySheetArchive from './pages/admin/WeeklySheetArchive'
 import AdminAudit from './pages/admin/Audit'
 import AdminUsers from './pages/admin/Users'
+import PasswordResetRequests from './pages/admin/PasswordResetRequests'
 import AdminOperations from './pages/admin/Operations'
 import SubscriptionsPage from './pages/admin/Subscriptions'
 import DailySubscriptionManagement from './pages/admin/DailySubscriptionManagement'
@@ -107,6 +109,7 @@ export default function App() {
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
         </Route>
 
         <Route path="/debug" element={<Debug />} />
@@ -153,6 +156,7 @@ export default function App() {
           <Route path="manage" element={<AdminManage />}>
             <Route index element={<Navigate to="users" replace />} />
             <Route path="users" element={<AdminUsers />} />
+            <Route path="password-reset-requests" element={<PasswordResetRequests />} />
             <Route path="settings" element={<AdminSettings />} />
             <Route path="system" element={<AdminSystemManagement />} />
           </Route>

@@ -208,6 +208,7 @@ export default function AdminUsers() {
                     { key: 'financialControl', label: 'الإدارة المالية' },
                     { key: 'reports', label: 'الكشوف الأسبوعية' },
                     { key: 'manageUsers', label: 'إدارة المستخدمين' },
+                    { key: 'passwordResetRequests', label: 'طلبات استعادة كلمة المرور' },
                     { key: 'manageSettings', label: 'الإعدادات' },
                     { key: 'manageSystem', label: 'إدارة النظام' },
                     { key: 'controlTransfers', label: 'التحويلات' },

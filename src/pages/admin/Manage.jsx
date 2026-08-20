@@ -3,6 +3,7 @@ import { Shield, Users, Settings, Server } from 'lucide-react'
 
 const tabs = [
   { to: 'users', label: 'المستخدمين', icon: Users },
+  { to: 'password-reset-requests', label: 'طلبات استعادة كلمة المرور', icon: Shield },
   { to: 'settings', label: 'الإعدادات', icon: Settings },
   { to: 'system', label: 'إدارة النظام', icon: Server },
 ]

@@ -56,6 +56,7 @@ export const api = {
   auth: {
     login: (username, password) =>
       api.post("/auth/login", { username, password }),
+    forgotPassword: (data) => api.post('/auth/forgot-password', data),
     me: () => api.get("/auth/me"),
     changePassword: (currentPassword, newPassword) =>
       api.post("/auth/change-password", { currentPassword, newPassword }),
@@ -362,6 +363,11 @@ export const api = {
 
   admin: {
     resetData: () => api.post("/admin/reset-data"),
+    passwordResetRequests: {
+      list: () => api.get('/admin/password-reset-requests'),
+      approve: (id) => api.post(`/admin/password-reset-requests/${id}/approve`, {}),
+      reject: (id, reason) => api.post(`/admin/password-reset-requests/${id}/reject`, { reason }),
+    },
   },
 
   dailyExceptions: {

@@ -5,7 +5,7 @@ import { Bus, MapPin, ShieldCheck, ChevronLeft } from 'lucide-react'
 const slides = [
   {
     title: 'مواصلاتك أصبحت أسهل',
-    desc: 'احجز اشتراكك وتابع رحلتك اليومية بكل سهولة مع مشوارك',
+    desc: 'احجز اشتراكك وتابع رحلتك اليومية بكل سهولة مع تنسيقية مواصلات فلك',
     icon: Bus,
     accent: '#3B82F6',
     gradients: ['#EFF6FF', '#DBEAFE'],
@@ -396,7 +396,7 @@ export default function Onboarding({ onComplete }) {
               style={{ background: 'rgba(255,255,255,0.06)' }}
             >
               <span className="text-xs text-white/40" style={{ letterSpacing: '0.02em' }}>
-                {current === 0 && 'انطلق مع مشوارك'}
+                {current === 0 && 'انطلق مع تنسيقية مواصلات فلك'}
                 {current === 1 && 'ابقَ على اطلاع دائم'}
                 {current === 2 && 'سلامتك أولاً'}
               </span>

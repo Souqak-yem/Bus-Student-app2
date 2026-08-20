@@ -63,6 +63,18 @@ export function normalizeUsernameForLogin(value) {
   return canonical
 }
 
+export function normalizePhoneForComparison(value) {
+  if (typeof value !== 'string') return ''
+  return value.replace(/\D/g, '')
+}
+
+export function generateTemporaryPassword() {
+  const prefix = 'Bus'
+  const randomPart = Math.random().toString(36).slice(2, 8).toUpperCase()
+  const suffix = Math.random().toString(36).slice(2, 6)
+  return `${prefix}${randomPart}${suffix}!`
+}
+
 export async function findUserByLoginUsername(rawUsername) {
   const username = normalizeUsernameForLogin(rawUsername)
   if (!username) return null

@@ -1,4 +1,4 @@
-const CACHE = 'mashawerk-v2'
+const CACHE = 'mashawerk-v3'
 const STATIC = [
   '/manifest.json',
   '/app-icon.svg',
@@ -68,7 +68,7 @@ self.addEventListener('push', (e) => {
   } catch {}
 
   if (!data) {
-    data = { title: 'مشوارك', message: 'لديك إشعار جديد', priority: 'INFO' }
+    data = { title: 'تنسيقية مواصلات فلك', message: 'لديك إشعار جديد', priority: 'INFO' }
   }
 
   const options = {

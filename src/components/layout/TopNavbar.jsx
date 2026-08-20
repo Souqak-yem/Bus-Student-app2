@@ -17,6 +17,7 @@ const pageTitles = {
   '/admin/reports/weekly-sheets': 'الكشوف الأسبوعية',
   '/admin/financial-control': 'الإدارة المالية',
   '/admin/manage/users': 'المستخدمين',
+  '/admin/manage/password-reset-requests': 'طلبات استعادة كلمة المرور',
   '/admin/manage/settings': 'الإعدادات',
   '/admin/manage/system': 'إدارة النظام',
   '/admin/subscriptions': 'الاشتراكات',

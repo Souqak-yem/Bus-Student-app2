@@ -128,7 +128,7 @@ export default function SplashScreen({ duration = 4000, onFinish }) {
 
               <img
                 src="/full-logo.svg"
-                alt="مشوارك"
+                alt="تنسيقية مواصلات فلك"
                 className="relative z-10 h-28 w-28 object-contain drop-shadow-2xl sm:h-36 sm:w-36 lg:h-44 lg:w-44"
               />
             </div>
@@ -140,7 +140,7 @@ export default function SplashScreen({ duration = 4000, onFinish }) {
               className="relative z-10 text-center mt-2"
             >
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-wider">
-                مشوارك
+                تنسيقية مواصلات فلك
               </h1>
               <p className="text-sm sm:text-base lg:text-lg text-blue-200/90 mt-1.5 font-medium">
                 رحلتك الجامعية أسهل

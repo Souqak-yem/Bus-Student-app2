@@ -63,7 +63,7 @@ export default function AppSplashScreen({ onFinish }) {
               animate={{ scale: [1, 1.02, 1] }}
               transition={{ duration: 1.9, repeat: Infinity, ease: 'easeInOut' }}
             >
-              <img src="/app-icon.svg" alt="مشوارك" className="h-24 w-24 object-contain sm:h-28 sm:w-28" />
+              <img src="/app-icon.svg" alt="تنسيقية مواصلات فلك" className="h-24 w-24 object-contain sm:h-28 sm:w-28" />
             </motion.div>
           </motion.div>
 
@@ -75,7 +75,7 @@ export default function AppSplashScreen({ onFinish }) {
             className="relative z-10 text-4xl sm:text-5xl font-black text-white mt-6 tracking-wider"
           >
             <span className="bg-gradient-to-l from-white via-blue-50 to-white bg-clip-text text-transparent drop-shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
-              مشوارك
+              تنسيقية مواصلات فلك
             </span>
           </motion.h1>
 

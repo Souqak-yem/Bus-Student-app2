@@ -19,7 +19,7 @@ function showNotification({ title, body, tag, silent = false }) {
   try {
     if (typeof Notification === 'undefined') return
     if (Notification.permission !== 'granted') return
-    new Notification(title, { body, tag, silent, icon: '/favicon.ico' })
+    new Notification(title, { body, tag, silent, icon: '/app-icon.svg' })
   } catch {}
 }
 

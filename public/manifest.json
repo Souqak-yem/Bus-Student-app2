@@ -1,7 +1,7 @@
 {
-  "name": "مشوارك",
-  "short_name": "مشوارك",
-  "description": "مشوارك - نظام إدارة نقل الطلاب",
+  "name": "تنسيقية مواصلات فلك",
+  "short_name": "مواصلات فلك",
+  "description": "تنسيقية مواصلات فلك - نظام إدارة نقل الطلاب",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F8FAFC",

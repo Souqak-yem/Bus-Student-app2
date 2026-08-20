@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { authenticate, authorize } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
+import { hashPassword, generateTemporaryPassword } from '../services/authService.js'
 import {
   resetOperations,
   resetSubscriptions,
@@ -14,6 +15,159 @@ const router = Router()
 
 router.use(authenticate)
 router.use(authorize('admin'))
+
+function normalizeWhatsAppUrl(phone) {
+  if (!phone) return null
+  const digits = String(phone).replace(/\D/g, '')
+  if (!digits) return null
+  const normalized = digits.startsWith('00') ? digits.slice(2) : digits.startsWith('0') ? `966${digits.slice(1)}` : digits
+  return `https://wa.me/${normalized}`
+}
+
+router.get('/password-reset-requests', async (req, res) => {
+  try {
+    const requests = await prisma.auditLog.findMany({
+      where: { action: 'PASSWORD_RESET_REQUEST', entityType: 'PASSWORD_RESET_REQUEST' },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    const payload = await Promise.all(requests.map(async (request) => {
+      const data = request.newValue || {}
+      const user = data.username ? await prisma.user.findUnique({ where: { username: data.username }, include: { student: true } }) : null
+      const usernameExists = Boolean(user)
+      const phoneMatches = !!(user && user.phone && String(user.phone).replace(/\D/g, '') === String(data.phone || '').replace(/\D/g, ''))
+      const parentMatches = !!(user && user.student && String(user.student.parentName || '').trim().localeCompare(String(data.parentName || '').trim(), undefined, { sensitivity: 'base' }) === 0)
+      const whatsappLink = normalizeWhatsAppUrl(user?.phone || user?.student?.whatsapp || data.phone)
+
+      return {
+        id: request.id,
+        status: data.status || 'PENDING',
+        username: data.username || '',
+        phone: data.phone || '',
+        parentName: data.parentName || '',
+        studentName: data.studentName || '',
+        requestedAt: data.requestedAt,
+        userExists: usernameExists,
+        phoneMatches,
+        parentMatches,
+        whatsappLink,
+      }
+    }))
+
+    res.json(payload)
+  } catch (error) {
+    console.error('PASSWORD_RESET_REQUESTS_ERROR:', error)
+    res.status(500).json({ error: 'فشل جلب طلبات استعادة كلمة المرور' })
+  }
+})
+
+router.post('/password-reset-requests/:id/approve', async (req, res) => {
+  try {
+    const request = await prisma.auditLog.findUnique({ where: { id: req.params.id } })
+    if (!request || request.action !== 'PASSWORD_RESET_REQUEST' || request.entityType !== 'PASSWORD_RESET_REQUEST') {
+      return res.status(404).json({ error: 'طلب استعادة كلمة المرور غير موجود' })
+    }
+
+    const payload = request.newValue || {}
+    const user = await prisma.user.findUnique({ where: { username: payload.username }, include: { student: true } })
+    if (!user || user.role !== 'student') {
+      return res.status(404).json({ error: 'حساب الطالب غير موجود' })
+    }
+
+    const tempPassword = generateTemporaryPassword()
+    const hashed = await hashPassword(tempPassword)
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashed, mustChangePassword: true, failedAttempts: 0, lockedUntil: null },
+    })
+
+    const whatsappLink = normalizeWhatsAppUrl(user.phone || user.student?.whatsapp || payload.phone)
+    const message = `مرحبا ${user.username}، هذه كلمة المرور المؤقتة لتسجيل دخولك: ${tempPassword}. يرجى تغيير كلمة المرور بعد تسجيل الدخول.`
+
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user.id,
+        action: 'PASSWORD_RESET_REQUEST_APPROVED',
+        entityType: 'PASSWORD_RESET_REQUEST',
+        entityId: req.params.id,
+        newValue: {
+          requestId: req.params.id,
+          username: user.username,
+          tempPassword,
+          status: 'APPROVED',
+          approvedBy: req.user.id,
+          whatsappLink,
+          sentMessage: message,
+        },
+        reason: 'PASSWORD_RESET_APPROVED',
+      },
+    })
+
+    await prisma.auditLog.update({
+      where: { id: req.params.id },
+      data: { newValue: { ...payload, status: 'APPROVED', approvedBy: req.user.id } },
+    })
+
+    res.json({
+      approved: true,
+      username: user.username,
+      temporaryPassword: tempPassword,
+      whatsappLink,
+      message,
+    })
+  } catch (error) {
+    console.error('PASSWORD_RESET_APPROVE_ERROR:', error)
+    res.status(500).json({ error: 'فشل الموافقة على طلب استعادة كلمة المرور' })
+  }
+})
+
+router.post('/password-reset-requests/:id/reject', async (req, res) => {
+  try {
+    const request = await prisma.auditLog.findUnique({ where: { id: req.params.id } })
+    if (!request || request.action !== 'PASSWORD_RESET_REQUEST' || request.entityType !== 'PASSWORD_RESET_REQUEST') {
+      return res.status(404).json({ error: 'طلب استعادة كلمة المرور غير موجود' })
+    }
+
+    const payload = request.newValue || {}
+    const whatsappLink = normalizeWhatsAppUrl(payload.phone)
+    const reason = String(req.body.reason || 'البيانات التي أدخلتها غير صحيحة').trim() || 'البيانات التي أدخلتها غير صحيحة'
+    const message = `تم رفض طلب استعادة كلمة المرور لاسم المستخدم ${payload.username}. السبب: ${reason}. يرجى التأكد من صحة البيانات عبر واتساب ثم إعادة المحاولة.`
+
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user.id,
+        action: 'PASSWORD_RESET_REQUEST_REJECTED',
+        entityType: 'PASSWORD_RESET_REQUEST',
+        entityId: req.params.id,
+        newValue: {
+          requestId: req.params.id,
+          username: payload.username,
+          status: 'REJECTED',
+          reason,
+          whatsappLink,
+          sentMessage: message,
+        },
+        reason: 'PASSWORD_RESET_REJECTED',
+      },
+    })
+
+    await prisma.auditLog.update({
+      where: { id: req.params.id },
+      data: { newValue: { ...payload, status: 'REJECTED', reason } },
+    })
+
+    res.json({
+      rejected: true,
+      username: payload.username,
+      whatsappLink,
+      message,
+    })
+  } catch (error) {
+    console.error('PASSWORD_RESET_REJECT_ERROR:', error)
+    res.status(500).json({ error: 'فشل رفض طلب استعادة كلمة المرور' })
+  }
+})
 
 router.post('/reset-data', async (req, res) => {
   try {

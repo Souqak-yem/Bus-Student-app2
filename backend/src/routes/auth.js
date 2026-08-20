@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { authenticate } from '../middleware/auth.js'
@@ -6,10 +7,91 @@ import {
   hashPassword, comparePassword, signToken,
   handleLoginAttempt, isAccountLocked, authAudit,
   findUserByLoginUsername, normalizeUsernameForLogin,
+  normalizePhoneForComparison, generateTemporaryPassword,
 } from '../services/authService.js'
 import { expireSubscriptions } from '../services/subscriptionService.js'
+import { createAndBroadcast } from '../services/notificationService.js'
 
 const router = Router()
+
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { username, phone, parentName } = req.body
+    const normalizedUsername = normalizeUsernameForLogin(username)
+    const normalizedPhone = normalizePhoneForComparison(phone)
+    const normalizedParentName = String(parentName || '').trim()
+
+    if (!normalizedUsername || !normalizedPhone || !normalizedParentName) {
+      return res.status(400).json({ error: 'اسم المستخدم ورقم الهاتف واسم ولي الأمر مطلوبون' })
+    }
+
+    const user = await findUserByLoginUsername(normalizedUsername)
+    if (!user || user.role !== 'student') {
+      return res.status(400).json({ error: 'بيانات الطالب غير صحيحة' })
+    }
+
+    const student = await prisma.student.findUnique({ where: { id: user.studentId } })
+    if (!student) {
+      return res.status(400).json({ error: 'بيانات الطالب غير صحيحة' })
+    }
+
+    const phoneMatches = normalizePhoneForComparison(student.phone || student.whatsapp || '') === normalizedPhone
+    const parentMatches = String(student.parentName || '').trim().localeCompare(normalizedParentName, undefined, { sensitivity: 'base' }) === 0
+
+    if (!phoneMatches || !parentMatches) {
+      return res.status(400).json({ error: 'بيانات الطالب غير صحيحة' })
+    }
+
+    const requestId = crypto.randomUUID()
+    const requestData = {
+      id: requestId,
+      username: user.username,
+      userId: user.id,
+      studentId: student.id,
+      studentName: student.name,
+      phone: user.phone || student.phone || '',
+      parentName: student.parentName || '',
+      status: 'PENDING',
+      requestedAt: new Date().toISOString(),
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        action: 'PASSWORD_RESET_REQUEST',
+        entityType: 'PASSWORD_RESET_REQUEST',
+        entityId: requestId,
+        oldValue: null,
+        newValue: requestData,
+        reason: 'PASSWORD_RESET_REQUESTED',
+      },
+    })
+
+    const admins = await prisma.user.findMany({
+      where: { role: 'admin', status: 'active' },
+      select: { id: true },
+    })
+
+    await Promise.all(admins.map((admin) => createAndBroadcast({
+      userId: admin.id,
+      type: 'password_reset_request',
+      title: 'طلب استعادة كلمة مرور جديد',
+      message: `طلب الطالب ${student.name || user.username} استعادة كلمة المرور. يرجى مراجعة البيانات والموافقة أو الرفض.`,
+      targetRoute: '/admin/manage/password-reset-requests',
+      data: { requestId, username: user.username, studentName: student.name },
+      dedupKey: `password_reset_request_${requestId}_${admin.id}`,
+    })))
+
+    return res.json({
+      requested: true,
+      status: 'PENDING',
+      message: 'تم إرسال طلب استعادة كلمة المرور إلى الإدارة وسيتم مراجعة الطلب وتأكيده عبر الواتساب المسجل.',
+      requestId,
+    })
+  } catch (error) {
+    console.error('FORGOT_PASSWORD_ERROR:', error)
+    return res.status(500).json({ error: 'فشل إرسال طلب استعادة كلمة المرور' })
+  }
+})
 
 router.post('/login', async (req, res) => {
   try {

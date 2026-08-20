@@ -49,6 +49,9 @@ export const NOTIFICATION_CONFIG = {
   // Student registration requests
   student_registration_request: { priority: PRIORITY.WARNING, icon: 'UserPlus', route: '/admin/student-requests' },
 
+  // Password reset requests
+  password_reset_request: { priority: PRIORITY.WARNING, icon: 'Lock', route: '/admin/manage/password-reset-requests' },
+
   // Emergency Transfer
   emergency_transfer: { priority: PRIORITY.CRITICAL, icon: 'ArrowRight', route: '/admin/emergency' },
 

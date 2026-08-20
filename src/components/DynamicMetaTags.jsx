@@ -51,7 +51,7 @@ function applyMeta(rawMeta) {
   upsertMeta('property', 'og:image:secure_url', imageUrl)
   upsertMeta('property', 'og:image:type', 'image/png')
   upsertMeta('property', 'og:image:width', '1200')
-  upsertMeta('property', 'og:image:height', '630')
+  upsertMeta('property', 'og:image:height', '1200')
   upsertMeta('property', 'og:image:alt', meta.imageAlt)
   upsertMeta('property', 'og:url', canonicalUrl)
   upsertMeta('property', 'og:locale', meta.locale)

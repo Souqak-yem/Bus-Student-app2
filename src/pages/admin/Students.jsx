@@ -301,7 +301,7 @@ export default function AdminStudents() {
       </PageHeader>
 
       <div className="bg-white rounded-xl shadow-sm border border-[var(--color-border)] p-4 mb-4">
-        <div className="grid gap-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-[11px] font-semibold text-slate-600 mb-2">المنطقة</label>
             <select

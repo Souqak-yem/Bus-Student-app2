@@ -5,6 +5,7 @@ import { resolveDailyExecutionDates, serializeLocalDate, parseLocalDate } from '
 import { api } from '../../lib/api'
 import { formatCurrency, formatNumber } from '../../lib/format'
 import ConfirmModal from '../../components/ui/ConfirmModal'
+import Modal from '../../components/ui/Modal'
 import DiscountExpiryBadge from '../../components/ui/DiscountExpiryBadge'
 
 const PLAN_LABELS = {
@@ -38,6 +39,55 @@ const WEEKDAYS = [
   { value: 'WEDNESDAY', label: 'الأربعاء' },
   { value: 'THURSDAY', label: 'الخميس' },
 ]
+
+const REGISTRATION_CONTACT_PHONE = '967734904945'
+
+function getCartItemLabel(item) {
+  const planLabel = item.type === 'DAILY'
+    ? 'اشتراك يومي'
+    : item.type === 'FOUR_WEEKS'
+      ? 'اشتراك 4 أسابيع'
+      : item.type === 'THREE_WEEKS'
+        ? 'اشتراك 3 أسابيع'
+        : item.type
+  return item.data?.campaignTitle ? `${planLabel} - ${item.data.campaignTitle}` : planLabel
+}
+
+function openRegistrationWhatsApp({ studentName, items, depositReference }) {
+  const itemLines = items.map(item => `- ${getCartItemLabel(item)}`).join('\n')
+  const message = [
+    'السلام عليكم، أرسلت طلب اشتراك عبر التطبيق.',
+    `اسم الطالب: ${studentName || 'غير محدد'}`,
+    'الاشتراكات المطلوبة:',
+    itemLines,
+    `رقم الإيداع / المرجع: ${depositReference}`,
+  ].join('\n')
+
+  const url = `https://wa.me/${REGISTRATION_CONTACT_PHONE}?text=${encodeURIComponent(message)}`
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+
+function WhatsAppNotice({ show, countdown, onContinue }) {
+  return (
+    <Modal show={show} onClose={() => {}}>
+      <div className="text-sm text-slate-600 leading-relaxed space-y-3">
+        <h3 className="text-base font-bold text-red-700">تنبيه مهم</h3>
+        <p className="font-bold text-red-700">سيتم توجيهك للواتساب مباشرة لإرسال سند الاشتراك لمختص التسجيل.</p>
+        <p className="text-red-600 font-semibold">يرجى إرفاق صورة السند مع الرسالة الجاهزة ثم الضغط على إرسال داخل واتساب.</p>
+        <p className="text-xs text-red-600 font-semibold">لن يتم اعتماد الطلب حتى يتم إرسال السند لمختص التسجيل عبر الواتساب.</p>
+      </div>
+      <div className="mt-5">
+        <button
+          onClick={onContinue}
+          disabled={countdown > 0}
+          className="w-full gradient-primary text-white py-3 rounded-xl text-sm font-bold disabled:opacity-50 min-h-[48px]"
+        >
+          {countdown > 0 ? `يرجى الانتظار ${countdown} ثوانٍ` : 'المتابعة إلى واتساب'}
+        </button>
+      </div>
+    </Modal>
+  )
+}
 
 const asLocalDate = (value) => {
   if (value == null) return null
@@ -118,6 +168,9 @@ export default function Subscriptions() {
   const [cartSubmitting, setCartSubmitting] = useState(false)
   const [cartSuccess, setCartSuccess] = useState('')
   const [cartError, setCartError] = useState('')
+  const [showWhatsAppNotice, setShowWhatsAppNotice] = useState(false)
+  const [whatsAppCountdown, setWhatsAppCountdown] = useState(0)
+  const [pendingWhatsApp, setPendingWhatsApp] = useState(null)
 
   const [destPricing, setDestPricing] = useState([])
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false)
@@ -199,6 +252,14 @@ export default function Subscriptions() {
     loadData()
     return () => { cancelled = true }
   }, [])
+
+  useEffect(() => {
+    if (!showWhatsAppNotice || whatsAppCountdown <= 0) return undefined
+    const timer = window.setInterval(() => {
+      setWhatsAppCountdown(value => Math.max(0, value - 1))
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [showWhatsAppNotice, whatsAppCountdown])
 
   const today = useMemo(() => {
     const d = new Date()
@@ -877,12 +938,22 @@ export default function Subscriptions() {
   async function handleConfirmSubmit() {
     setShowSubmitConfirm(false)
     setCartSubmitting(true)
+    const submittedCart = cart
+    const submittedReceipt = cartReceipt
+    const submittedReference = cartDepositReference.trim()
     try {
-      await api.cart.submit(cartReceipt, cartDepositReference)
+      await api.cart.submit(submittedReceipt, submittedReference)
       setCartSuccess('تم إرسال طلب السلة بنجاح، بانتظار الموافقة')
       setCart(null)
       setCartReceipt('')
       setCartDepositReference('')
+      setPendingWhatsApp({
+        studentName: student?.name,
+        items: submittedCart?.items || [],
+        depositReference: submittedReference,
+      })
+      setWhatsAppCountdown(10)
+      setShowWhatsAppNotice(true)
     } catch (e) {
       setCartError(e.message)
     } finally {
@@ -917,8 +988,7 @@ export default function Subscriptions() {
               <div key={item.id} className="flex items-center justify-between gap-3 py-2.5 px-3 bg-slate-50/80 border border-slate-100 rounded-xl">
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold text-slate-800">
-                    {item.type === 'DAILY' ? 'اشتراك يومي' : item.type === 'FOUR_WEEKS' ? 'اشتراك 4 أسابيع' : item.type === 'THREE_WEEKS' ? 'اشتراك 3 أسابيع' : item.type}
-                    {item.data?.campaignTitle && <span className="text-slate-500 font-medium"> - {item.data.campaignTitle}</span>}
+                    {getCartItemLabel(item)}
                   </div>
                   <div className="text-xs text-slate-500 mt-0.5">
                     {item.data?.selectedDays?.length > 0 && (
@@ -1049,6 +1119,17 @@ export default function Subscriptions() {
         </div>
         <p className="text-xs text-slate-400 mt-3">بإرسال الطلب، توافق على شروط الاشتراك في الخدمة.</p>
       </ConfirmModal>
+
+      <WhatsAppNotice
+        show={showWhatsAppNotice}
+        countdown={whatsAppCountdown}
+        onContinue={() => {
+          if (whatsAppCountdown > 0 || !pendingWhatsApp) return
+          openRegistrationWhatsApp(pendingWhatsApp)
+          setPendingWhatsApp(null)
+          setShowWhatsAppNotice(false)
+        }}
+      />
     </div>
   )
 }

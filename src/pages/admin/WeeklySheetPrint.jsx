@@ -83,15 +83,127 @@ export default function WeeklySheetPrint() {
     const canvas = await captureSheetCanvas(2)
     if (!canvas) return
     const imgData = canvas.toDataURL('image/png')
+    const pageWidth = 297
+    const pageHeight = 210
+    const margin = 10
+    const maxWidth = pageWidth - (margin * 2)
+    const maxHeight = pageHeight - (margin * 2)
     const pdf = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
       format: 'a4'
     })
-    const imgWidth = 280
-    const imgHeight = (canvas.height * imgWidth) / canvas.width
-    pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight)
+    const imageRatio = canvas.width / canvas.height
+    const imageWidth = Math.min(maxWidth, maxHeight * imageRatio)
+    const imageHeight = imageWidth / imageRatio
+    const imageX = (pageWidth - imageWidth) / 2
+    const imageY = (pageHeight - imageHeight) / 2
+    pdf.addImage(imgData, 'PNG', imageX, imageY, imageWidth, imageHeight)
     pdf.save(`كشف_أسبوعي_${sheet?.bus?.busNumber || 'باص'}.pdf`)
+  }
+
+  async function getWordCompatibleLogo() {
+    try {
+      const response = await fetch('/full-logo.svg')
+      const svgText = await response.text()
+      const image = await new Promise((resolve, reject) => {
+        const imageElement = new Image()
+        imageElement.onload = () => resolve(imageElement)
+        imageElement.onerror = reject
+        imageElement.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgText)}`
+      })
+      const canvas = document.createElement('canvas')
+      canvas.width = 560
+      canvas.height = 212
+      const context = canvas.getContext('2d')
+      context.fillStyle = '#ffffff'
+      context.fillRect(0, 0, canvas.width, canvas.height)
+      context.drawImage(image, 0, 0, canvas.width, canvas.height)
+      return canvas.toDataURL('image/png')
+    } catch {
+      return null
+    }
+  }
+
+  async function handleExportWord() {
+    if (!sheetRef.current) return
+
+    const sheetElement = sheetRef.current.cloneNode(true)
+    const logo = sheetElement.querySelector('img[src="/full-logo.svg"]')
+    if (logo) {
+      const logoDataUrl = await getWordCompatibleLogo()
+      if (logoDataUrl) {
+        logo.src = logoDataUrl
+        logo.style.width = '78px'
+        logo.style.height = '30px'
+        logo.style.maxWidth = '78px'
+        logo.style.maxHeight = '30px'
+      }
+    }
+
+    const createWordLayoutTable = (container, widths, direction = 'rtl') => {
+      const layoutTable = document.createElement('table')
+      layoutTable.setAttribute('dir', direction)
+      layoutTable.style.cssText = 'width: 850px; table-layout: fixed; border-collapse: collapse;'
+      const row = document.createElement('tr')
+      Array.from(container.children).forEach((child, index) => {
+        const cell = document.createElement('td')
+        cell.style.cssText = `width: ${widths[index]}; vertical-align: middle; border: 0;`
+        cell.appendChild(child)
+        row.appendChild(cell)
+      })
+      layoutTable.appendChild(row)
+      container.replaceWith(layoutTable)
+      return layoutTable
+    }
+
+    const headerTable = createWordLayoutTable(sheetElement.children[0], ['20%', '80%'], 'ltr')
+    const footerTable = createWordLayoutTable(sheetElement.lastElementChild, ['33.33%', '33.33%', '33.33%'])
+    const logoCell = headerTable.rows[0].cells[0]
+    const busInfoCell = headerTable.rows[0].cells[1]
+    logoCell.style.width = '20%'
+    logoCell.style.paddingRight = '18px'
+    busInfoCell.style.width = '80%'
+    busInfoCell.style.paddingLeft = '18px'
+    busInfoCell.firstElementChild.style.padding = '20px 28px'
+    busInfoCell.firstElementChild.style.fontSize = '23px'
+    busInfoCell.firstElementChild.style.whiteSpace = 'nowrap'
+    Array.from(footerTable.rows[0].cells).forEach((cell) => {
+      cell.style.backgroundColor = '#1e3a5f'
+      cell.style.color = '#ffffff'
+      cell.style.whiteSpace = 'nowrap'
+      cell.firstElementChild.style.backgroundColor = '#1e3a5f'
+      cell.firstElementChild.style.color = '#ffffff'
+      cell.firstElementChild.style.whiteSpace = 'nowrap'
+    })
+
+    const sheetHtml = sheetElement.outerHTML
+    const wordDocument = `
+      <!DOCTYPE html>
+      <html xmlns:o="urn:schemas-microsoft-com:office:office"
+        xmlns:w="urn:schemas-microsoft-com:office:word"
+        xmlns="http://www.w3.org/TR/REC-html40" dir="rtl">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="ProgId" content="Word.Document" />
+          <style>
+            @page { size: landscape; margin: 10mm; }
+            body { margin: 0; direction: rtl; font-family: Arial, sans-serif; }
+            #weekly-sheet { width: 850px !important; margin: 0 auto !important; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { mso-padding-alt: 6px; }
+            img { width: 78px !important; height: 30px !important; max-width: 78px !important; max-height: 30px !important; }
+          </style>
+        </head>
+        <body>${sheetHtml}</body>
+      </html>`
+
+    const blob = new Blob([`\ufeff${wordDocument}`], { type: 'application/msword;charset=utf-8' })
+    const link = document.createElement('a')
+    link.download = `كشف_أسبوعي_${sheet.bus?.busNumber || 'باص'}.doc`
+    link.href = URL.createObjectURL(blob)
+    link.click()
+    URL.revokeObjectURL(link.href)
   }
 
   if (loading) return <div className="text-center py-12 text-slate-400">جاري التحميل...</div>

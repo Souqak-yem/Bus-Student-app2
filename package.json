@@ -1,7 +1,7 @@
 {
   "name": "bus-students-co",
   "private": true,
-  "version": "1.0.230",
+  "version": "1.0.253",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "docx": "^9.7.1",
     "framer-motion": "^12.42.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",

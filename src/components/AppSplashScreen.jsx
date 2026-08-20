@@ -79,25 +79,6 @@ export default function AppSplashScreen({ onFinish }) {
             </span>
           </motion.h1>
 
-          <motion.div
-            initial={{ opacity: 0, x: 24, y: 10, filter: 'blur(4px)' }}
-            animate={{ opacity: 1, x: 0, y: 0, filter: 'blur(0px)' }}
-            transition={{ delay: 0.45, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-10 mt-2"
-          >
-            <div className="relative px-5 py-2 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm shadow-[0_12px_35px_rgba(0,0,0,0.25)] overflow-hidden">
-              <div
-                className="absolute inset-0 rounded-full opacity-70"
-                style={{
-                  background: 'linear-gradient(90deg, rgba(96,165,250,0.25), rgba(167,139,250,0.18), rgba(96,165,250,0.25))',
-                }}
-              />
-              <span className="relative block text-white text-lg sm:text-xl font-extrabold tracking-wide">
-                علينا
-              </span>
-            </div>
-          </motion.div>
-
           {/* Tagline */}
           <motion.p
             initial={{ opacity: 0, y: 8 }}

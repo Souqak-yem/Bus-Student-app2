@@ -9,7 +9,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!manifest.json|favicon.ico|icons/).*)",
+      "source": "/((?!manifest.json|site-meta.json|og-image.png|app-icon.svg|full-logo.svg|favicon.ico|icons/).*)",
       "destination": "/index.html"
     }
   ]

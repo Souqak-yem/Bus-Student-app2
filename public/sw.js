@@ -3,6 +3,7 @@ const STATIC = [
   '/manifest.json',
   '/app-icon.svg',
   '/full-logo.svg',
+  '/og-image.png',
   '/sounds/emergency-alarm.wav',
   '/sounds/info.wav',
   '/sounds/warning.wav',

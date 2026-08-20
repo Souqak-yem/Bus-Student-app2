@@ -5,7 +5,7 @@ const DEFAULT_META = {
   siteName: 'تنسيقية مواصلات فلك',
   title: 'تنسيقية مواصلات فلك | نظام إدارة نقل الطلاب',
   description: 'نظام إدارة نقل الطلاب والرحلات الجامعية باعتمادية ووضوح.',
-  image: '/full-logo.svg',
+  image: '/og-image.png',
   imageAlt: 'شعار تنسيقية مواصلات فلك',
   locale: 'ar_AR',
   themeColor: '#F97316',

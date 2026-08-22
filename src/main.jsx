@@ -56,6 +56,7 @@ if ('serviceWorker' in navigator) {
       })
       console.log('[App] SW registered, scope:', reg.scope)
       localStorage.setItem('mashawerk_app_version', APP_VERSION)
+      await reg.update()
 
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing

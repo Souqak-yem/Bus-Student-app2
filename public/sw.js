@@ -24,13 +24,15 @@ self.addEventListener('install', (e) => {
 
 self.addEventListener('activate', (e) => {
   console.log(`[SW] Activating ${CACHE}`)
-  self.clients.claim()
   e.waitUntil(
-    caches.keys().then((keys) => {
-      const toDelete = keys.filter((k) => k !== CACHE)
-      console.log(`[SW] Deleting old caches: ${toDelete.join(', ') || '(none)'}`)
-      return Promise.all(toDelete.map((k) => caches.delete(k)))
-    }).then(() => {
+    Promise.all([
+      self.clients.claim(),
+      caches.keys().then((keys) => {
+        const toDelete = keys.filter((k) => k !== CACHE)
+        console.log(`[SW] Deleting old caches: ${toDelete.join(', ') || '(none)'}`)
+        return Promise.all(toDelete.map((k) => caches.delete(k)))
+      }),
+    ]).then(() => {
       console.log(`[SW] ${CACHE} is now active and controlling all clients`)
       return self.clients.matchAll()
     }).then((clients) => {

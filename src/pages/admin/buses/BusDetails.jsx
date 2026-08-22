@@ -128,8 +128,8 @@ export default function BusDetails() {
 
   function studentAddress(bs) {
     const s = bs.student
-    if (s?.transportMode === 'HOME') return s.homeAddress || '-'
-    return s?.pickupLocation || '-'
+    const location = s?.transportMode === 'HOME' ? s.homeAddress : (s?.pickupLocation || s?.address)
+    return [s?.zone, location].filter(Boolean).join(' / ') || '-'
   }
 
   const tabs = [
@@ -327,7 +327,7 @@ export default function BusDetails() {
                           className="rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]/50" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2"><span className="font-medium truncate">{s.name}</span>{s.institutionName && <span className="text-xs text-[var(--color-text-muted)] mr-auto">{s.institutionName}</span>}</div>
-                          <p className="text-xs text-[var(--color-text-muted)]">{s.phone || '-'} · {s.transportMode === 'HOME' ? (s.homeAddress || '-') : (s.pickupLocation || '-')}{elsewhere && <span className="text-[var(--color-danger)] mr-1">مضاف إلى باص {elsewhere}</span>}</p>
+                          <p className="text-xs text-[var(--color-text-muted)]">{s.phone || '-'} · {studentAddress({ student: s })}{elsewhere && <span className="text-[var(--color-danger)] mr-1">مضاف إلى باص {elsewhere}</span>}</p>
                         </div>
                       </label>
                     })

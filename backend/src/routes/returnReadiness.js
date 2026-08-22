@@ -231,7 +231,7 @@ router.get('/admin/active-buses-readiness', authorize('admin'), async (req, res)
         driver: { select: { id: true, name: true, phone: true } },
         loads: {
           include: {
-            student: { select: { id: true, name: true, transportMode: true, homeAddress: true, homeDeliveryFee: true, homeNotes: true, institutionName: true, pickupLocation: true, address: true, phone: true, whatsapp: true } },
+            student: { select: { id: true, name: true, zone: true, transportMode: true, homeAddress: true, homeDeliveryFee: true, homeNotes: true, institutionName: true, pickupLocation: true, address: true, phone: true, whatsapp: true } },
           },
           orderBy: [{ sortOrder: 'asc' }, { assignedAt: 'asc' }],
         },

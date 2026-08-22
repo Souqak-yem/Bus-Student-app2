@@ -342,7 +342,7 @@ router.get('/dashboard', async (req, res) => {
       const sameBusAssignments = await prisma.assignment.findMany({
         where: { busId, date: { gte: today, lt: tomorrow }, period: 'MORNING', status: { not: 'cancelled' } },
         include: {
-          student: { select: { id: true, name: true, phone: true, transportMode: true, homeAddress: true, pickupLocation: true } },
+          student: { select: { id: true, name: true, zone: true, address: true, phone: true, transportMode: true, homeAddress: true, pickupLocation: true } },
         },
         orderBy: { sortOrder: 'asc' },
       })
@@ -359,6 +359,8 @@ router.get('/dashboard', async (req, res) => {
         studentId: a.student.id,
         name: a.student.name,
         phone: a.student.phone,
+        zone: a.student.zone,
+        address: a.student.address,
         transportMode: a.student.transportMode,
         homeAddress: a.student.homeAddress,
         pickupLocation: a.student.pickupLocation,

@@ -284,10 +284,10 @@ export default function DriverDashboard() {
   const getStudentAddress = (item) => {
     const student = item?.student
     if (!student) return 'غير محدد'
-    if (student.transportMode === 'HOME') {
-      return student.homeAddress || student.address || student.pickupLocation || 'غير محدد'
-    }
-    return student.pickupLocation || student.address || student.homeAddress || 'غير محدد'
+    const location = student.transportMode === 'HOME'
+      ? (student.homeAddress || student.address || student.pickupLocation)
+      : (student.pickupLocation || student.address || student.homeAddress)
+    return [student.zone, location].filter(Boolean).join(' / ') || 'غير محدد'
   }
 
   const getPickupTime = (item) => {
@@ -484,9 +484,10 @@ export default function DriverDashboard() {
   }
 
   const remaining = students.length - (currentIndex + 1)
-  const pickupLocation = isHomeDelivery
+  const pickupPoint = isHomeDelivery
     ? (currentStudent?.homeAddress || null)
     : (currentStudent?.pickupLocation || currentStudent?.address || null)
+  const pickupLocation = [currentStudent?.zone, pickupPoint].filter(Boolean).join(' / ')
 
   return (
     <div className="max-w-lg mx-auto space-y-2 pb-4">

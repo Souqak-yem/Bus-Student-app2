@@ -963,10 +963,10 @@ function MorningTripCard({ bus, todayAssignment, student, busStudents, tracking,
               {formatTime(todayAssignment.pickupTime)}
             </span>
           )}
-          {student?.pickupLocation && (
+          {(student?.zone || student?.pickupLocation || student?.homeAddress) && (
             <span className="flex items-center gap-1 truncate max-w-[60%]">
               <MapPin size={10} className="text-[var(--color-primary)] shrink-0" />
-              <span className="truncate">{student.pickupLocation}</span>
+              <span className="truncate">{[student.zone, student.transportMode === 'HOME' ? (student.homeAddress || student.address) : (student.pickupLocation || student.address)].filter(Boolean).join(' / ')}</span>
             </span>
           )}
         </div>
@@ -1008,7 +1008,8 @@ function MorningTripCard({ bus, todayAssignment, student, busStudents, tracking,
           {displayStudents.map((s) => {
             const isMe = s.studentId === student?.id
             const ts = s.trackingStatus
-            const address = s.pickupLocation || s.homeAddress || '-'
+            const point = s.transportMode === 'HOME' ? (s.homeAddress || s.address) : (s.pickupLocation || s.address || s.homeAddress)
+            const address = [s.zone, point].filter(Boolean).join(' / ') || '-'
             const studentTime = s.pickupTime ? formatTime(s.pickupTime) : 'غير محدد'
 
             return (

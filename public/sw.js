@@ -138,6 +138,10 @@ async function networkFirst(req, path) {
     const cache = await caches.open(CACHE)
     const cached = await cache.match(req)
     console.log(`[SW] OFFLINE → CACHE ${path}`)
+    if (req.mode === 'navigate') {
+      const appShell = await cache.match('/index.html') || await cache.match('/')
+      if (appShell) return appShell
+    }
     return cached || new Response(JSON.stringify({ error: 'غير متصل' }), {
       status: 503,
       headers: { 'Content-Type': 'application/json' },

@@ -272,9 +272,10 @@ export default function ReturnDispatchCenter() {
 
             <div className="space-y-1 max-h-[calc(100vh-280px)] overflow-y-auto">
               {filteredQueue.map(item => {
-                const address = item.student?.transportMode === 'HOME'
-                  ? (item.student?.homeAddress || '---')
-                  : (item.student?.pickupLocation || item.student?.address || '---')
+                const point = item.student?.transportMode === 'HOME'
+                  ? (item.student?.homeAddress || item.student?.address)
+                  : (item.student?.pickupLocation || item.student?.address)
+                const address = [item.student?.zone, point].filter(Boolean).join(' / ') || '---'
                 return (
                   <div key={item.id} className={`rounded-lg p-2 border ${getStudentGenderTone(item.student?.gender).card}`}>
                     <div className="flex items-center gap-1.5">
@@ -504,7 +505,7 @@ export default function ReturnDispatchCenter() {
                             <div className="flex items-center gap-1 text-[10px] text-slate-400 flex-wrap">
                               {s?.institutionName && <span className="truncate">{s.institutionName}</span>}
                               {s?.destination?.name && <span className="truncate">{s.destination.name}</span>}
-                              <span className="truncate">{isHome ? s?.homeAddress : (s?.pickupLocation || s?.address || '---')}</span>
+                              <span className="truncate">{[s?.zone, isHome ? (s?.homeAddress || s?.address) : (s?.pickupLocation || s?.address)].filter(Boolean).join(' / ') || '---'}</span>
                               {hasDelay && (
                                 <span className="shrink-0 text-amber-600">
                                   ⏱ {load.delayMinutes}د {load.delayReason ? `· ${load.delayReason}` : ''}

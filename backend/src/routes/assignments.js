@@ -103,7 +103,7 @@ router.get('/', async (req, res) => {
     const assignments = await prisma.assignment.findMany({
       where,
       include: {
-        student: { select: { id: true, name: true, zone: true, phone: true, transportMode: true, homeAddress: true, homeNotes: true } },
+        student: { select: { id: true, name: true, zone: true, address: true, phone: true, transportMode: true, homeAddress: true, pickupLocation: true, homeNotes: true } },
         bus: {
           include: {
             driver: { select: { id: true, name: true, phone: true } },

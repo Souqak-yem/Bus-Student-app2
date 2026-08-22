@@ -479,7 +479,19 @@ router.get('/departed', async (req, res) => {
     const { today, tomorrow } = todayRange()
     const op = await prisma.dailyOperation.findFirst({ where: { operationDate: { gte: today, lt: tomorrow } } })
     if (!op) return res.json([])
-    const buses = await prisma.activeBus.findMany({ where: { operationId: op.id, tripType: 'RETURN', status: 'DEPARTED' }, include: { bus: { select: { id: true, plateNumber: true, model: true } }, driver: { select: { id: true, name: true, phone: true } }, loads: { include: { student: { select: { id: true, name: true, transportMode: true, homeAddress: true } } } } }, orderBy: { updatedAt: 'desc' } })
+    const buses = await prisma.activeBus.findMany({
+      where: { operationId: op.id, tripType: 'RETURN', status: 'DEPARTED' },
+      include: {
+        bus: { select: { id: true, plateNumber: true, model: true } },
+        driver: { select: { id: true, name: true, phone: true } },
+        loads: {
+          include: {
+            student: { select: { id: true, name: true, zone: true, address: true, pickupLocation: true, transportMode: true, homeAddress: true } },
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    })
     res.json(buses)
   } catch (error) {
     res.status(500).json({ error: error.message })

@@ -363,9 +363,10 @@ export default function ReturnTrip() {
     const currentLoad = loads[dropoffIndex]
     const currentStudent = currentLoad?.student
     const isHomeDelivery = currentStudent?.transportMode === 'HOME'
-    const dropoffLocation = isHomeDelivery
+    const dropoffPoint = isHomeDelivery
       ? (currentStudent?.homeAddress || null)
       : (currentStudent?.pickupLocation || currentStudent?.address || null)
+    const dropoffLocation = [currentStudent?.zone, dropoffPoint].filter(Boolean).join(' / ')
     const remaining = loads.length - (dropoffIndex + 1)
 
     return (

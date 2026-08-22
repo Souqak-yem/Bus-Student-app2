@@ -352,9 +352,10 @@ export default function BusOperationDetail({ busId, onClose, onRefresh }) {
                               <div className="flex items-center gap-1 max-w-[160px]">
                                 <MapPin size={10} className="shrink-0" />
                                 <span className="truncate">
-                                  {item.student.transportMode === 'HOME'
-                                    ? (item.student.homeAddress || '-')
-                                    : (item.student.pickupLocation || '-')}
+                                  {[item.student.zone, item.student.transportMode === 'HOME'
+                                    ? (item.student.homeAddress || item.student.address)
+                                    : (item.student.pickupLocation || item.student.address)]
+                                    .filter(Boolean).join(' / ') || '-'}
                                 </span>
                               </div>
                             </div>
@@ -433,9 +434,10 @@ export default function BusOperationDetail({ busId, onClose, onRefresh }) {
                           <div className="text-xs flex items-start gap-1 max-w-[140px]">
                             <MapPin size={10} className="text-[var(--color-text-muted)] shrink-0 mt-0.5" />
                             <span className="truncate">
-                              {item.student.transportMode === 'HOME'
-                                ? (item.student.homeAddress || '-')
-                                : (item.student.pickupLocation || '-')}
+                              {[item.student.zone, item.student.transportMode === 'HOME'
+                                ? (item.student.homeAddress || item.student.address)
+                                : (item.student.pickupLocation || item.student.address)]
+                                .filter(Boolean).join(' / ') || '-'}
                             </span>
                           </div>
                         </td>

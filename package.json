@@ -1,13 +1,14 @@
 {
   "name": "bus-students-co",
   "private": true,
-  "version": "1.0.282",
+  "version": "1.0.286",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "dev:backend": "cd backend && npm run dev",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:backend\"",
     "build": "vite build",
+    "start": "node scripts/serve-dist.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },

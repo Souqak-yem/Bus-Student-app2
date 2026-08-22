@@ -11,7 +11,7 @@ router.get('/all', authorize('admin'), async (req, res) => {
     const records = await prisma.busStudent.findMany({
       where: { isActive: true },
       include: {
-        student: { select: { id: true, name: true } },
+        student: { select: { id: true, name: true, zone: true, address: true, pickupLocation: true, homeAddress: true, transportMode: true } },
         bus: { select: { id: true, busNumber: true } },
       },
     })

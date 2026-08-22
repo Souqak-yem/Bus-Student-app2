@@ -28,7 +28,15 @@ async function isFile(path) {
 }
 
 const server = createServer(async (req, res) => {
-  const requestPath = decodeURIComponent((req.url || '/').split('?')[0])
+  let requestPath
+  try {
+    requestPath = decodeURIComponent((req.url || '/').split('?')[0])
+  } catch {
+    res.statusCode = 400
+    res.end('Invalid URL')
+    return
+  }
+
   const relativePath = normalize(requestPath).replace(/^([.][.][/\\])+/, '')
   const filePath = join(root, relativePath === '/' ? 'index.html' : relativePath)
   const safePath = filePath.startsWith(root) ? filePath : join(root, 'index.html')

@@ -72,10 +72,11 @@ export default function AppSplashScreen({ onFinish }) {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25, duration: 0.45, ease: 'easeOut' }}
-            className="relative z-10 text-4xl sm:text-5xl font-black text-white mt-6 tracking-wider"
+            className="relative z-10 max-w-full px-4 text-center text-2xl leading-relaxed sm:text-5xl font-black text-white mt-6 tracking-wider"
           >
-            <span className="bg-gradient-to-l from-white via-blue-50 to-white bg-clip-text text-transparent drop-shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
-              تنسيقية مواصلات فلك
+            <span className="drop-shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+              <span className="bg-gradient-to-l from-white via-blue-50 to-white bg-clip-text text-transparent">تنسيقية مواصلات</span>
+              <span className="block text-white sm:inline"> فلك</span>
             </span>
           </motion.h1>
 

@@ -139,8 +139,8 @@ export default function SplashScreen({ duration = 4000, onFinish }) {
               transition={{ duration: 0.5, delay: 0.35, ease: 'easeOut' }}
               className="relative z-10 text-center mt-2"
             >
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-wider">
-                تنسيقية مواصلات فلك
+              <h1 className="px-4 text-2xl text-center leading-relaxed sm:text-4xl lg:text-5xl font-bold text-white tracking-wider">
+                <span>تنسيقية مواصلات</span><span className="block text-white sm:inline"> فلك</span>
               </h1>
               <p className="text-sm sm:text-base lg:text-lg text-blue-200/90 mt-1.5 font-medium">
                 رحلتك الجامعية أسهل

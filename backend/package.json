@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/index.js",
+    "build": "npx prisma generate",
     "start": "npx prisma migrate deploy && npx prisma generate && node src/index.js",
     "db:push": "npx prisma db push",
     "db:generate": "npx prisma generate",

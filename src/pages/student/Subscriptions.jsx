@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { NavLink, Navigate, useLocation } from 'react-router-dom'
 import { CalendarDays, CreditCard, Clock, FileText, Upload, ShoppingCart, Trash2 } from 'lucide-react'
 import { resolveDailyExecutionDates, serializeLocalDate, parseLocalDate } from '../../../backend/src/utils/dateUtils.js'
@@ -168,11 +168,11 @@ export default function Subscriptions() {
   const [cartSubmitting, setCartSubmitting] = useState(false)
   const [cartSuccess, setCartSuccess] = useState('')
   const [cartError, setCartError] = useState('')
+  const cartRef = useRef(null)
   const [showWhatsAppNotice, setShowWhatsAppNotice] = useState(false)
   const [whatsAppCountdown, setWhatsAppCountdown] = useState(0)
   const [pendingWhatsApp, setPendingWhatsApp] = useState(null)
 
-  const [destPricing, setDestPricing] = useState([])
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false)
 
   const handleCartSubmit = useCallback(() => {
@@ -207,12 +207,6 @@ export default function Subscriptions() {
       if (dashResult.status === 'fulfilled') {
         const studentData = dashResult.value.student
         setStudent(studentData)
-        if (studentData?.destinationId) {
-          try {
-            const dp = await api.studentPortal.getPricingByDestination(studentData.destinationId)
-            if (dp) setDestPricing(dp)
-          } catch (_) {}
-        }
       }
       if (campsResult.status === 'fulfilled') {
         const camps = campsResult.value
@@ -285,36 +279,31 @@ export default function Subscriptions() {
   }, [campaigns, today, subscribedPlans])
 
   const zone = student?.zone
-  const destId = student?.destinationId
   const zonePricing = useMemo(() => {
     if (!zone) return null
     return pricing.find(z => z.name === zone) || null
   }, [zone, pricing])
 
-  const destZonePricing = useMemo(() => {
-    if (!zone || !destId) return null
-    return destPricing.find(z => z.name === zone) || null
-  }, [zone, destId, destPricing])
-
   const location = useLocation()
 
   const dailyPrice = useMemo(() => {
-    const zp = destZonePricing
+    const zp = zonePricing
     if (!zp) return 0
-    const p = zp.prices?.find(pr => pr.plan === 'DAILY')
-    return p ? Number(p.price) : 0
-  }, [zonePricing, destZonePricing])
+    return zp.dailyPrice != null
+      ? Number(zp.dailyPrice)
+      : Number(zp.prices?.find(pr => pr.plan === 'DAILY' && !pr.destinationId)?.price || 0)
+  }, [zonePricing])
 
   const weeklyPrices = useMemo(() => {
-    const zp = destZonePricing
+    const zp = zonePricing
     if (!zp) return { THREE_WEEKS: 0, FOUR_WEEKS: 0 }
-    const three = zp.prices?.find(pr => pr.plan === 'THREE_WEEKS')
-    const four = zp.prices?.find(pr => pr.plan === 'FOUR_WEEKS')
+    const three = zp.threeWeeksPrice != null ? Number(zp.threeWeeksPrice) : Number(zp.prices?.find(pr => pr.plan === 'THREE_WEEKS' && !pr.destinationId)?.price || 0)
+    const four = zp.fourWeeksPrice != null ? Number(zp.fourWeeksPrice) : Number(zp.prices?.find(pr => pr.plan === 'FOUR_WEEKS' && !pr.destinationId)?.price || 0)
     return {
-      THREE_WEEKS: three ? Number(three.price) : 0,
-      FOUR_WEEKS: four ? Number(four.price) : 0,
+      THREE_WEEKS: three,
+      FOUR_WEEKS: four,
     }
-  }, [zonePricing, destZonePricing])
+  }, [zonePricing])
 
   const dailyHomeFee = useMemo(() => {
     if (!student?.homeDeliveryActive || !zonePricing) return 0
@@ -377,6 +366,7 @@ export default function Subscriptions() {
       setDailyWeeks(1)
       const cartRes = await api.cart.get()
       setCart(cartRes.cart)
+      requestAnimationFrame(() => cartRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
     } catch (e) {
       setDailyError(e.message)
     } finally {
@@ -431,6 +421,7 @@ export default function Subscriptions() {
       setCampaignEnrolling(null)
       const cartRes = await api.cart.get()
       setCart(cartRes.cart)
+      requestAnimationFrame(() => cartRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
     } catch (e) {
       setCampaignError(e.message)
     } finally {
@@ -847,7 +838,7 @@ export default function Subscriptions() {
     return (
       <div className="card p-4">
         <h3 className="text-sm font-bold text-slate-800 mb-3">
-          {destId ? 'أسعار الاشتراكات حسب وجهتي' : 'أسعار الاشتراكات حسب المنطقة'}
+          أسعار الاشتراكات حسب المنطقة
         </h3>
         <div className="overflow-x-auto -mx-4">
           <table className="w-full text-sm">
@@ -860,23 +851,21 @@ export default function Subscriptions() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {(destId ? destPricing : sortedAreaPrices).length > 0 ? (destId ? destPricing : sortedAreaPrices).map(zone => {
-                // Prefer destination-specific prices; fall back to zone defaults when missing
-                const dailyEntry = zone.prices?.find(p => p.plan === 'DAILY' && String(p.destinationId) === String(destId))
-                const threeEntry = zone.prices?.find(p => p.plan === 'THREE_WEEKS' && String(p.destinationId) === String(destId))
-                const fourEntry = zone.prices?.find(p => p.plan === 'FOUR_WEEKS' && String(p.destinationId) === String(destId))
-                const dailyPrice = dailyEntry ? Number(dailyEntry.price) : (zone.dailyPrice != null ? Number(zone.dailyPrice) : null)
-                const threeWeeksPrice = threeEntry ? Number(threeEntry.price) : (zone.threeWeeksPrice != null ? Number(zone.threeWeeksPrice) : null)
-                const fourWeeksPrice = fourEntry ? Number(fourEntry.price) : (zone.fourWeeksPrice != null ? Number(zone.fourWeeksPrice) : null)
+              {sortedAreaPrices.length > 0 ? sortedAreaPrices.map(zone => {
+                const dailyEntry = zone.prices?.find(p => p.plan === 'DAILY' && !p.destinationId)
+                const threeEntry = zone.prices?.find(p => p.plan === 'THREE_WEEKS' && !p.destinationId)
+                const fourEntry = zone.prices?.find(p => p.plan === 'FOUR_WEEKS' && !p.destinationId)
+                const dailyPrice = zone.dailyPrice != null ? Number(zone.dailyPrice) : (dailyEntry ? Number(dailyEntry.price) : null)
+                const threeWeeksPrice = zone.threeWeeksPrice != null ? Number(zone.threeWeeksPrice) : (threeEntry ? Number(threeEntry.price) : null)
+                const fourWeeksPrice = zone.fourWeeksPrice != null ? Number(zone.fourWeeksPrice) : (fourEntry ? Number(fourEntry.price) : null)
                 const isMyZone = zone.name === zonePricing?.name || zone.id === zonePricing?.id
-                const isDestPrice = Boolean(zone.prices?.some(p => String(p.destinationId) === String(destId)))
                 return (
                   <tr key={zone.id} className={isMyZone ? 'bg-blue-50' : ''}>
                     <td className={`px-4 py-3 text-sm font-bold ${isMyZone ? 'text-[var(--color-primary)]' : 'text-slate-700'}`}>
                       {zone.name || 'غير محددة'}
                       {isMyZone && <span className="mr-1.5 text-[10px] text-slate-400 font-medium">(منطقتي)</span>}
                     </td>
-                    <td className={`px-4 py-3 text-sm ${isDestPrice ? 'text-green-600 font-extrabold' : isMyZone ? 'text-[var(--color-primary)] font-bold' : 'text-slate-700'}`}>
+                    <td className={`px-4 py-3 text-sm ${isMyZone ? 'text-[var(--color-primary)] font-bold' : 'text-slate-700'}`}>
                       {(fourWeeksPrice != null) ? formatNumber(fourWeeksPrice) : '-'}
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-600">{(threeWeeksPrice != null) ? formatNumber(threeWeeksPrice) : '-'}</td>
@@ -974,7 +963,7 @@ export default function Subscriptions() {
   return (
     <div className="space-y-2">
       {cart && (
-        <div className="card border-2 border-[var(--color-primary)]/40 p-4 fade-in">
+        <div ref={cartRef} className="card border-2 border-[var(--color-primary)]/40 p-4 fade-in">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-9 h-9 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center">
               <ShoppingCart size={20} className="text-[var(--color-primary)]" />

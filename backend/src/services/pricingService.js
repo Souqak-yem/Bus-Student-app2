@@ -10,24 +10,17 @@ const DEFAULT_PLAN_PRICES = {
 export async function getPrice(zoneId, destinationId, plan) {
   if (!zoneId || !plan) return DEFAULT_PLAN_PRICES[plan] ?? null
 
-  if (destinationId) {
-    const exact = await prisma.pricing.findUnique({
-      where: { zone_dest_plan_unique: { zoneId, destinationId, plan } },
-    })
-    if (exact) return Number(exact.price)
-  }
-
-  const fallback = await prisma.pricing.findFirst({
-    where: { zoneId, plan, destinationId: null },
-  })
-  if (fallback) return Number(fallback.price)
-
   const zone = await prisma.pricingArea.findUnique({ where: { id: zoneId } })
   if (zone) {
     const fieldMap = { DAILY: 'dailyPrice', THREE_WEEKS: 'threeWeeksPrice', FOUR_WEEKS: 'fourWeeksPrice' }
     const val = zone[fieldMap[plan]]
     if (val != null) return Number(val)
   }
+
+  const fallback = await prisma.pricing.findFirst({
+    where: { zoneId, plan, destinationId: null },
+  })
+  if (fallback) return Number(fallback.price)
 
   return DEFAULT_PLAN_PRICES[plan] ?? null
 }
@@ -49,14 +42,10 @@ export function isEarlyDiscountActive(campaign) {
 
 export async function calculateFinalSubscriptionPrice(student, campaign, zonePricing) {
   const plan = campaign.type === 'subscription_3weeks' ? 'THREE_WEEKS' : 'FOUR_WEEKS'
-  const destId = student.destinationId || null
-
-  const pricingRow = zonePricing?.prices
-    ?.filter(p => p.plan === plan)
-    ?.sort((a, b) => (a.destinationId === destId ? -1 : b.destinationId === destId ? 1 : 0))[0]
-  const basePrice = pricingRow
-    ? Number(pricingRow.price)
-    : (plan === 'THREE_WEEKS' ? Number(zonePricing?.threeWeeksPrice || 0) : Number(zonePricing?.fourWeeksPrice || 0))
+  const zonePriceField = plan === 'THREE_WEEKS' ? 'threeWeeksPrice' : 'fourWeeksPrice'
+  const basePrice = zonePricing?.[zonePriceField] != null
+    ? Number(zonePricing[zonePriceField])
+    : Number(zonePricing?.prices?.find(p => p.plan === plan && p.destinationId === null)?.price || 0)
 
   let surcharge = 0
   if (student.homeDeliveryActive) {
@@ -98,8 +87,8 @@ export async function ensurePricingRows(zoneId, destinationId, values = {}) {
   await Promise.all(plans.map(async (plan) => {
     const price = values[plan] != null ? Number(values[plan]) : DEFAULT_PLAN_PRICES[plan]
     await prisma.pricing.upsert({
-      where: { zone_dest_plan_unique: { zoneId, destinationId: destinationId ?? 'NONE', plan } },
-      create: { zoneId, destinationId: destinationId || null, plan, price },
+      where: { zone_dest_plan_unique: { zoneId, destinationId: 'NONE', plan } },
+      create: { zoneId, destinationId: null, plan, price },
       update: { price },
     })
   }))

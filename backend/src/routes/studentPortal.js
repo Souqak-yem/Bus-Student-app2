@@ -67,7 +67,7 @@ router.post('/register', async (req, res) => {
 
     const fullName = name || [firstName, fatherName, grandfatherName, familyName].filter(Boolean).join(' ')
 
-    if (!fullName || !phone || !whatsapp || !parentName || !parentPhone || !parentRelation || !address || !zone || !major || !level || !transportMode) {
+    if (!fullName || !phone || !whatsapp || !parentName || !parentPhone || !parentRelation || !address || !zone || !destinationId || !institutionName || !major || !level || !transportMode) {
       return res.status(400).json({ error: 'جميع الحقول الأساسية مطلوبة' })
     }
     if (!gender || !['MALE', 'FEMALE'].includes(gender)) {
@@ -426,26 +426,6 @@ router.get('/pricing', async (req, res) => {
   }
 })
 
-router.get('/pricing-by-destination', async (req, res) => {
-  try {
-    const { destinationId } = req.query
-    const zones = await prisma.pricingArea.findMany({
-      where: { isActive: true },
-      orderBy: { name: 'asc' },
-      include: {
-        prices: {
-          where: destinationId ? { destinationId } : { destinationId: null },
-          include: { destination: true },
-          orderBy: { plan: 'asc' },
-        },
-      },
-    })
-    res.json(zones)
-  } catch (error) {
-    res.status(500).json({ error: error.message })
-  }
-})
-
 router.get('/campaign-price/:campaignId', async (req, res) => {
   try {
     if (req.user.role !== 'student') return res.status(403).json({ error: 'غير مصرح' })
@@ -466,7 +446,7 @@ router.get('/campaign-price/:campaignId', async (req, res) => {
 
     const zonePricing = await prisma.pricingArea.findUnique({
       where: { name: student.zone },
-      include: { prices: { where: { destinationId: student.destinationId || null } } },
+      include: { prices: { where: { destinationId: null } } },
     })
     if (!zonePricing) return res.status(400).json({ error: 'لم يتم العثور على منطقة التسعير' })
 
@@ -629,7 +609,7 @@ router.post('/subscription-request-legacy', async (req, res) => {
 
     const zone = await prisma.pricingArea.findUnique({
       where: { name: student.zone },
-      include: { prices: { where: { destinationId: student.destinationId || null } } },
+      include: { prices: { where: { destinationId: null } } },
     })
     if (!zone) return res.status(400).json({ error: 'لم يتم العثور على منطقة التسعير' })
 
@@ -638,10 +618,10 @@ router.post('/subscription-request-legacy', async (req, res) => {
     })
     if (existingRequest) return res.status(400).json({ error: 'لديك طلب اشتراك يومي قيد المراجعة' })
 
-    const pricing = zone.prices?.find(p => p.plan === 'DAILY')
-    if (!pricing) return res.status(400).json({ error: 'لم يتم تحديد سعر للاشتراك اليومي' })
-
-    const dailyPrice = Number(pricing.price)
+    const dailyPrice = zone.dailyPrice != null
+      ? Number(zone.dailyPrice)
+      : Number(zone.prices?.find(p => p.plan === 'DAILY' && p.destinationId === null)?.price || 0)
+    if (dailyPrice <= 0) return res.status(400).json({ error: 'لم يتم تحديد سعر للاشتراك اليومي' })
     const { dates, weekCount, startDate: firstDate, endDate: lastDate } = resolveDailyExecutionDates({ selectedDays, durationWeeks })
     if (dates.length === 0) {
       return res.status(400).json({ error: 'لا توجد تواريخ صالحة' })

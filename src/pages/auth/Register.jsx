@@ -26,6 +26,7 @@ const emptyForm = {
   address: '',
   zone: '',
   destinationId: '',
+  institutionName: '',
   major: '',
   level: '',
   offDays: [],
@@ -52,7 +53,10 @@ function sanitizeArabicText(value, allowSpaces = true) {
 }
 
 function sanitizeArabicName(value) {
-  return sanitizeArabicText(value, false).replace(/[0-9]/g, '')
+  return sanitizeArabicText(value, true)
+    .replace(/[0-9]/g, '')
+    .replace(/^\s+/, '')
+    .replace(/\s{2,}/g, ' ')
 }
 
 export default function Register() {
@@ -94,6 +98,7 @@ export default function Register() {
 
     if (!form.zone) errs.zone = 'المنطقة مطلوبة'
     if (!form.destinationId) errs.destinationId = 'الوجهة مطلوبة'
+    if (!form.institutionName.trim()) errs.institutionName = 'الكلية مطلوبة'
     if (!form.address.trim()) errs.address = 'العنوان مطلوب'
     if (!form.major.trim()) errs.major = 'التخصص مطلوب'
     if (!form.level) errs.level = 'المستوى مطلوب'
@@ -134,8 +139,9 @@ export default function Register() {
   function updateTextField(field, value, options = {}) {
     const { allowSpaces = true } = options
     const sanitized = allowSpaces ? sanitizeArabicText(value, true) : sanitizeArabicName(value)
+    const whitespaceNormalized = value.replace(/\s+/g, ' ').replace(/^\s+/, '')
 
-    if (sanitized !== value) setInputError('لا يمكن كتابة رموز أو أحرف غير عربية أو إيموجي')
+    if (sanitized !== value && sanitized !== whitespaceNormalized) setInputError('لا يمكن كتابة رموز أو أحرف غير عربية أو إيموجي')
     else setInputError('')
 
     setForm((prev) => ({ ...prev, [field]: sanitized }))
@@ -162,6 +168,7 @@ export default function Register() {
       whatsapp: true,
       zone: true,
       destinationId: true,
+      institutionName: true,
       address: true,
       major: true,
       level: true,
@@ -233,14 +240,14 @@ export default function Register() {
             </div>
           ) : (
             <>
-              <form onSubmit={handleSubmit} className="space-y-6 text-right">
+              <form onSubmit={handleSubmit} className="flex flex-col space-y-6 text-right">
                 {(error || inputError) && (
                   <div className="rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
                     {inputError || error}
                   </div>
                 )}
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 order-1">
                 <div>
           <label className="block text-sm font-medium text-[var(--color-text)] mb-1">الاسم الأول</label>
           <input
@@ -268,7 +275,7 @@ export default function Register() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 order-1">
         <div>
           <label className="block text-sm font-medium text-[var(--color-text)] mb-1">اسم الجد</label>
           <input
@@ -296,7 +303,7 @@ export default function Register() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 order-2">
         <button
           type="button"
           onClick={() => setForm((prev) => ({ ...prev, gender: 'MALE' }))}
@@ -318,7 +325,7 @@ export default function Register() {
       </div>
       {touched.gender && errors.gender && <p className="text-[12px] text-red-600 mt-1">{errors.gender}</p>}
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 order-3">
         <div>
           <label className="block text-sm font-medium text-[var(--color-text)] mb-1">رقم الجوال</label>
           <input
@@ -348,33 +355,18 @@ export default function Register() {
                   {touched.whatsapp && errors.whatsapp && <p className="text-[12px] text-red-600 mt-1">{errors.whatsapp}</p>}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-[var(--color-text)] mb-1">المنطقة</label>
-                  <select
-                    value={form.zone}
-                    onChange={(e) => updateTextField('zone', e.target.value)}
-                    onBlur={() => handleBlur('zone')}
-                    className="input-field w-full"
-                  >
-                    <option value="">اختر المنطقة</option>
-                    {data.zones.map((zone) => (
-                      <option key={zone.id} value={zone.name}>{zone.name}</option>
-                    ))}
-                  </select>
-                  {touched.zone && errors.zone && <p className="text-[12px] text-red-600 mt-1">{errors.zone}</p>}
-                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 order-4">
                 <div>
-                  <label className="block text-sm font-medium text-[var(--color-text)] mb-1">الوجهة</label>
+                  <label className="block text-sm font-medium text-[var(--color-text)] mb-1">الجامعة</label>
                   <select
                     value={form.destinationId}
                     onChange={(e) => setForm({ ...form, destinationId: e.target.value })}
                     onBlur={() => handleBlur('destinationId')}
                     className="input-field w-full"
                   >
-                    <option value="">اختر الوجهة</option>
+                    <option value="">اختر الجامعة</option>
                     {data.destinations.map((destination) => (
                       <option key={destination.id} value={destination.id}>{destination.name}</option>
                     ))}
@@ -383,6 +375,19 @@ export default function Register() {
                 </div>
 
                 <div>
+                  <label className="block text-sm font-medium text-[var(--color-text)] mb-1">الكلية</label>
+                  <input
+                    type="text"
+                    value={form.institutionName}
+                    onChange={(e) => updateTextField('institutionName', e.target.value, { allowSpaces: true })}
+                    onBlur={() => handleBlur('institutionName')}
+                    placeholder="اسم الكلية"
+                    className="input-field w-full"
+                  />
+                  {touched.institutionName && errors.institutionName && <p className="text-[12px] text-red-600 mt-1">{errors.institutionName}</p>}
+                </div>
+
+                <div className="col-span-2">
                   <label className="block text-sm font-medium text-[var(--color-text)] mb-1">التخصص</label>
                   <input
                     type="text"
@@ -396,7 +401,7 @@ export default function Register() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 order-5">
                 <div>
                   <label className="block text-sm font-medium text-[var(--color-text)] mb-1">المستوى</label>
                   <select
@@ -416,27 +421,62 @@ export default function Register() {
                   {touched.level && errors.level && <p className="text-[12px] text-red-600 mt-1">{errors.level}</p>}
                 </div>
 
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-[var(--color-text)] mb-1">العنوان</label>
-                  <input
-                    type="text"
-                    value={form.address}
-                    onChange={(e) => {
-                      const nextValue = e.target.value
-                      updateTextField('address', nextValue, { allowSpaces: true })
-                      if (form.transportMode === 'LINE' && !form.pickupLocation.trim()) {
-                        setForm((prev) => ({ ...prev, pickupLocation: nextValue }))
-                      }
-                    }}
-                    onBlur={() => handleBlur('address')}
-                    placeholder="مكان السكن"
-                    className="input-field w-full"
-                  />
-                  {touched.address && errors.address && <p className="text-[12px] text-red-600 mt-1">{errors.address}</p>}
+              </div>
+
+              <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 order-6">
+                <p className="text-sm font-semibold mb-3">أيام العطلة (اختياري)</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {offDayOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => toggleOffDay(option.value)}
+                      className={`text-xs sm:text-sm text-center py-2 px-2 sm:px-3 rounded-xl border transition-colors ${form.offDays.includes(option.value)
+                        ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
+                        : 'bg-white text-[var(--color-text)] border-[var(--color-border)]'}`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="order-7">
+                <label className="block text-sm font-medium text-[var(--color-text)] mb-1">المنطقة</label>
+                <select
+                  value={form.zone}
+                  onChange={(e) => updateTextField('zone', e.target.value)}
+                  onBlur={() => handleBlur('zone')}
+                  className="input-field w-full"
+                >
+                  <option value="">اختر المنطقة</option>
+                  {data.zones.map((zone) => (
+                    <option key={zone.id} value={zone.name}>{zone.name}</option>
+                  ))}
+                </select>
+                {touched.zone && errors.zone && <p className="text-[12px] text-red-600 mt-1">{errors.zone}</p>}
+              </div>
+
+              <div className="order-8">
+                <label className="block text-sm font-medium text-[var(--color-text)] mb-1">العنوان</label>
+                <input
+                  type="text"
+                  value={form.address}
+                  onChange={(e) => {
+                    const nextValue = e.target.value
+                    updateTextField('address', nextValue, { allowSpaces: true })
+                    if (form.transportMode === 'LINE' && !form.pickupLocation.trim()) {
+                      setForm((prev) => ({ ...prev, pickupLocation: nextValue }))
+                    }
+                  }}
+                  onBlur={() => handleBlur('address')}
+                  placeholder="مكان السكن"
+                  className="input-field w-full"
+                />
+                {touched.address && errors.address && <p className="text-[12px] text-red-600 mt-1">{errors.address}</p>}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 order-9">
                 <div>
                   <label className="block text-sm font-medium text-[var(--color-text)] mb-1">اسم ولي الأمر</label>
                   <input
@@ -466,7 +506,7 @@ export default function Register() {
                 </div>
               </div>
 
-              <div>
+              <div className="order-9">
                 <label className="block text-sm font-medium text-[var(--color-text)] mb-1">القرابة</label>
                 <input
                   type="text"
@@ -479,7 +519,7 @@ export default function Register() {
                 {touched.parentRelation && errors.parentRelation && <p className="text-[12px] text-red-600 mt-1">{errors.parentRelation}</p>}
               </div>
 
-              <div>
+              <div className="order-10">
                 <label className="block text-sm font-medium text-[var(--color-text)] mb-1">نوع التوصيل</label>
                 <div className="flex flex-row flex-wrap gap-3">
                   <button
@@ -529,7 +569,7 @@ export default function Register() {
               </div>
 
               {form.transportMode === 'LINE' && (
-                <div className="mt-3 p-4 rounded-xl bg-blue-50 border border-blue-200">
+                <div className="order-11 mt-3 p-4 rounded-xl bg-blue-50 border border-blue-200">
                   <label className="block text-sm font-medium text-[var(--color-text)] mb-1">نقطة الانتظار</label>
                   <input
                     type="text"
@@ -544,7 +584,7 @@ export default function Register() {
               )}
 
               {form.transportMode === 'HOME' && (
-                <div className="mt-3 p-4 rounded-xl bg-orange-50 border border-orange-200 space-y-3">
+                <div className="order-11 mt-3 p-4 rounded-xl bg-orange-50 border border-orange-200 space-y-3">
                   <label className="block text-sm font-medium text-[var(--color-text)] mb-1">عنوان المنزل</label>
                   <textarea
                     value={form.homeAddress}
@@ -559,25 +599,7 @@ export default function Register() {
                 </div>
               )}
 
-              <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                <p className="text-sm font-semibold mb-3">أيام العطلة (اختياري)</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {offDayOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => toggleOffDay(option.value)}
-                      className={`text-xs sm:text-sm text-center py-2 px-2 sm:px-3 rounded-xl border transition-colors ${form.offDays.includes(option.value)
-                        ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
-                        : 'bg-white text-[var(--color-text)] border-[var(--color-border)]'}`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center gap-3">
+              <div className="flex flex-col sm:flex-row items-center gap-3 order-12">
                 <button type="submit" disabled={submitting} className="btn-primary w-full sm:w-auto">
                   {submitting ? 'جاري الإرسال...' : 'إرسال طلب التسجيل'}
                 </button>

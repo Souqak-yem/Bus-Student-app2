@@ -91,7 +91,7 @@ router.post('/items', async (req, res) => {
         student.zone
           ? prisma.pricingArea.findUnique({
               where: { name: student.zone },
-              include: { prices: { where: { destinationId: student.destinationId || null } } },
+              include: { prices: { where: { destinationId: null } } },
             })
           : null,
       ])

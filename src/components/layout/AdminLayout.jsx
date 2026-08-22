@@ -84,7 +84,20 @@ export default function AdminLayout() {
   }
 
   return (
-    <div className="min-h-screen surface-wash flex flex-col lg:flex-row">
+    <div
+      className="min-h-screen surface-wash flex flex-col lg:flex-row"
+      style={{
+        '--color-primary': '#2563EB',
+        '--color-primary-dark': '#1D4ED8',
+        '--color-primary-light': '#60A5FA',
+        '--color-primary-lighter': '#DBEAFE',
+        '--color-accent': '#F97316',
+        '--color-accent-dark': '#EA580C',
+        '--color-accent-light': '#FB923C',
+        '--color-accent-lighter': '#FED7AA',
+        '--color-surface': '#FFFFFF',
+      }}
+    >
       {/* Desktop sidebar — always visible lg+ */}
       <div className="hidden lg:block">
         <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />

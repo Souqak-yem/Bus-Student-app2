@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Eye, EyeOff, LogIn, Bus, User, Copy, Check } from 'lucide-react'
@@ -13,17 +13,9 @@ export default function Login() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [isDarkMode, setIsDarkMode] = useState(() => document.documentElement.dataset.theme === 'dark')
+  const isDarkMode = false
   const { login } = useAuth()
   const navigate = useNavigate()
-
-  useEffect(() => {
-    const syncTheme = () => setIsDarkMode(document.documentElement.dataset.theme === 'dark')
-    syncTheme()
-    const handleThemeChange = () => syncTheme()
-    window.addEventListener('storage', handleThemeChange)
-    return () => window.removeEventListener('storage', handleThemeChange)
-  }, [])
 
   const versionText = `الإصدار: ${__APP_VERSION__}\nBuild: ${__BUILD_HASH__}\nالتاريخ: ${__BUILD_TIME__}`
 

@@ -204,8 +204,8 @@ export const api = {
     delete: (id) => api.delete(`/pricing/${id}`),
     copy: (sourceZoneId, targetZoneId) =>
       api.post("/pricing/copy", { sourceZoneId, targetZoneId }),
-    getPrice: (zoneId, destinationId, plan) =>
-      api.get(`/pricing/price?${new URLSearchParams({ zoneId, destinationId: destinationId || '', plan })}`),
+    getPrice: (zoneId, plan) =>
+      api.get(`/pricing/price?${new URLSearchParams({ zoneId, plan })}`),
     calculate: (campaignId) => api.get(`/pricing/calculate?campaignId=${campaignId}`),
   },
 
@@ -324,7 +324,6 @@ export const api = {
     getSubscriptions: () => api.get("/student-portal/subscriptions"),
     getWeeklySchedule: () => api.get("/student-portal/weekly-schedule"),
     getPricing: () => api.get("/student-portal/pricing"),
-    getPricingByDestination: (destinationId) => api.get(`/student-portal/pricing-by-destination?destinationId=${destinationId}`),
     joinReturnQueue: () => api.post("/student-portal/return-queue/join"),
     notifyNext: () => api.post("/student-portal/notify-next"),
     register: (data) => api.post("/student-portal/register", data),

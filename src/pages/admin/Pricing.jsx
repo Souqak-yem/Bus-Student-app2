@@ -18,9 +18,7 @@ const emptyNewZone = { name: '', dailyPrice: '', threeWeeksPrice: '', fourWeeksP
 
 export default function AdminPricing() {
   const [zones, setZones] = useState([])
-  const [destinations, setDestinations] = useState([])
   const [selectedZoneId, setSelectedZoneId] = useState('')
-  const [selectedDestId, setSelectedDestId] = useState('')
   const [zone, setZone] = useState(null)
   const [zoneName, setZoneName] = useState('')
   const [prices, setPrices] = useState({ DAILY: '', THREE_WEEKS: '', FOUR_WEEKS: '' })
@@ -32,7 +30,6 @@ export default function AdminPricing() {
   const [copySourceId, setCopySourceId] = useState('')
   const [copyTargetId, setCopyTargetId] = useState('')
   const [copying, setCopying] = useState(false)
-  const [selectedDestPrices, setSelectedDestPrices] = useState([])
   const [showConfirm, setShowConfirm] = useState(null)
 
   useEffect(() => {
@@ -42,7 +39,7 @@ export default function AdminPricing() {
   async function initialLoad() {
     setLoading(true)
     try {
-      await Promise.all([loadZones(), loadDestinations()])
+      await loadZones()
     } catch (err) {
       console.error(err)
     } finally {
@@ -58,41 +55,23 @@ export default function AdminPricing() {
     }
   }
 
-  async function loadDestinations() {
-    try {
-      const data = await api.destinations.active()
-      setDestinations(data)
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
   useEffect(() => {
     if (selectedZoneId) {
       loadZone(selectedZoneId)
     } else {
       setZone(null)
-      setSelectedDestId('')
       setPrices({ DAILY: '', THREE_WEEKS: '', FOUR_WEEKS: '' })
-      setSelectedDestPrices([])
     }
   }, [selectedZoneId])
 
   useEffect(() => {
-    if (zone && selectedDestId) {
-      const destPrices = zone.prices?.filter(p => p.destinationId === selectedDestId) || []
-      setSelectedDestPrices(destPrices)
-      setPrices({
-        DAILY: String(destPrices.find(p => p.plan === 'DAILY')?.price ?? ''),
-        THREE_WEEKS: String(destPrices.find(p => p.plan === 'THREE_WEEKS')?.price ?? ''),
-        FOUR_WEEKS: String(destPrices.find(p => p.plan === 'FOUR_WEEKS')?.price ?? ''),
-      })
-    } else if (zone) {
-      // No destination selected: clear destination-specific inputs (no defaults)
-      setSelectedDestPrices([])
-      setPrices({ DAILY: '', THREE_WEEKS: '', FOUR_WEEKS: '' })
-    }
-  }, [zone, selectedDestId])
+    if (!zone) return
+    setPrices({
+      DAILY: zone.dailyPrice != null ? String(zone.dailyPrice) : '',
+      THREE_WEEKS: zone.threeWeeksPrice != null ? String(zone.threeWeeksPrice) : '',
+      FOUR_WEEKS: zone.fourWeeksPrice != null ? String(zone.fourWeeksPrice) : '',
+    })
+  }, [zone])
 
   async function loadZone(id) {
     setZoneLoading(true)
@@ -128,44 +107,19 @@ export default function AdminPricing() {
 
   async function handleSavePrices() {
     if (!selectedZoneId) return
-    if (!selectedDestId) return alert('اختر وجهة لحفظ الأسعار')
     setSaving(true)
     try {
-      const destId = selectedDestId || null
-      const payload = planTypes.map(item => ({
-        plan: item.key,
-        price: Number(prices[item.key] || 0),
-        destinationId: destId,
-      }))
-      await api.pricing.update(selectedZoneId, { prices: payload })
+      await api.pricing.updateZone(selectedZoneId, {
+        dailyPrice: prices.DAILY === '' ? null : Number(prices.DAILY),
+        threeWeeksPrice: prices.THREE_WEEKS === '' ? null : Number(prices.THREE_WEEKS),
+        fourWeeksPrice: prices.FOUR_WEEKS === '' ? null : Number(prices.FOUR_WEEKS),
+      })
       await loadZone(selectedZoneId)
       alert('تم حفظ الأسعار بنجاح')
     } catch (err) {
       alert(err.message)
     } finally {
       setSaving(false)
-    }
-  }
-
-  async function handleDeleteDestPrices(destId) {
-    setShowConfirm({ type: 'destPrices', destId })
-  }
-
-  async function confirmedDeleteDestPrices() {
-    const destId = showConfirm.destId
-    setShowConfirm(null)
-    try {
-      await api.pricing.update(selectedZoneId, {
-        prices: planTypes.map(item => ({
-          plan: item.key,
-          price: 0,
-          destinationId: destId,
-        })),
-      })
-      setSelectedDestId('')
-      await loadZone(selectedZoneId)
-    } catch (err) {
-      alert(err.message)
     }
   }
 
@@ -209,9 +163,7 @@ export default function AdminPricing() {
   }
 
   async function handleConfirmed() {
-    if (showConfirm?.type === 'destPrices') {
-      await confirmedDeleteDestPrices()
-    } else if (showConfirm?.type === 'zone') {
+    if (showConfirm?.type === 'zone') {
       await confirmedDeleteZone()
     }
   }
@@ -231,18 +183,9 @@ export default function AdminPricing() {
     }
   }
 
-  // Group only by destination-specific prices (ignore default/null destination)
-  const groupedPrices = zone?.prices?.reduce((acc, p) => {
-    if (!p.destinationId) return acc
-    const key = p.destinationId
-    if (!acc[key]) acc[key] = []
-    acc[key].push(p)
-    return acc
-  }, {}) || {}
-
   return (
     <div className="space-y-6">
-      <PageHeader title="إدارة أسعار الاشتراكات" subtitle="تحديد الأسعار حسب المنطقة والوجهة ونوع الاشتراك" />
+      <PageHeader title="إدارة أسعار الاشتراكات" subtitle="تحديد الأسعار حسب المنطقة ونوع الاشتراك" />
 
       {/* Zone selector and actions */}
       <Section className="lg:p-5">
@@ -300,25 +243,16 @@ export default function AdminPricing() {
               </div>
             </div>
 
-            {/* Destination selector + prices */}
+            {/* Zone prices */}
             <div className="mt-4 space-y-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div className="space-y-1">
-                  <label className="block text-sm font-medium">الوجهة</label>
-                  <select value={selectedDestId} onChange={(e) => setSelectedDestId(e.target.value)} className="input-field max-w-xs">
-                    <option value="">-- اختر وجهة --</option>
-                    {destinations.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
-                  <p className="text-xs text-[var(--color-text-muted)]">
-                    {selectedDestId ? 'تحديد سعر خاص بهذه الوجهة' : 'اختر وجهة لحفظ الأسعار (لا توجد أسعار افتراضية للمنطقة)'}
-                  </p>
+                  <label className="block text-sm font-medium">أسعار المنطقة</label>
+                  <p className="text-xs text-[var(--color-text-muted)]">تُطبق هذه الأسعار على جميع الطلاب في المنطقة.</p>
                 </div>
                 <div className="flex gap-2">
-                  {selectedDestId && (
-                    <button onClick={() => handleDeleteDestPrices(selectedDestId)} className="btn-ghost text-red-500"><Trash2 size={16} /> حذف أسعار الوجهة</button>
-                  )}
                   <button onClick={handleSavePrices} disabled={saving} className="btn-primary">
-                    {saving ? 'جاري الحفظ...' : <><Save size={16} /> حفظ الأسعار للوجهة</>}
+                    {saving ? 'جاري الحفظ...' : <><Save size={16} /> حفظ أسعار المنطقة</>}
                   </button>
                 </div>
               </div>
@@ -340,7 +274,7 @@ export default function AdminPricing() {
                           <input type="number" className="input-field w-full max-w-[200px]" value={prices[plan.key]} onChange={e => handleFieldChange(plan.key, e.target.value)} />
                         </td>
                         <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">
-                          {selectedDestPrices.find(p => p.plan === plan.key) ? 'سعر خاص بالوجهة' : 'سعر غير محدد للوجهة'}
+                          سعر موحد للمنطقة
                         </td>
                       </tr>
                     ))}
@@ -350,70 +284,6 @@ export default function AdminPricing() {
             </div>
           </Section>
 
-          {/* Summary of all destination prices */}
-          <Section title="أسعار الوجهات للمنطقة" className="lg:p-5">
-            {Object.keys(groupedPrices).length === 0 ? (
-              <div className="text-center py-4 text-sm text-[var(--color-text-muted)]">لا توجد أسعار خاصة بالوجهات لهذه المنطقة.</div>
-            ) : (
-              <div className="overflow-x-auto rounded-3xl border border-[var(--color-border)] bg-white">
-                <table className="min-w-full text-right">
-                  <thead className="bg-[var(--color-border-light)]">
-                    <tr>
-                      <th className="px-4 py-3 text-sm font-medium">الوجهة</th>
-                      {planTypes.map(p => <th key={p.key} className="px-4 py-3 text-sm font-medium">{p.label}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.entries(groupedPrices).map(([destId, destPrices]) => {
-                      const dest = destinations.find(d => d.id === destId)
-                      return (
-                        <tr key={destId} className="border-t border-[var(--color-border)]">
-                          <td className="px-4 py-4 text-sm font-medium">{dest?.name || '-'}</td>
-                          {planTypes.map(p => (
-                            <td key={p.key} className="px-4 py-4 text-sm">{destPrices.find(dp => dp.plan === p.key)?.price ?? '-'}</td>
-                          ))}
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Section>
-
-          {/* All zones prices for selected destination */}
-          {selectedDestId && (
-            <Section title="أسعار المناطق حسب الوجهة" className="lg:p-5">
-              <div className="overflow-x-auto rounded-3xl border border-[var(--color-border)] bg-white">
-                <table className="min-w-full text-right">
-                  <thead className="bg-[var(--color-border-light)]">
-                    <tr>
-                      <th className="px-4 py-3 text-sm font-medium">المنطقة</th>
-                      {planTypes.map(p => <th key={p.key} className="px-4 py-3 text-sm font-medium">{p.label}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {zones.map(z => {
-                      // find destination-specific prices for this zone
-                      const destPrices = (z.prices || []).filter(p => String(p.destinationId) === String(selectedDestId))
-                      return (
-                        <tr key={z.id} className="border-t border-[var(--color-border)]">
-                          <td className="px-4 py-4 text-sm font-medium">{z.name}</td>
-                          {planTypes.map(p => {
-                            const row = destPrices.find(dp => dp.plan === p.key)
-                            const value = row ? row.price : (p.key === 'DAILY' ? z.dailyPrice : p.key === 'THREE_WEEKS' ? z.threeWeeksPrice : z.fourWeeksPrice)
-                            return (
-                              <td key={p.key} className="px-4 py-4 text-sm">{(value === undefined || value === null) ? '-' : value}</td>
-                            )
-                          })}
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </Section>
-          )}
         </>
       )}
 
@@ -443,12 +313,10 @@ export default function AdminPricing() {
         show={!!showConfirm}
         onClose={() => setShowConfirm(null)}
         onConfirm={handleConfirmed}
-        title={showConfirm?.type === 'zone' ? 'تأكيد حذف المنطقة' : 'تأكيد حذف الأسعار'}
+        title="تأكيد حذف المنطقة"
         danger
       >
-        {showConfirm?.type === 'zone'
-          ? 'هل أنت متأكد من حذف هذه المنطقة وجميع أسعارها؟'
-          : 'هل تريد حذف أسعار هذه الوجهة للمنطقة؟'}
+        هل أنت متأكد من حذف هذه المنطقة وجميع أسعارها؟
       </ConfirmModal>
     </div>
   )

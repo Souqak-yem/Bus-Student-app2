@@ -21,11 +21,11 @@ async function loadZoneWithPrices(id) {
 
 router.get('/', async (req, res) => {
   try {
-    const { zoneId, destinationId } = req.query
-    if (zoneId && destinationId) {
+    const { zoneId } = req.query
+    if (zoneId) {
       const prices = await prisma.pricing.findMany({
-        where: { zoneId, destinationId },
-        include: { zone: true, destination: true },
+        where: { zoneId, destinationId: null },
+        include: { zone: true },
       })
       return res.json(prices)
     }
@@ -92,7 +92,7 @@ router.get('/calculate', async (req, res) => {
 
     const zonePricing = await prisma.pricingArea.findUnique({
       where: { name: student.zone },
-      include: { prices: { where: { destinationId: student.destinationId || null } } },
+      include: { prices: { where: { destinationId: null } } },
     })
     if (!zonePricing) return res.status(400).json({ error: 'لم يتم العثور على منطقة التسعير' })
 
@@ -105,7 +105,7 @@ router.get('/calculate', async (req, res) => {
 
 router.get('/price', async (req, res) => {
   try {
-    const { zoneName, zoneId, destinationId, plan } = req.query
+    const { zoneName, zoneId, plan } = req.query
     if (!plan) return res.status(400).json({ error: 'نوع الاشتراك مطلوب' })
 
     let id = zoneId
@@ -114,7 +114,7 @@ router.get('/price', async (req, res) => {
       if (zone) id = zone.id
     }
 
-    const price = await getPrice(id, destinationId || null, plan)
+    const price = await getPrice(id, null, plan)
     res.json({ price })
   } catch (error) {
     res.status(500).json({ error: error.message })
@@ -208,8 +208,8 @@ router.put('/:id', authorize('admin'), async (req, res) => {
       if (!item.plan) return
       const priceValue = item.price != null ? Number(item.price) : DEFAULT_PLAN_PRICES[item.plan]
       await prisma.pricing.upsert({
-        where: { zone_dest_plan_unique: { zoneId: req.params.id, destinationId: item.destinationId || 'NONE', plan: item.plan } },
-        create: { zoneId: req.params.id, destinationId: item.destinationId || null, plan: item.plan, price: priceValue },
+        where: { zone_dest_plan_unique: { zoneId: req.params.id, destinationId: 'NONE', plan: item.plan } },
+        create: { zoneId: req.params.id, destinationId: null, plan: item.plan, price: priceValue },
         update: { price: priceValue },
       })
     }))
@@ -241,6 +241,17 @@ router.post('/copy', authorize('admin'), async (req, res) => {
         plan: item.plan,
         price: item.price,
       })),
+    })
+    await prisma.pricingArea.update({
+      where: { id: targetZoneId },
+      data: {
+        dailyPrice: source.dailyPrice,
+        threeWeeksPrice: source.threeWeeksPrice,
+        fourWeeksPrice: source.fourWeeksPrice,
+        homeNearSurcharge: source.homeNearSurcharge,
+        homeMediumSurcharge: source.homeMediumSurcharge,
+        homeFarSurcharge: source.homeFarSurcharge,
+      },
     })
 
     const updated = await loadZoneWithPrices(targetZoneId)

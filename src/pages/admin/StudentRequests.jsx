@@ -167,18 +167,21 @@ export default function AdminStudentRequests() {
 
     return [
       { label: 'اسم الطالب', value: request.name || '-' },
+      { label: 'الجنس', value: request.gender === 'MALE' ? 'ذكر' : request.gender === 'FEMALE' ? 'أنثى' : '-' },
       { label: 'رقم الجوال', value: request.phone || '-' },
       { label: 'واتساب', value: request.whatsapp || '-' },
-      { label: 'ولي الأمر', value: request.parentName || '-' },
-      { label: 'صلة القرابة', value: request.parentRelation || '-' },
-      { label: 'المنطقة', value: request.zone || '-' },
-      { label: 'الوجهة', value: request.destination?.name || '-' },
+      { label: 'الجامعة', value: request.destination?.name || '-' },
+      { label: 'الكلية', value: request.institutionName || '-' },
       { label: 'التخصص', value: request.major || '-' },
       { label: 'المستوى', value: request.level || '-' },
+      { label: 'أيام الإجازة', value: offDaysLabel },
+      { label: 'المنطقة', value: request.zone || '-' },
       { label: 'العنوان', value: request.address || '-' },
+      { label: 'اسم ولي الأمر', value: request.parentName || '-' },
+      { label: 'جوال ولي الأمر', value: request.parentPhone || '-' },
+      { label: 'صلة القرابة', value: request.parentRelation || '-' },
       { label: 'نوع التوصيل', value: request.transportMode === 'HOME' ? 'توصيل منزلي' : 'توصيل على الخط' },
       { label: request.transportMode === 'LINE' ? 'نقطة الانتظار' : 'عنوان المنزل', value: request.transportMode === 'LINE' ? request.pickupLocation || '-' : request.homeAddress || '-' },
-      { label: 'أيام العطلة', value: offDaysLabel },
       { label: 'الحالة', value: request.status === 'PENDING' ? 'قيد الانتظار' : request.status === 'APPROVED' ? 'مقبول' : 'مرفوض' },
     ]
   }

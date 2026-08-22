@@ -8,6 +8,15 @@ import { api } from '../../lib/api'
 import { isPushNotificationsEnabled, requestPermission, setPushNotificationsEnabled, subscribeToPush, unsubscribeFromPush } from '../../lib/pushManager'
 
 const REGISTRATION_CONTACT_PHONE = '967734904945'
+const DAY_NAMES = {
+  SATURDAY: 'السبت',
+  SUNDAY: 'الأحد',
+  MONDAY: 'الإثنين',
+  TUESDAY: 'الثلاثاء',
+  WEDNESDAY: 'الأربعاء',
+  THURSDAY: 'الخميس',
+}
+
 const COLOR_SWATCHES = [
   { name: 'أزرق', value: '#2563EB' },
   { name: 'أزرق داكن', value: '#1D4ED8' },
@@ -113,9 +122,9 @@ export default function Settings() {
     }
 
     let active = true
-    api.students.get(user.studentId)
-      .then((student) => {
-        if (active) setProfile(student)
+    api.studentPortal.getDashboard()
+      .then((dashboard) => {
+        if (active) setProfile(dashboard.student)
       })
       .catch(() => {
         if (active) setProfile(null)
@@ -207,21 +216,25 @@ export default function Settings() {
 
   const profileFields = [
     { label: 'الاسم', value: profile?.name || user?.name || '—' },
+    { label: 'الجنس', value: formatGender(profile?.gender) },
     { label: 'رقم الجوال', value: profile?.phone || user?.phone || '—' },
     { label: 'الواتساب', value: profile?.whatsapp || '—' },
-    { label: 'المنطقة', value: profile?.zone || '—' },
-    { label: 'الوجهة', value: profile?.destination?.name || '—' },
+    { label: 'الجامعة', value: profile?.destination?.name || '—' },
+    { label: 'الكلية', value: profile?.institutionName || '—' },
     { label: 'التخصص', value: profile?.major || '—' },
     { label: 'المستوى', value: profile?.level || '—' },
+    { label: 'أيام الإجازة', value: Array.isArray(profile?.offDays) && profile.offDays.length ? profile.offDays.map((day) => DAY_NAMES[day] || day).join('، ') : '—' },
+    { label: 'المنطقة', value: profile?.zone || '—' },
     { label: 'العنوان', value: profile?.address || '—' },
     { label: 'اسم ولي الأمر', value: profile?.parentName || '—' },
     { label: 'جوال ولي الأمر', value: profile?.parentPhone || '—' },
     { label: 'القرابة', value: profile?.parentRelation || '—' },
     { label: 'نوع التوصيل', value: formatTransportMode(profile?.transportMode) },
-    { label: 'نقطة الانتظار', value: profile?.pickupLocation || '—' },
-    { label: 'عنوان المنزل', value: profile?.homeAddress || '—' },
-    { label: 'الجنس', value: formatGender(profile?.gender) },
   ]
+
+  const transportDetails = profile?.transportMode === 'HOME'
+    ? [{ label: 'عنوان المنزل', value: profile?.homeAddress || '—' }]
+    : [{ label: 'نقطة الانتظار', value: profile?.pickupLocation || '—' }]
 
   const homeDeliveryFields = profile?.transportMode === 'HOME'
     ? [
@@ -232,7 +245,7 @@ export default function Settings() {
       ]
     : []
 
-  const visibleProfileFields = [...profileFields, ...homeDeliveryFields]
+  const visibleProfileFields = [...profileFields, ...transportDetails, ...homeDeliveryFields]
 
   return (
     <div className="space-y-2">

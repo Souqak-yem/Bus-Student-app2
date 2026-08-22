@@ -29,7 +29,20 @@ export default function DriverLayout() {
   const currentPage = navItems.find(i => i.to === location.pathname || (i.end && location.pathname === i.to))?.label || ''
 
   return (
-    <div className="min-h-screen surface-wash flex">
+    <div
+      className="min-h-screen surface-wash flex"
+      style={{
+        '--color-primary': '#2563EB',
+        '--color-primary-dark': '#1D4ED8',
+        '--color-primary-light': '#60A5FA',
+        '--color-primary-lighter': '#DBEAFE',
+        '--color-accent': '#F97316',
+        '--color-accent-dark': '#EA580C',
+        '--color-accent-light': '#FB923C',
+        '--color-accent-lighter': '#FED7AA',
+        '--color-surface': '#FFFFFF',
+      }}
+    >
       {/* Desktop sidebar */}
       <aside className={`fixed lg:static inset-y-0 right-0 z-40 w-64 bg-white shadow-lg transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'} lg:block`}>
         <div className="h-full flex flex-col">
@@ -54,7 +67,7 @@ export default function DriverLayout() {
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors ${
                     isActive
-                      ? 'bg-secondary text-white'
+                      ? 'bg-[var(--color-accent)] text-white'
                       : 'text-slate-600 hover:bg-slate-100'
                   }`
                 }

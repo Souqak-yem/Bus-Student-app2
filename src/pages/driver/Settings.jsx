@@ -1,21 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, LogOut, KeyRound, Eye, EyeOff, Palette, Type, SunMedium, Save } from 'lucide-react'
+import { User, LogOut, KeyRound, Eye, EyeOff, Save, Type } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { api } from '../../lib/api'
-import { applyDisplaySettings, getDisplaySettings, saveDisplaySettings as persistDisplaySettings } from '../../lib/displaySettings'
-
-const COLOR_SWATCHES = [
-  { name: 'أزرق', value: '#2563EB' },
-  { name: 'أخضر', value: '#10B981' },
-  { name: 'وردي', value: '#EC4899' },
-  { name: 'أرجواني', value: '#8B5CF6' },
-  { name: 'برتقالي', value: '#F97316' },
-  { name: 'أسود', value: '#1F2937' },
-  { name: 'رمادي داكن', value: '#475569' },
-  { name: 'سماوي', value: '#06B6D4' },
-  { name: 'أحمر', value: '#EF4444' },
-]
+import { applyDisplaySettings, getDisplaySettings, saveDisplaySettings } from '../../lib/displaySettings'
 
 export default function DriverSettings() {
   const { user, logout } = useAuth()
@@ -29,19 +17,15 @@ export default function DriverSettings() {
   const [passwordError, setPasswordError] = useState('')
   const [passwordSuccess, setPasswordSuccess] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [showDisplaySettings, setShowDisplaySettings] = useState(false)
   const [fontSize, setFontSize] = useState('normal')
-  const [appColor, setAppColor] = useState('#2563EB')
 
   useEffect(() => {
-    const saved = getDisplaySettings()
-    setFontSize(saved.fontSize || 'normal')
-    setAppColor(saved.appColor || '#2563EB')
-    applyDisplaySettings(saved)
+    setFontSize(getDisplaySettings().fontSize || 'normal')
   }, [])
 
-  const saveDisplaySettings = (nextFontSize, nextColor) => {
-    persistDisplaySettings({ theme: 'light', fontSize: nextFontSize, appColor: nextColor })
+  function changeFontSize(nextFontSize) {
+    setFontSize(nextFontSize)
+    applyDisplaySettings(saveDisplaySettings({ ...getDisplaySettings(), fontSize: nextFontSize }))
   }
 
   const handleChangePassword = async (e) => {
@@ -84,77 +68,24 @@ export default function DriverSettings() {
   return (
     <div className="space-y-2">
       <div className="card p-3 fade-in">
-        <button
-          type="button"
-          onClick={() => setShowDisplaySettings((prev) => !prev)}
-          className="flex w-full items-center justify-between gap-2 text-right"
-        >
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-[var(--color-primary)]/10 rounded-xl flex items-center justify-center">
-              <Palette size={16} className="text-[var(--color-primary)]" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-800">إعدادات العرض</h3>
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-9 h-9 bg-[var(--color-primary)]/10 rounded-xl flex items-center justify-center">
+            <Type size={16} className="text-[var(--color-primary)]" />
           </div>
-          <span className="text-slate-400 text-xs">{showDisplaySettings ? 'إخفاء' : 'عرض'}</span>
-        </button>
-
-        {showDisplaySettings && (
-          <div className="mt-3 space-y-3 text-xs">
-            <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-2.5">
-              <div className="flex items-center gap-2 mb-2 text-slate-700 font-medium">
-                <Type size={14} className="text-[var(--color-primary)]" />
-                حجم الخط
-              </div>
-              <div className="flex gap-2">
-                {Object.entries({ small: 'صغير', normal: 'عادي', large: 'كبير' }).map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => {
-                      setFontSize(key)
-                      saveDisplaySettings(key, appColor)
-                    }}
-                    className={`flex-1 rounded-xl border px-2 py-1.5 transition-colors ${fontSize === key ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-bold' : 'border-slate-200 bg-white text-slate-600'}`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-2.5">
-              <div className="flex items-center gap-2 mb-2 text-slate-700 font-medium">
-                <SunMedium size={14} className="text-[var(--color-primary)]" />
-                الوضع الافتراضي
-              </div>
-              <div className="text-[10px] text-slate-500">الوضع الفاتح</div>
-            </div>
-
-            <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-2.5">
-              <div className="flex items-center gap-2 mb-2 text-slate-700 font-medium">
-                <Palette size={14} className="text-[var(--color-primary)]" />
-                لون التطبيق
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {COLOR_SWATCHES.map((color) => (
-                  <button
-                    key={color.value}
-                    type="button"
-                    title={color.name}
-                    onClick={() => {
-                      const nextColor = color.value
-                      setAppColor(nextColor)
-                      saveDisplaySettings(fontSize, nextColor)
-                    }}
-                    className={`h-7 w-7 rounded-full border-2 transition-all ${appColor.toLowerCase() === color.value.toLowerCase() ? 'scale-110 border-slate-900 shadow-sm' : 'border-white'}`}
-                    style={{ backgroundColor: color.value }}
-                    aria-label={`اختيار اللون ${color.name}`}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+          <h3 className="text-sm font-bold text-slate-800">حجم الخط</h3>
+        </div>
+        <div className="flex gap-2 text-xs">
+          {Object.entries({ small: 'صغير', normal: 'عادي', large: 'كبير' }).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => changeFontSize(key)}
+              className={`flex-1 rounded-xl border px-2 py-2 transition-colors ${fontSize === key ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-bold' : 'border-slate-200 bg-white text-slate-600'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="card p-3 fade-in">
@@ -164,8 +95,8 @@ export default function DriverSettings() {
           className="flex w-full items-center justify-between gap-2 text-right"
         >
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-amber-100/70 rounded-xl flex items-center justify-center">
-              <KeyRound size={16} className="text-amber-600" />
+            <div className="w-9 h-9 bg-[var(--color-accent-lighter)] rounded-xl flex items-center justify-center">
+              <KeyRound size={16} className="text-[var(--color-accent-dark)]" />
             </div>
             <h3 className="text-sm font-bold text-slate-800">تغيير كلمة المرور</h3>
           </div>

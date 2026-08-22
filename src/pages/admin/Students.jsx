@@ -443,14 +443,14 @@ export default function AdminStudents() {
                 </motion.div>
               )}
 
-              <form onSubmit={handleSubmit} className="p-6 space-y-5">
+              <form onSubmit={handleSubmit} className="p-6 flex flex-col space-y-5">
                 {/* Basic Info */}
-                <div>
+                <div className="order-1">
                   <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
                     المعلومات الأساسية
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="sm:col-span-2">
+                    <div className="sm:col-span-2 order-2">
                       <div className="grid grid-cols-2 gap-3">
                         <GenderOptionCard
                           selected={form.gender === 'MALE'}
@@ -466,7 +466,7 @@ export default function AdminStudents() {
                         />
                       </div>
                     </div>
-                    <FormField label="الاسم" required>
+                    <FormField label="الاسم" required className="order-1 sm:col-span-2">
                       <input
                         value={form.name}
                         onChange={(e) =>
@@ -476,7 +476,7 @@ export default function AdminStudents() {
                         required
                       />
                     </FormField>
-                    <FormField label="رقم الجوال">
+                    <FormField label="رقم الجوال" className="order-3">
                       <input
                         value={form.phone}
                         onChange={(e) =>
@@ -485,7 +485,7 @@ export default function AdminStudents() {
                         className="input-field"
                       />
                     </FormField>
-                    <FormField label="الواتساب">
+                    <FormField label="الواتساب" className="order-3">
                       <input
                         value={form.whatsapp}
                         onChange={(e) =>
@@ -494,32 +494,7 @@ export default function AdminStudents() {
                         className="input-field"
                       />
                     </FormField>
-                    <FormField label="المنطقة">
-                      <select
-                        value={form.zone}
-                        onChange={(e) =>
-                          setForm({ ...form, zone: e.target.value })
-                        }
-                        className="select-field"
-                        disabled={pricingZones.length === 0}
-                      >
-                        <option value="">
-                          {pricingZones.length > 0
-                            ? "اختر المنطقة"
-                            : "لا توجد مناطق مسجلة"}
-                        </option>
-                        {pricingZones.map((zone) => (
-                          <option key={zone.id} value={zone.name}>
-                            {zone.name}
-                          </option>
-                        ))}
-                        {form.zone &&
-                        !pricingZones.some((zone) => zone.name === form.zone) ? (
-                          <option value={form.zone}>{form.zone}</option>
-                        ) : null}
-                      </select>
-                    </FormField>
-                    <FormField label="الوجهة">
+                    <FormField label="الجامعة" className="order-4">
                       <select
                         value={form.destinationId}
                         onChange={(e) =>
@@ -527,13 +502,20 @@ export default function AdminStudents() {
                         }
                         className="select-field"
                       >
-                        <option value="">اختر الوجهة</option>
+                        <option value="">اختر الجامعة</option>
                         {destinations.map((d) => (
                           <option key={d.id} value={d.id}>{d.name}</option>
                         ))}
                       </select>
                     </FormField>
-                    <FormField label="التخصص">
+                    <FormField label="الكلية" className="order-4">
+                      <input
+                        value={form.institutionName}
+                        onChange={(e) => setForm({ ...form, institutionName: e.target.value })}
+                        className="input-field"
+                      />
+                    </FormField>
+                    <FormField label="التخصص" className="order-4 sm:col-span-2">
                       <input
                         value={form.major}
                         onChange={(e) =>
@@ -542,7 +524,7 @@ export default function AdminStudents() {
                         className="input-field"
                       />
                     </FormField>
-                    <FormField label="المستوى">
+                    <FormField label="المستوى" className="order-5">
                       <select
                         value={form.level}
                         onChange={(e) =>
@@ -559,6 +541,33 @@ export default function AdminStudents() {
                         <option value="السادس">السادس</option>
                       </select>
                     </FormField>
+                  </div>
+                </div>
+
+                {/* Location */}
+                <div className="order-7">
+                  <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
+                    المنطقة والعنوان
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <FormField label="المنطقة">
+                      <select
+                        value={form.zone}
+                        onChange={(e) => setForm({ ...form, zone: e.target.value })}
+                        className="select-field"
+                        disabled={pricingZones.length === 0}
+                      >
+                        <option value="">
+                          {pricingZones.length > 0 ? "اختر المنطقة" : "لا توجد مناطق مسجلة"}
+                        </option>
+                        {pricingZones.map((zone) => (
+                          <option key={zone.id} value={zone.name}>{zone.name}</option>
+                        ))}
+                        {form.zone && !pricingZones.some((zone) => zone.name === form.zone) ? (
+                          <option value={form.zone}>{form.zone}</option>
+                        ) : null}
+                      </select>
+                    </FormField>
                     <FormField label="العنوان" className="sm:col-span-2">
                       <input
                         value={form.address}
@@ -567,10 +576,9 @@ export default function AdminStudents() {
                           setForm({
                             ...form,
                             address: newAddress,
-                            pickupLocation:
-                              !form.pickupLocation || form.pickupLocation === form.address
-                                ? newAddress
-                                : form.pickupLocation,
+                            pickupLocation: !form.pickupLocation || form.pickupLocation === form.address
+                              ? newAddress
+                              : form.pickupLocation,
                           });
                         }}
                         className="input-field"
@@ -580,7 +588,7 @@ export default function AdminStudents() {
                 </div>
 
                 {/* Parent Info */}
-                <div>
+                <div className="order-9">
                   <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
                     معلومات ولي الأمر
                   </h3>
@@ -619,7 +627,7 @@ export default function AdminStudents() {
 
 
                 {/* Off Days */}
-                <div>
+                <div className="order-6">
                   <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
                     أيام الإجازة
                   </h3>
@@ -649,7 +657,7 @@ export default function AdminStudents() {
                 </div>
 
                 {/* Transport Mode */}
-                <div>
+                <div className="order-10">
                   <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
                     نوع التوصيل
                   </h3>

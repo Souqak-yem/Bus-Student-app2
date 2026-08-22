@@ -1,5 +1,6 @@
 const CACHE = 'mashawerk-v3'
 const STATIC = [
+  '/index.html',
   '/manifest.json',
   '/app-icon.svg',
   '/full-logo.svg',
@@ -48,6 +49,8 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(networkFirstNoCache(e.request, url.pathname))
   } else if (url.pathname.startsWith('/api/')) {
     return
+  } else if (e.request.mode === 'navigate') {
+    e.respondWith(networkFirstNavigation(e.request, url.pathname))
   } else if (url.pathname === '/' || url.pathname === '/index.html') {
     e.respondWith(networkFirstNoCache(e.request, url.pathname))
   } else if (url.pathname.match(/\.(js|css|png|jpg|svg|wav|ico)$/)) {
@@ -147,6 +150,22 @@ async function networkFirst(req, path) {
     return cached || new Response(JSON.stringify({ error: 'غير متصل' }), {
       status: 503,
       headers: { 'Content-Type': 'application/json' },
+    })
+  }
+}
+
+async function networkFirstNavigation(req, path) {
+  try {
+    const response = await fetch(req)
+    console.log(`[SW] NETWORK ✓ ${path} (navigation)`)
+    return response
+  } catch {
+    const cache = await caches.open(CACHE)
+    const appShell = await cache.match('/index.html') || await cache.match('/')
+    console.log(`[SW] OFFLINE → APP SHELL ${path}`)
+    return appShell || new Response('غير متصل', {
+      status: 503,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     })
   }
 }

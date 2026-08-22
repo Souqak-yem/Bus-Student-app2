@@ -8,7 +8,7 @@ import App from './App.jsx'
 import { applyDisplaySettings, getDisplaySettings } from './lib/displaySettings'
 import './index.css'
 
-const APP_VERSION = __APP_VERSION__ || 'dev'
+const APP_VERSION = [__APP_VERSION__, __BUILD_HASH__].filter(Boolean).join('-') || 'dev'
 
 async function clearStaleServiceWorkerState() {
   try {

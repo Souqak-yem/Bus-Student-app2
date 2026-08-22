@@ -39,6 +39,7 @@ const emptyForm = {
 const arabicNamePattern = /[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g
 const arabicTextPattern = /[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s]/g
 const repeatedCharPattern = /(.)\1\1+/g
+const arabicNameValidationPattern = /^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+(?:\s+[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+)*$/
 
 function sanitizeArabicText(value, allowSpaces = true) {
   const cleaned = value
@@ -75,19 +76,19 @@ export default function Register() {
     const errs = {}
 
     if (!form.firstName.trim()) errs.firstName = 'الاسم الأول مطلوب'
-    else if (!/^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+$/.test(form.firstName)) errs.firstName = 'استخدم الحروف العربية فقط'
+    else if (!arabicNameValidationPattern.test(form.firstName.trim())) errs.firstName = 'استخدم الحروف العربية فقط مع السماح بالمسافات بين الكلمات'
     else if (/(.)\1\1/.test(form.firstName)) errs.firstName = 'لا يسمح بتكرار الحرف أكثر من مرتين'
 
     if (!form.fatherName.trim()) errs.fatherName = 'اسم الأب مطلوب'
-    else if (!/^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+$/.test(form.fatherName)) errs.fatherName = 'استخدم الحروف العربية فقط'
+    else if (!arabicNameValidationPattern.test(form.fatherName.trim())) errs.fatherName = 'استخدم الحروف العربية فقط مع السماح بالمسافات بين الكلمات'
     else if (/(.)\1\1/.test(form.fatherName)) errs.fatherName = 'لا يسمح بتكرار الحرف أكثر من مرتين'
 
     if (!form.grandfatherName.trim()) errs.grandfatherName = 'اسم الجد مطلوب'
-    else if (!/^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+$/.test(form.grandfatherName)) errs.grandfatherName = 'استخدم الحروف العربية فقط'
+    else if (!arabicNameValidationPattern.test(form.grandfatherName.trim())) errs.grandfatherName = 'استخدم الحروف العربية فقط مع السماح بالمسافات بين الكلمات'
     else if (/(.)\1\1/.test(form.grandfatherName)) errs.grandfatherName = 'لا يسمح بتكرار الحرف أكثر من مرتين'
 
     if (!form.familyName.trim()) errs.familyName = 'اللقب مطلوب'
-    else if (!/^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+$/.test(form.familyName)) errs.familyName = 'استخدم الحروف العربية فقط'
+    else if (!arabicNameValidationPattern.test(form.familyName.trim())) errs.familyName = 'استخدم الحروف العربية فقط مع السماح بالمسافات بين الكلمات'
     else if (/(.)\1\1/.test(form.familyName)) errs.familyName = 'لا يسمح بتكرار الحرف أكثر من مرتين'
 
     if (!form.phone.trim()) errs.phone = 'رقم الجوال مطلوب'
@@ -196,7 +197,7 @@ export default function Register() {
 
     const registrationPayload = {
       ...form,
-      name: [form.firstName, form.fatherName, form.grandfatherName, form.familyName].filter(Boolean).join(' '),
+      name: [form.firstName, form.fatherName, form.grandfatherName, form.familyName].map((part) => part.trim()).filter(Boolean).join(' '),
     }
 
     try {

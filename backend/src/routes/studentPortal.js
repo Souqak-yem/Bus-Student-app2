@@ -76,8 +76,9 @@ router.post('/register', async (req, res) => {
 
     const nameParts = [firstName, fatherName, grandfatherName, familyName]
     if (!name) {
-      if (nameParts.some((part) => !part || typeof part !== 'string' || !/^[^\s]+$/.test(part))) {
-        return res.status(400).json({ error: 'يجب إدخال الاسم كأربعة كلمات منفصلة بدون مسافات إضافية' })
+      const arabicNamePattern = /^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+(?:\s+[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+)*$/
+      if (nameParts.some((part) => !part || typeof part !== 'string' || !arabicNamePattern.test(part.trim()))) {
+        return res.status(400).json({ error: 'يجب إدخال الاسم بأربعة أجزاء عربية مع السماح بالمسافات بين الكلمات' })
       }
     }
 

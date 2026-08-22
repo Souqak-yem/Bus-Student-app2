@@ -50,11 +50,33 @@ function getCartItemLabel(item) {
       : item.type === 'THREE_WEEKS'
         ? 'اشتراك 3 أسابيع'
         : item.type
-  return item.data?.campaignTitle ? `${planLabel} - ${item.data.campaignTitle}` : planLabel
+    const campaignTitle = item.data?.campaignTitle?.trim()
+    if (!campaignTitle) return planLabel
+    const normalizedTitle = campaignTitle.replace(/[٠-٩]/g, (digit) => '٠١٢٣٤٥٦٧٨٩'.indexOf(digit)).replace(/\s+/g, ' ')
+    const normalizedPlan = planLabel.replace(/[٠-٩]/g, (digit) => '٠١٢٣٤٥٦٧٨٩'.indexOf(digit))
+    return normalizedTitle.includes(normalizedPlan) ? campaignTitle : `${planLabel} - ${campaignTitle}`
+}
+
+function getDailyDatesText(item) {
+  const dates = item.data?.computedDates || []
+  if (dates.length > 0) {
+    return dates.map((dateValue) => {
+      const date = parseLocalDate(dateValue)
+      if (!date) return dateValue
+      const dayName = date.toLocaleDateString('ar-SA', { weekday: 'long' })
+      const dateText = date.toLocaleDateString('ar-SA')
+      return `${dayName}: ${dateText}`
+    }).join('، ')
+  }
+
+  return (item.data?.selectedDays || []).map((day) => DAY_NAMES_AR[day] || day).join('، ')
 }
 
 function openRegistrationWhatsApp({ studentName, items, depositReference }) {
-  const itemLines = items.map(item => `- ${getCartItemLabel(item)}`).join('\n')
+  const itemLines = items.map((item) => {
+    const dailyDates = item.type === 'DAILY' ? getDailyDatesText(item) : ''
+    return `- ${getCartItemLabel(item)}${dailyDates ? `\n  الأيام والتواريخ: ${dailyDates}` : ''}`
+  }).join('\n')
   const message = [
     'السلام عليكم، أرسلت طلب اشتراك عبر التطبيق.',
     `اسم الطالب: ${studentName || 'غير محدد'}`,
@@ -1086,8 +1108,7 @@ export default function Subscriptions() {
           {cart?.items?.map((item, idx) => (
             <div key={item.id || idx} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
               <div className="text-sm font-bold text-slate-800">
-                {item.type === 'DAILY' ? 'اشتراك يومي' : item.type === 'FOUR_WEEKS' ? 'اشتراك 4 أسابيع' : item.type === 'THREE_WEEKS' ? 'اشتراك 3 أسابيع' : item.type}
-                {item.data?.campaignTitle && <span className="text-slate-500 font-medium"> - {item.data.campaignTitle}</span>}
+                {getCartItemLabel(item)}
               </div>
               <div className="text-xs text-slate-500 mt-1 space-y-0.5">
                 {item.data?.startDate && (

@@ -43,7 +43,12 @@ const server = createServer(async (req, res) => {
   const target = await isFile(safePath) ? safePath : join(root, 'index.html')
 
   res.setHeader('Content-Type', mimeTypes[extname(target).toLowerCase()] || 'application/octet-stream')
-  res.setHeader('Cache-Control', target.endsWith('index.html') ? 'no-store' : 'public, max-age=31536000, immutable')
+  if (requestPath === '/sw.js') {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    res.setHeader('Expires', '0')
+  } else {
+    res.setHeader('Cache-Control', target.endsWith('index.html') ? 'no-store' : 'public, max-age=31536000, immutable')
+  }
   createReadStream(target).on('error', () => {
     res.statusCode = 500
     res.end('Unable to serve application')

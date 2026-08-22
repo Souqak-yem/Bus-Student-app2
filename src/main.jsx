@@ -50,13 +50,15 @@ if ('serviceWorker' in navigator) {
     }
 
     try {
-      const reg = await navigator.serviceWorker.register('/sw.js', {
+      const reg = await navigator.serviceWorker.register(`/sw.js?v=${encodeURIComponent(APP_VERSION)}`, {
         scope: '/',
         updateViaCache: 'none',
       })
       console.log('[App] SW registered, scope:', reg.scope)
       localStorage.setItem('mashawerk_app_version', APP_VERSION)
-      await reg.update()
+      await reg.update().catch((error) => {
+        console.warn('[App] SW update check failed:', error)
+      })
 
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing

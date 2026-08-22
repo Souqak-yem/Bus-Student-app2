@@ -45,6 +45,7 @@ import pushSubscriptionRoutes from './routes/pushSubscriptions.js'
 import returnReadinessRoutes from './routes/returnReadiness.js'
 
 const app = express()
+app.set('trust proxy', 1)
 const PORT = process.env.PORT || 3000
 
 async function wait(ms) {

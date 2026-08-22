@@ -7,6 +7,19 @@ import { createAndBroadcast } from '../services/notificationService.js'
 const router = Router()
 router.use(authenticate)
 
+function parseCampaignDateTime(value) {
+  if (!value) return null
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) {
+    const offsetMinutes = Number(process.env.APP_TIMEZONE_OFFSET_MINUTES ?? 180)
+    const sign = offsetMinutes >= 0 ? '+' : '-'
+    const absoluteMinutes = Math.abs(offsetMinutes)
+    const offset = `${sign}${String(Math.floor(absoluteMinutes / 60)).padStart(2, '0')}:${String(absoluteMinutes % 60).padStart(2, '0')}`
+    return new Date(`${value}:00${offset}`)
+  }
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
 router.get('/', async (req, res) => {
   try {
     const campaigns = await prisma.campaign.findMany({
@@ -68,11 +81,11 @@ router.post('/', authorize('admin'), async (req, res) => {
         maxStudents: maxStudents || null,
         hasEarlyDiscount: hasEarlyDiscount === true,
         discountAmount: hasEarlyDiscount && discountAmount ? parseFloat(discountAmount) : 0,
-        discountStart: hasEarlyDiscount && discountStart ? new Date(discountStart) : null,
-        discountExpiry: hasEarlyDiscount && discountExpiry ? new Date(discountExpiry) : null,
+        discountStart: hasEarlyDiscount && discountStart ? parseCampaignDateTime(discountStart) : null,
+        discountExpiry: hasEarlyDiscount && discountExpiry ? parseCampaignDateTime(discountExpiry) : null,
         enableExtraRegistrationFee: enableExtraRegistrationFee === true,
         extraRegistrationFee: enableExtraRegistrationFee && extraRegistrationFee ? parseFloat(extraRegistrationFee) : 2000,
-        extraFeeStart: enableExtraRegistrationFee && extraFeeStart ? new Date(extraFeeStart) : null,
+        extraFeeStart: enableExtraRegistrationFee && extraFeeStart ? parseCampaignDateTime(extraFeeStart) : null,
       },
     })
     try {
@@ -133,11 +146,11 @@ router.put('/:id', authorize('admin'), async (req, res) => {
         status: status !== undefined ? status : undefined,
         hasEarlyDiscount: hasEarlyDiscount !== undefined ? hasEarlyDiscount === true : undefined,
         discountAmount: hasEarlyDiscount !== undefined ? (hasEarlyDiscount && discountAmount ? parseFloat(discountAmount) : 0) : undefined,
-        discountStart: hasEarlyDiscount !== undefined ? (hasEarlyDiscount && discountStart ? new Date(discountStart) : null) : undefined,
-        discountExpiry: hasEarlyDiscount !== undefined ? (hasEarlyDiscount && discountExpiry ? new Date(discountExpiry) : null) : undefined,
+        discountStart: hasEarlyDiscount !== undefined ? (hasEarlyDiscount && discountStart ? parseCampaignDateTime(discountStart) : null) : undefined,
+        discountExpiry: hasEarlyDiscount !== undefined ? (hasEarlyDiscount && discountExpiry ? parseCampaignDateTime(discountExpiry) : null) : undefined,
         enableExtraRegistrationFee: enableExtraRegistrationFee !== undefined ? enableExtraRegistrationFee === true : undefined,
         extraRegistrationFee: enableExtraRegistrationFee !== undefined ? (enableExtraRegistrationFee && extraRegistrationFee ? parseFloat(extraRegistrationFee) : 2000) : undefined,
-        extraFeeStart: enableExtraRegistrationFee !== undefined ? (enableExtraRegistrationFee && extraFeeStart ? new Date(extraFeeStart) : null) : undefined,
+        extraFeeStart: enableExtraRegistrationFee !== undefined ? (enableExtraRegistrationFee && extraFeeStart ? parseCampaignDateTime(extraFeeStart) : null) : undefined,
       },
     })
     await createAuditLog({ userId: req.user.id, action: 'UPDATE', entityType: 'Campaign', entityId: campaign.id, oldValue: { status: existing.status }, newValue: { status: campaign.status } })

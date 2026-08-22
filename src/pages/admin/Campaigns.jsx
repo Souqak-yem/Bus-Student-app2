@@ -10,6 +10,20 @@ import ConfirmModal from '../../components/ui/ConfirmModal'
 
 const emptyForm = { title: '', description: '', type: 'subscription_3weeks', startDate: '', endDate: '', hasEarlyDiscount: false, discountAmount: '', discountStart: '', discountExpiry: '', enableExtraRegistrationFee: false, extraRegistrationFee: '2000', extraFeeStart: '' }
 
+function toIsoDateTime(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString()
+}
+
+function toLocalDateTimeInput(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = (part) => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 export default function AdminCampaigns() {
   const [campaigns, setCampaigns] = useState([])
   const [loading, setLoading] = useState(true)
@@ -36,11 +50,11 @@ export default function AdminCampaigns() {
         ...form,
         hasEarlyDiscount: form.hasEarlyDiscount,
         discountAmount: form.hasEarlyDiscount ? form.discountAmount : '',
-        discountStart: form.hasEarlyDiscount ? form.discountStart : '',
-        discountExpiry: form.hasEarlyDiscount ? form.discountExpiry : '',
+        discountStart: form.hasEarlyDiscount ? toIsoDateTime(form.discountStart) : '',
+        discountExpiry: form.hasEarlyDiscount ? toIsoDateTime(form.discountExpiry) : '',
         enableExtraRegistrationFee: form.enableExtraRegistrationFee,
         extraRegistrationFee: form.enableExtraRegistrationFee ? form.extraRegistrationFee : '',
-        extraFeeStart: form.enableExtraRegistrationFee ? form.extraFeeStart : '',
+        extraFeeStart: form.enableExtraRegistrationFee ? toIsoDateTime(form.extraFeeStart) : '',
       }
       if (editing) { await api.campaigns.update(editing, payload) }
       else { await api.campaigns.create(payload) }
@@ -54,11 +68,11 @@ export default function AdminCampaigns() {
       startDate: c.startDate?.split('T')[0] || '', endDate: c.endDate?.split('T')[0] || '',
       hasEarlyDiscount: c.hasEarlyDiscount || false,
       discountAmount: String(c.discountAmount || ''),
-      discountStart: c.discountStart ? c.discountStart.slice(0, 16) : '',
-      discountExpiry: c.discountExpiry ? c.discountExpiry.slice(0, 16) : '',
+      discountStart: toLocalDateTimeInput(c.discountStart),
+      discountExpiry: toLocalDateTimeInput(c.discountExpiry),
       enableExtraRegistrationFee: c.enableExtraRegistrationFee || false,
       extraRegistrationFee: String(c.extraRegistrationFee || '2000'),
-      extraFeeStart: c.extraFeeStart ? c.extraFeeStart.slice(0, 16) : '',
+      extraFeeStart: toLocalDateTimeInput(c.extraFeeStart),
     })
     setEditing(c.id); setShowForm(true)
   }

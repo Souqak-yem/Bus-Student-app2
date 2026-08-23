@@ -6,6 +6,7 @@ import { useNotifications } from '../../context/NotificationContext'
 import NotificationPopup from '../ui/NotificationPopup'
 import NotificationCenter from '../ui/NotificationCenter'
 import { LayoutDashboard, Bus, Settings, LogOut, Bell } from 'lucide-react'
+import PWAInstallButton from '../ui/PWAInstallButton'
 
 const navItems = [
   { to: '/driver', label: 'الرئيسية', icon: LayoutDashboard, end: true },
@@ -101,6 +102,7 @@ export default function DriverLayout() {
             <span className="text-sm font-bold text-slate-800">{currentPage}</span>
           </div>
           <div className="flex items-center gap-1">
+            <PWAInstallButton mobile={true} />
             <div className="relative">
               <button onClick={() => setNotifOpen(!notifOpen)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors">
                 <Bell size={18} />

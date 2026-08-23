@@ -12,6 +12,8 @@ import ForgotPassword from './pages/auth/ForgotPassword'
 import ChangePassword from './pages/auth/ChangePassword'
 import InstallPWAPopup from './components/ui/InstallPWAPopup'
 import UpdateNotification from './components/ui/UpdateNotification'
+import NotificationPrompt from './components/ui/NotificationPrompt'
+import PushSubscriptionManager from './components/ui/PushSubscriptionManager'
 import DynamicMetaTags from './components/DynamicMetaTags'
 import StudentHome from './pages/student/Home'
 import StudentSubscriptions from './pages/student/Subscriptions'
@@ -218,6 +220,8 @@ export default function App() {
       </Routes>
       <InstallPWAPopup />
       <UpdateNotification />
+      <NotificationPrompt />
+      <PushSubscriptionManager />
     </>
   )
 }

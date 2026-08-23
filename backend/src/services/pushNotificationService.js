@@ -62,20 +62,41 @@ export function hasVapidKeys() {
 export async function sendPushToUser(userId, payload) {
   if (!hasVapidKeys()) return
 
-  const subscriptions = await prisma.pushSubscription.findMany({
-    where: { userId },
-  })
+  const [user, subscriptions] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { notificationPrefs: true },
+    }),
+    prisma.pushSubscription.findMany({
+      where: { userId },
+    }),
+  ])
 
   if (!subscriptions.length) return
+
+  if (user?.notificationPrefs && typeof user.notificationPrefs === 'object') {
+    const typePrefs = user.notificationPrefs[payload.type] || user.notificationPrefs.default
+    if (typePrefs && typePrefs.push === false) return
+  }
+
+  const iconPath = '/app-icon.svg'
+  const badgePath = '/app-icon.svg'
 
   const data = JSON.stringify({
     title: payload.title,
     message: payload.message,
+    body: payload.message,
     type: payload.type,
     priority: payload.priority,
     targetRoute: payload.targetRoute,
     notificationId: payload.id,
-    data: payload.data,
+    icon: iconPath,
+    badge: badgePath,
+    data: {
+      ...(payload.data || {}),
+      url: payload.targetRoute || '/',
+      notificationId: payload.id,
+    },
     createdAt: payload.createdAt,
   })
 
@@ -97,21 +118,35 @@ export async function sendPushToUser(userId, payload) {
   return results
 }
 
-export async function saveSubscription(userId, subscription, userAgent) {
-  return prisma.pushSubscription.upsert({
-    where: { endpoint: subscription.endpoint },
-    create: {
+export async function saveSubscription(userId, subscription, deviceType, userAgent) {
+  const { endpoint, keys } = subscription
+
+  const existing = await prisma.pushSubscription.findFirst({
+    where: { OR: [{ endpoint }, { userId, p256dh: keys.p256dh }] },
+  })
+
+  if (existing) {
+    return prisma.pushSubscription.update({
+      where: { id: existing.id },
+      data: {
+        userId,
+        endpoint,
+        p256dh: keys.p256dh,
+        auth: keys.auth,
+        deviceType: deviceType || null,
+        userAgent: userAgent || existing.userAgent,
+      },
+    })
+  }
+
+  return prisma.pushSubscription.create({
+    data: {
       userId,
-      endpoint: subscription.endpoint,
-      p256dh: subscription.keys.p256dh,
-      auth: subscription.keys.auth,
-      userAgent,
-    },
-    update: {
-      userId,
-      p256dh: subscription.keys.p256dh,
-      auth: subscription.keys.auth,
-      userAgent,
+      endpoint,
+      p256dh: keys.p256dh,
+      auth: keys.auth,
+      deviceType: deviceType || null,
+      userAgent: userAgent || null,
     },
   })
 }

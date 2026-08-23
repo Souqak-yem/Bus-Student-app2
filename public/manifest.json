@@ -1,20 +1,69 @@
 {
   "name": "تنسيقية مواصلات فلك",
   "short_name": "مواصلات فلك",
-  "description": "تنسيقية مواصلات فلك - نظام إدارة نقل الطلاب",
+  "description": "تنسيقية مواصلات فلك - نظام إدارة نقل الطلاب والرحلات الجامعية باعتمادية ووضوح.",
   "start_url": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
   "background_color": "#F8FAFC",
   "theme_color": "#F97316",
   "lang": "ar",
   "dir": "rtl",
-  "icons": [
-    { "src": "/app-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "/app-icon.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "/app-icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
-  ],
   "orientation": "portrait-primary",
-  "categories": ["education", "transport"],
+  "categories": ["education", "transport", "productivity"],
   "prefer_related_applications": false,
-  "scope": "/"
+  "scope": "/",
+  "id": "/",
+  "icons": [
+    {
+      "src": "/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/app-icon.svg",
+      "sizes": "48x48 72x72 96x96 128x128 144x144 152x152 192x192 384x384 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/og-image.png",
+      "sizes": "1200x1200",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/og-image.png",
+      "sizes": "1200x1200",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "الشاشة الرئيسية لنظام تنسيقية مواصلات فلك"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "الرئيسية",
+      "short_name": "الرئيسية",
+      "description": "الانتقال إلى الصفحة الرئيسية",
+      "url": "/",
+      "icons": [{ "src": "/app-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "الإشعارات",
+      "short_name": "الإشعارات",
+      "description": "عرض قائمة الإشعارات",
+      "url": "/student/notifications",
+      "icons": [{ "src": "/app-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "الإعدادات",
+      "short_name": "الإعدادات",
+      "description": "صفحة الإعدادات الشخصية",
+      "url": "/student/settings",
+      "icons": [{ "src": "/app-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ]
 }

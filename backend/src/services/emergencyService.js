@@ -257,11 +257,14 @@ export async function autoTransferStudents(fromBusId, toBusIds, userId, reason) 
         sortOrders.set(t.toBusId, (maxOrder._max.sortOrder ?? -1) + 1)
       }
 
+      const currentSortOrder = sortOrders.get(t.toBusId)
+      sortOrders.set(t.toBusId, currentSortOrder + 1)
+
       await tx.assignment.create({
         data: {
           studentId: t.studentId, busId: t.toBusId, date: today, period: 'MORNING',
           line: 'JEBALI', status: 'scheduled', isGenerated: false,
-          sortOrder: sortOrders.get(t.toBusId)++
+          sortOrder: currentSortOrder
         }
       })
     }

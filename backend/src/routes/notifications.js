@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { authenticate, authorize } from '../middleware/auth.js'
 import * as notificationService from '../services/notificationService.js'
 import { checkAndNotifyUnassignedDailySubscriptions } from '../services/dailyExceptionsService.js'
+import { prisma } from '../lib/prisma.js'
 
 const router = Router()
 router.use(authenticate)
@@ -73,6 +74,53 @@ router.delete('/', async (req, res) => {
     await notificationService.deleteAllNotifications(req.user.id)
     res.json({ message: 'تم حذف جميع الإشعارات' })
   } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+router.get('/prefs', async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { notificationPrefs: true, hasSeenNotificationPrompt: true },
+    })
+    if (!user) return res.status(404).json({ error: 'المستخدم غير موجود' })
+    res.json({
+      prefs: user.notificationPrefs || null,
+      hasSeenNotificationPrompt: user.hasSeenNotificationPrompt || false,
+    })
+  } catch (error) {
+    console.error('[Notifications] GET /prefs failed:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+router.put('/prefs', async (req, res) => {
+  try {
+    const { prefs } = req.body
+    if (typeof prefs !== 'object' || prefs === null) {
+      return res.status(400).json({ error: 'بيانات التفضيلات غير صالحة' })
+    }
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { notificationPrefs: prefs },
+    })
+    res.json({ message: 'تم حفظ تفضيلات الإشعارات', prefs })
+  } catch (error) {
+    console.error('[Notifications] PUT /prefs failed:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+router.patch('/prompt-seen', async (req, res) => {
+  try {
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { hasSeenNotificationPrompt: true },
+    })
+    res.json({ message: 'تم تعليم ظهور طلب الإذن' })
+  } catch (error) {
+    console.error('[Notifications] PATCH /prompt-seen failed:', error)
     res.status(500).json({ error: error.message })
   }
 })

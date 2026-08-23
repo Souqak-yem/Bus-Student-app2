@@ -137,6 +137,7 @@ export const api = {
     activeBuses: {
       list: () => api.get('/return/active-buses'),
       add: (busId) => api.post('/return/active-buses', { busId }),
+      updateLine: (id, line) => api.patch(`/return/active-buses/${id}/line`, { line }),
       updateStatus: (id, status) => api.patch(`/return/active-buses/${id}/status`, { status }),
       remove: (id) => api.delete(`/return/active-buses/${id}`),
     },
@@ -354,6 +355,9 @@ export const api = {
     deleteNotification: (id) => api.delete(`/notifications/${id}`),
     deleteAll: () => api.delete("/notifications"),
     checkUnassignedDaily: () => api.post("/notifications/check-unassigned-daily"),
+    getPrefs: () => api.get("/notifications/prefs"),
+    savePrefs: (prefs) => api.put("/notifications/prefs", { prefs }),
+    markPromptSeen: () => api.patch("/notifications/prompt-seen"),
   },
 
   messageTemplates: {
@@ -379,7 +383,7 @@ export const api = {
 
   push: {
     vapidKey: () => api.get("/push/vapid-public-key"),
-    subscribe: (subscription, userAgent) => api.post("/push/subscribe", { subscription, userAgent }),
+    subscribe: (subscription, deviceType, userAgent) => api.post("/push/subscribe", { subscription, deviceType, userAgent }),
     unsubscribe: (endpoint) => api.post("/push/unsubscribe", { endpoint }),
   },
 

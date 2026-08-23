@@ -168,6 +168,22 @@ router.post('/active-buses', authorize('admin'), async (req, res) => {
   }
 })
 
+router.patch('/active-buses/:id/line', authorize('admin'), async (req, res) => {
+  try {
+    const { line } = req.body
+    if (!['JEBALI', 'BAHRY'].includes(line)) return res.status(400).json({ error: 'الخط غير صالح' })
+    const activeBus = await prisma.activeBus.findUnique({ where: { id: req.params.id }, select: { status: true } })
+    if (!activeBus) return res.status(404).json({ error: 'الحافلة غير موجودة في التشغيل' })
+    if (['DEPARTED', 'ARRIVED', 'CANCELLED', 'BROKEN_DOWN', 'REPLACED'].includes(activeBus.status)) {
+      return res.status(400).json({ error: 'لا يمكن تعديل الخط بعد انطلاق الرحلة' })
+    }
+    const updated = await prisma.activeBus.update({ where: { id: req.params.id }, data: { line } })
+    res.json({ id: updated.id, line: updated.line })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 router.patch('/active-buses/:id/status', authorize('admin'), async (req, res) => {
   try {
     const { status } = req.body
@@ -265,10 +281,6 @@ router.post('/load', authorize('admin'), async (req, res) => {
     const load = await prisma.busLoad.create({ data: { activeBusId, studentId, assignedById: req.user.id, exceptionReason: reason, sortOrder: nextSort }, include: { student: STUDENT_FULL } })
     if (queueEntry) await prisma.returnQueue.update({ where: { id: queueEntry.id }, data: { status: 'ASSIGNED' } })
     const loadStudentUser = await prisma.user.findUnique({ where: { studentId }, select: { id: true } })
-    if (loadStudentUser?.id) {
-      const busForLoad = await prisma.bus.findUnique({ where: { id: activeBus.busId }, select: { busNumber: true } })
-      notifyStudent({ userId: loadStudentUser.id, type: 'student_return_assigned', title: 'تم إسنادك لباص العودة', message: `تم إسنادك إلى باص ${busForLoad?.busNumber || ''} لرحلة العودة`, targetRoute: '/student' })
-    }
     res.status(201).json(load)
   } catch (error) {
     if (error.code === 'P2002') {

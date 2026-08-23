@@ -4,6 +4,7 @@ import { Home, CreditCard, Bell, Settings, Bus } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useNotifications } from '../../context/NotificationContext'
 import NotificationPopup from '../ui/NotificationPopup'
+import PWAInstallButton from '../ui/PWAInstallButton'
 
 export default function StudentLayout() {
   const { unreadCount, popups } = useNotifications()
@@ -25,6 +26,7 @@ export default function StudentLayout() {
             </div>
             <h1 className="text-base font-bold text-slate-800">بوابة الطالب</h1>
           </div>
+          <PWAInstallButton mobile={true} />
         </div>
       </header>
 

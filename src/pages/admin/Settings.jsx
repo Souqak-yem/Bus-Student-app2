@@ -4,6 +4,7 @@ import { User, Shield, LogOut, KeyRound, Clock, Save, Check, Eye, EyeOff, Type }
 import { useAuth } from '../../context/AuthContext'
 import { api } from '../../lib/api'
 import { applyDisplaySettings, getDisplaySettings, saveDisplaySettings } from '../../lib/displaySettings'
+import SimpleNotificationToggle from '../../components/ui/SimpleNotificationToggle'
 
 export default function AdminSettings() {
   const { user, logout } = useAuth()
@@ -152,6 +153,9 @@ export default function AdminSettings() {
           </div>
         </div>
       )}
+
+      {/* Notification preferences */}
+      <SimpleNotificationToggle />
 
       <div className="card p-3 fade-in">
         <button

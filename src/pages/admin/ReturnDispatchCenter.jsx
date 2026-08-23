@@ -108,6 +108,19 @@ export default function ReturnDispatchCenter() {
     setBusStudents([])
   }
 
+  async function handleLineChange(line) {
+    const previousLine = busLine
+    setBusLine(line)
+    try {
+      await api.return.activeBuses.updateLine(selectedBus.id, line)
+      setSelectedBus(prev => prev ? { ...prev, line } : prev)
+      setActiveBuses(prev => prev.map(bus => bus.id === selectedBus.id ? { ...bus, line } : bus))
+    } catch (err) {
+      setBusLine(previousLine)
+      alert(err.message)
+    }
+  }
+
   async function handleAddToQueue(studentId) {
     try { await api.return.queue.add(studentId, ''); loadAll() } catch (err) { alert(err.message) }
   }
@@ -402,7 +415,7 @@ export default function ReturnDispatchCenter() {
                         name="line"
                         value="JEBALI"
                         checked={busLine === 'JEBALI'}
-                        onChange={(e) => setBusLine(e.target.value)}
+                        onChange={(e) => handleLineChange(e.target.value)}
                         className="w-3.5 h-3.5 text-[var(--color-primary)]"
                       />
                       <span className="text-xs text-slate-700">جبلي</span>
@@ -413,7 +426,7 @@ export default function ReturnDispatchCenter() {
                         name="line"
                         value="BAHRY"
                         checked={busLine === 'BAHRY'}
-                        onChange={(e) => setBusLine(e.target.value)}
+                        onChange={(e) => handleLineChange(e.target.value)}
                         className="w-3.5 h-3.5 text-[var(--color-primary)]"
                       />
                       <span className="text-xs text-slate-700">بحري</span>

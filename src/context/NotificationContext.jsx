@@ -76,17 +76,12 @@ export function NotificationProvider({ children }) {
       return
     }
 
-    if (user.role === 'student' && !isPushNotificationsEnabled()) {
+    if (!isPushNotificationsEnabled()) {
       unsubscribeFromPush().catch(() => {})
       return
     }
 
     refreshUnreadCount()
-    subscribeToPush().catch((err) => {
-      if (err?.message !== 'disabled') {
-        console.error('[Push] subscribe failed:', err)
-      }
-    })
   }, [user, refreshUnreadCount])
 
   // On admin login, check for unassigned daily subscriptions and notify

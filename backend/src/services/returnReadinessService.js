@@ -243,23 +243,6 @@ export async function startBoardingTimer(activeBusId) {
     }).catch(() => {})
   } catch { /* silent */ }
 
-  const loads = activeBus.loads || []
-  for (const l of loads) {
-    const userId = l.student?.user?.id
-    if (!userId) continue
-    try {
-      notifyStudent({
-        userId,
-        type: 'student_return_boarding_started',
-        title: '🚍 بدء وقت الصعود',
-        message: `وصل باص العودة رقم ${activeBus.bus?.busNumber || ''}. بقي ${minutes} دقيقة للانطلاق!`,
-        priority: 'HIGH',
-        targetRoute: '/student',
-        dedupKey: `student_boarding_start_${activeBusId}_${l.studentId}`,
-      }).catch(() => {})
-    } catch { /* silent */ }
-  }
-
   sendNotificationMilestone(activeBusId, 'start').catch(() => {})
   return timer
 }
@@ -611,6 +594,7 @@ export async function getBoardingChecklistForDriver(driverId) {
     buses: buses.map(b => ({
       id: b.id,
       bus: b.bus,
+      line: b.line,
       status: b.status,
       loads: b.loads.map(l => ({
         id: l.id,

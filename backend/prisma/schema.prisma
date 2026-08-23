@@ -160,6 +160,8 @@ model User {
   status            RecordStatus         @default(active)
   adminPermissions  String[]             @default([])
   mustChangePassword Boolean              @default(false)
+  hasSeenNotificationPrompt Boolean       @default(false)
+  notificationPrefs Json?
   failedAttempts    Int                  @default(0)
   lockedUntil       DateTime?
   lastLogin         DateTime?
@@ -1029,15 +1031,16 @@ model StudentFinancial {
 }
 
 model PushSubscription {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  endpoint  String   @unique
-  p256dh    String
-  auth      String
-  userAgent String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  deviceType String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([userId])
   @@map("push_subscriptions")

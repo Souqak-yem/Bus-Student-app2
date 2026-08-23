@@ -140,7 +140,6 @@ export const NOTIFICATION_CONFIG = {
 
   // 🔹 Student - Return Trip
   student_return_queue_added: { priority: PRIORITY.INFO, icon: 'Users', route: '/student' },
-  student_return_assigned: { priority: PRIORITY.INFO, icon: 'Bus', route: '/student' },
   student_return_bus_changed: { priority: PRIORITY.WARNING, icon: 'RefreshCw', route: '/student' },
   student_return_bus_full: { priority: PRIORITY.WARNING, icon: 'AlertTriangle', route: '/student' },
   student_return_cancelled: { priority: PRIORITY.CRITICAL, icon: 'Ban', route: '/student' },

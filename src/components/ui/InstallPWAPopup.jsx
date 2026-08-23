@@ -60,6 +60,7 @@ export default function InstallPWAPopup() {
       if (outcome === 'accepted') {
         setIsInstalled(true)
         setShow(false)
+        window.dispatchEvent(new CustomEvent('pwa:installed'))
       }
     } finally {
       setDeferredPrompt(null)
@@ -71,6 +72,21 @@ export default function InstallPWAPopup() {
     setShowIosGuide(true)
     setIosGuideTriggered(true)
   }, [])
+
+  const handleRequestInstall = useCallback(() => {
+    if (!deferredPrompt) {
+      if (deviceType === 'ios') {
+        setShow(true)
+        setShowIosGuide(true)
+        setIosGuideTriggered(true)
+        return
+      }
+      return
+    }
+    setShow(true)
+    setDismissed(false)
+    setTimeout(() => handleInstall(), 50)
+  }, [deferredPrompt, deviceType, handleInstall])
 
   useEffect(() => {
     if (isStandalone()) {
@@ -88,21 +104,24 @@ export default function InstallPWAPopup() {
     const handler = (e) => {
       e.preventDefault()
       setDeferredPrompt(e)
+      window.dispatchEvent(new CustomEvent('pwa:can-install'))
     }
     window.addEventListener('beforeinstallprompt', handler)
+    window.addEventListener('pwa:request-install', handleRequestInstall)
 
     const timer = setTimeout(() => {
       const stillNotSeen =
         (device === 'android' && !sessionStorage.getItem(ANDROID_SESSION_KEY)) ||
         (device === 'ios' && !localStorage.getItem(IOS_LOCAL_KEY))
       if (stillNotSeen) setShow(true)
-    }, 3500)
+    }, 5000)
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handler)
+      window.removeEventListener('pwa:request-install', handleRequestInstall)
       clearTimeout(timer)
     }
-  }, [])
+  }, [handleRequestInstall])
 
   useEffect(() => {
     const handler = () => {

@@ -74,33 +74,65 @@ self.addEventListener('push', (e) => {
   } catch {}
 
   if (!data) {
-    data = { title: 'تنسيقية مواصلات فلك', message: 'لديك إشعار جديد', priority: 'INFO' }
+    data = {
+      title: 'تنسيقية مواصلات فلك',
+      message: 'لديك إشعار جديد',
+      priority: 'INFO',
+      icon: '/app-icon.svg',
+      badge: '/app-icon.svg',
+      data: { url: '/' },
+    }
   }
+
+  const title = data.title || 'تنسيقية مواصلات فلك'
+  const body = data.message || data.body || 'لديك إشعار جديد'
+  const icon = data.icon || '/app-icon.svg'
+  const badge = data.badge || '/app-icon.svg'
+  const priority = data.priority || 'INFO'
+  const notificationId = data.notificationId || `notif-${Date.now()}`
+  const targetRoute = data.targetRoute || data.data?.url || '/'
+
+  let vibrate = []
+  if (priority === 'CRITICAL') vibrate = [200, 100, 200, 100, 200]
+  else if (priority === 'WARNING') vibrate = [200, 100, 200]
+  else if (priority === 'INFO') vibrate = [100, 50, 100]
+
+  const requireInteraction = priority === 'CRITICAL'
 
   const options = {
-    title: data.title,
-    body: data.message,
-    icon: '/app-icon.svg',
-    badge: '/app-icon.svg',
-    tag: data.notificationId || `notif-${Date.now()}`,
+    body,
+    icon,
+    badge,
+    tag: notificationId,
+    renotify: false,
+    silent: false,
+    vibrate,
+    requireInteraction,
+    timestamp: Date.now(),
     data: {
-      targetRoute: data.targetRoute || '/',
-      notificationId: data.notificationId,
+      targetRoute,
+      notificationId,
       type: data.type,
-      priority: data.priority,
+      priority,
       createdAt: data.createdAt,
+      ...(data.data || {}),
     },
-    vibrate: data.priority === 'CRITICAL' ? [200, 100, 200, 100, 200] : data.priority === 'WARNING' ? [200, 100, 200] : [],
-    requireInteraction: data.priority === 'CRITICAL',
+    actions: [
+      { action: 'open', title: 'عرض الآن', icon: '' },
+      { action: 'close', title: 'إغلاق', icon: '' },
+    ],
   }
 
-  e.waitUntil(self.registration.showNotification(options.title, options))
+  e.waitUntil(self.registration.showNotification(title, options))
 })
 
 self.addEventListener('notificationclick', (e) => {
-  e.notification.close()
+  const { action, notification } = e
+  notification.close()
 
-  const targetRoute = e.notification.data?.targetRoute || '/'
+  if (action === 'close') return
+
+  const targetRoute = notification.data?.targetRoute || notification.data?.url || '/'
   const urlToOpen = new URL(targetRoute, self.location.origin).href
 
   e.waitUntil(

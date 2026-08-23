@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useNotifications } from '../../context/NotificationContext'
 import GlobalSearch from '../ui/GlobalSearch'
 import NotificationCenter from '../ui/NotificationCenter'
+import PWAInstallButton from '../ui/PWAInstallButton'
 
 const pageTitles = {
   '/admin/students': 'الطلاب',
@@ -97,6 +98,10 @@ export default function TopNavbar({ onMenuToggle, unreadCount: _unreadCount }) {
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2">
+          {/* PWA Install Button */}
+          <PWAInstallButton mobile={false} />
+          <PWAInstallButton mobile={true} />
+
           {/* Online status — hidden on mobile */}
           <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[var(--color-success-light)] text-green-700">
             {online ? <Wifi size={14} /> : <WifiOff size={14} />}

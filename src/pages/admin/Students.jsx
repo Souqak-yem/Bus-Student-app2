@@ -74,6 +74,7 @@ export default function AdminStudents() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [credentials, setCredentials] = useState(null);
   const [showConfirm, setShowConfirm] = useState(null);
+  const studentFormRef = useRef(null);
 
   async function load() {
     try {
@@ -418,10 +419,10 @@ export default function AdminStudents() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="modal-content max-w-[min(95vw,1160px)] lg:max-w-[1200px]"
+              className="modal-content max-w-[min(95vw,1160px)] lg:max-w-[1200px] flex flex-col p-0"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between p-6 border-b border-[var(--color-border)]">
+              <div className="flex items-center justify-between p-6 border-b border-[var(--color-border)] shrink-0">
                 <h2 className="text-lg font-bold">
                   {editing ? "تعديل طالب" : "إضافة طالب جديد"}
                 </h2>
@@ -437,13 +438,14 @@ export default function AdminStudents() {
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mx-6 mt-4 px-4 py-3 rounded-xl bg-[var(--color-success-light)] text-green-700 text-sm font-medium"
+                  className="mx-6 mt-4 px-4 py-3 rounded-xl bg-[var(--color-success-light)] text-green-700 text-sm font-medium shrink-0"
                 >
                   تم حفظ البيانات بنجاح
                 </motion.div>
               )}
 
-              <form onSubmit={handleSubmit} className="p-6 flex flex-col space-y-5">
+              <form ref={studentFormRef} onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
+                <div className="flex flex-col space-y-5">
                 {/* Basic Info */}
                 <div className="order-1">
                   <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3 pb-2 border-b border-[var(--color-border-light)]">
@@ -783,19 +785,21 @@ export default function AdminStudents() {
                 </div>
 
                 {/* Submit */}
-                <div className="flex gap-2 pt-3 border-t border-[var(--color-border)] sticky bottom-0 bg-white -mx-3 sm:-mx-6 px-3 sm:px-6 pb-0 max-sm:pb-[80px] mt-5">
-                  <button type="submit" className="btn-primary btn-lg flex-1 sm:flex-none justify-center">
-                    {editing ? "حفظ التعديلات" : "إضافة الطالب"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCancel}
-                    className="btn-ghost btn-lg flex-1 sm:flex-none justify-center"
-                  >
-                    إلغاء
-                  </button>
                 </div>
               </form>
+
+              <div className="flex gap-2 shrink-0 border-t border-[var(--color-border)] bg-white px-6 py-4 max-sm:pb-[80px]">
+                <button type="submit" onClick={(e) => { e.preventDefault(); studentFormRef.current?.requestSubmit(); }} className="btn-primary btn-lg flex-1 sm:flex-none justify-center">
+                  {editing ? "حفظ التعديلات" : "إضافة الطالب"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="btn-ghost btn-lg flex-1 sm:flex-none justify-center"
+                >
+                  إلغاء
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

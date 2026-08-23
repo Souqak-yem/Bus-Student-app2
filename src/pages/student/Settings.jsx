@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, LogOut, Save, Eye, EyeOff, KeyRound, MessageCircle, Loader2, Bell, BellOff, Palette, Type, SunMedium } from 'lucide-react'
+import { User, LogOut, Save, Eye, EyeOff, KeyRound, MessageCircle, Loader2, Palette, Type, SunMedium } from 'lucide-react'
 import QuickContactCard from '../../components/ui/QuickContactCard'
+import SimpleNotificationToggle from '../../components/ui/SimpleNotificationToggle'
+import StudentGuide from '../../components/ui/StudentGuide'
 import { applyDisplaySettings, getDisplaySettings, saveDisplaySettings as persistDisplaySettings } from '../../lib/displaySettings'
 import { useAuth } from '../../context/AuthContext'
 import { api } from '../../lib/api'
-import { isPushNotificationsEnabled, requestPermission, setPushNotificationsEnabled, subscribeToPush, unsubscribeFromPush } from '../../lib/pushManager'
 
 const REGISTRATION_CONTACT_PHONE = '967734904945'
 const DAY_NAMES = {
@@ -89,14 +90,10 @@ export default function Settings() {
   const [showProfileDetails, setShowProfileDetails] = useState(false)
   const [showPasswordForm, setShowPasswordForm] = useState(false)
   const [showSupportContact, setShowSupportContact] = useState(false)
-  const [showHowItWorks, setShowHowItWorks] = useState(false)
   const [showDisplaySettings, setShowDisplaySettings] = useState(false)
   const [themeMode, setThemeMode] = useState('light')
   const [fontSize, setFontSize] = useState('normal')
   const [appColor, setAppColor] = useState('#2563EB')
-  const [pushEnabled, setPushEnabled] = useState(isPushNotificationsEnabled)
-  const [pushBusy, setPushBusy] = useState(false)
-  const [pushMessage, setPushMessage] = useState('')
 
   useEffect(() => {
     const saved = getDisplaySettings()
@@ -173,41 +170,6 @@ export default function Settings() {
   const handleLogout = () => {
     logout()
     navigate('/login')
-  }
-
-  const handlePushToggle = async () => {
-    if (pushBusy) return
-
-    const nextValue = !pushEnabled
-    setPushBusy(true)
-    setPushMessage('')
-
-    try {
-      if (nextValue) {
-        const permission = await requestPermission()
-        if (permission !== 'granted') {
-          setPushMessage('يجب السماح بالإشعارات من المتصفح لتفعيل الإشعارات الخارجية.')
-          setPushEnabled(false)
-          setPushNotificationsEnabled(false)
-          return
-        }
-
-        await subscribeToPush()
-        setPushNotificationsEnabled(true)
-        setPushEnabled(true)
-        setPushMessage('تم تفعيل الإشعارات الخارجية.')
-      } else {
-        await unsubscribeFromPush()
-        setPushNotificationsEnabled(false)
-        setPushEnabled(false)
-        setPushMessage('تم إيقاف الإشعارات الخارجية، بينما تبقى الإشعارات داخل التطبيق مفعلة.')
-      }
-    } catch (error) {
-      setPushMessage(error?.message || 'تعذر تحديث إعدادات الإشعارات.')
-      setPushEnabled(isPushNotificationsEnabled())
-    } finally {
-      setPushBusy(false)
-    }
   }
 
   const requestEditMessage = `السلام عليكم، أريد طلب تعديل بياناتي الشخصية`
@@ -293,44 +255,7 @@ export default function Settings() {
       </div>
 
       {/* Notification preferences */}
-      <div className="card p-3 fade-in">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-9 h-9 bg-blue-100/80 rounded-xl flex items-center justify-center">
-            {pushEnabled ? <Bell size={16} className="text-blue-600" /> : <BellOff size={16} className="text-blue-600" />}
-          </div>
-          <h3 className="text-sm font-bold text-slate-800">الإشعارات</h3>
-        </div>
-
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/80 p-2.5">
-            <div>
-              <div className="text-xs font-medium text-slate-700">الإشعارات داخل التطبيق</div>
-              <div className="text-[10px] text-slate-500">مفعلة دائمًا داخل التطبيق</div>
-            </div>
-            <span className="rounded-full bg-emerald-100 text-emerald-700 px-2 py-1 text-[10px] font-semibold">مفعلة</span>
-          </div>
-
-          <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/80 p-2.5">
-            <button
-              type="button"
-              onClick={handlePushToggle}
-              disabled={pushBusy}
-              className={`relative inline-flex h-8 w-16 shrink-0 items-center rounded-full transition-colors ${pushEnabled ? 'bg-[var(--color-primary)]' : 'bg-slate-300'}`}
-              aria-label={pushEnabled ? 'إيقاف الإشعارات الخارجية' : 'تفعيل الإشعارات الخارجية'}
-            >
-              <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${pushEnabled ? 'left-9' : 'left-1'}`} />
-            </button>
-            <div className="flex-1 text-right">
-              <div className="text-xs font-medium text-slate-700">الإشعارات الخارجية</div>
-              <div className="text-[10px] text-slate-500">تظهر في المتصفح/الهواتف عند الموافقة</div>
-            </div>
-          </div>
-
-          {pushMessage && (
-            <p className="text-[10px] text-slate-600 bg-slate-100 border border-slate-200 rounded-xl px-2 py-1.5">{pushMessage}</p>
-          )}
-        </div>
-      </div>
+      <SimpleNotificationToggle />
 
       {/* Display settings */}
       <div className="card p-3 fade-in">
@@ -472,42 +397,7 @@ export default function Settings() {
       </div>
 
       {/* How it works */}
-      <div className="card p-3 fade-in">
-        <button
-          type="button"
-          onClick={() => setShowHowItWorks((prev) => !prev)}
-          className="flex w-full items-center justify-between gap-2 text-right"
-        >
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-violet-100/80 rounded-xl flex items-center justify-center">
-              <span className="text-[15px] text-violet-600 font-bold">?</span>
-            </div>
-            <h3 className="text-sm font-bold text-slate-800">طريقة عمل التطبيق</h3>
-          </div>
-          <span className="text-slate-400 text-xs">{showHowItWorks ? 'إخفاء' : 'عرض'}</span>
-        </button>
-
-        {showHowItWorks && (
-          <div className="mt-3 space-y-2 text-xs text-slate-700">
-            <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-2.5">
-              <div className="font-bold text-slate-800 mb-1">1. اختر اشتراكك</div>
-              <p>من قائمة الاشتراكات يمكنك اختيار الاشتراك اليومي أو الأسبوعي أو عرض الأسعار الحالية.</p>
-            </div>
-            <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-2.5">
-              <div className="font-bold text-slate-800 mb-1">2. أضف إلى السلة</div>
-              <p>بعد اختيار المدة والأيام المناسبة، أضف الطلب إلى السلة ثم أرسل السند أو المرجع.</p>
-            </div>
-            <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-2.5">
-              <div className="font-bold text-slate-800 mb-1">3. تابع الحالة</div>
-              <p>يمكنك متابعة حالة الاشتراك من قسم السجل ومعرفة ما إذا تم قبوله أو رفضه أو قيد المراجعة.</p>
-            </div>
-            <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-2.5">
-              <div className="font-bold text-slate-800 mb-1">4. استخدم التواصل السريع</div>
-              <p>إذا احتجت المساعدة، يمكنك التواصل مباشرة مع مختص التسجيل أو المدير العام من نفس الصفحة.</p>
-            </div>
-          </div>
-        )}
-      </div>
+      <StudentGuide />
 
       {/* Support contact */}
       <div className="card p-3 fade-in">

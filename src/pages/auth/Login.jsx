@@ -33,7 +33,10 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      const { user, mustChangePassword } = await login(username.trim(), password)
+      const result = await login(username.trim(), password)
+      const user = result?.user
+      if (!user?.role) throw new Error('تعذر قراءة بيانات الحساب. حاول مرة أخرى.')
+      const { mustChangePassword } = result
       if (mustChangePassword) {
         navigate('/settings/change-password', { replace: true })
       } else {

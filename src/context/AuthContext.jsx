@@ -40,6 +40,9 @@ export function AuthProvider({ children }) {
 
   const login = async (username, password) => {
     const data = await api.auth.login(username, password)
+    if (!data?.user || typeof data.user !== 'object') {
+      throw new Error('تعذر قراءة بيانات الحساب. حاول مرة أخرى.')
+    }
     localStorage.setItem('token', data.token)
     localStorage.setItem('user', JSON.stringify(data.user))
     setUser(data.user)

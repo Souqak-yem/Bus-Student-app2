@@ -1,9 +1,9 @@
 import { io } from 'socket.io-client'
 
-const defaultOrigin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : ''
-const API_URL = (import.meta.env.VITE_API_URL || `${defaultOrigin}/api`).replace(/\/$/, '')
-const defaultSocketUrl = API_URL.replace(/\/api\/?$/, '')
-const SOCKET_URL = (import.meta.env.VITE_SOCKET_URL || defaultSocketUrl || defaultOrigin).replace(/\/$/, '')
+const SOCKET_URL = (
+  import.meta.env.VITE_SOCKET_URL
+  || 'https://bus-student-app2-production.up.railway.app'
+).replace(/\/$/, '')
 let socket = null
 let reconnectCallbacks = []
 

@@ -1,0 +1,3 @@
+[variables]
+VITE_API_URL = 'https://bus-student-app2-production.up.railway.app/api'
+VITE_SOCKET_URL = 'https://bus-student-app2-production.up.railway.app'

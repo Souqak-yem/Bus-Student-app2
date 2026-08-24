@@ -1,12 +1,7 @@
-const defaultApiUrl = (() => {
-  if (typeof window !== 'undefined' && window.location.origin) {
-    return `${window.location.origin}/api`
-  }
-
-  return '/api'
-})()
-
-const API_URL = (import.meta.env.VITE_API_URL || defaultApiUrl).replace(/\/$/, '')
+const API_URL = (
+  import.meta.env.VITE_API_URL
+  || 'https://bus-student-app2-production.up.railway.app/api'
+).replace(/\/$/, '')
 
 function getToken() {
   return localStorage.getItem("token");

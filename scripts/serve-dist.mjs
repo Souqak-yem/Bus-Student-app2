@@ -47,7 +47,9 @@ const server = createServer(async (req, res) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
     res.setHeader('Expires', '0')
   } else {
-    res.setHeader('Cache-Control', target.endsWith('index.html') ? 'no-store' : 'public, max-age=31536000, immutable')
+    res.setHeader('Cache-Control', target.endsWith('index.html')
+      ? 'no-cache, no-store, must-revalidate'
+      : 'public, max-age=31536000, immutable')
   }
   createReadStream(target).on('error', () => {
     res.statusCode = 500

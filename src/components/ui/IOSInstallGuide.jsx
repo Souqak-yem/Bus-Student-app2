@@ -3,22 +3,22 @@ import { X, ChevronLeft, ChevronRight, Check } from 'lucide-react'
 
 const STEPS = [
   {
-    image: '/images/ios-install/step1.png',
+    image: '/images/ios-install/step1.jpg',
     title: 'الخطوة 1',
     text: 'افتح الموقع باستخدام متصفح Safari.',
   },
   {
-    image: '/images/ios-install/step2.png',
+    image: '/images/ios-install/step2.jpg',
     title: 'الخطوة 2',
     text: 'اضغط زر المشاركة أسفل الشاشة.',
   },
   {
-    image: '/images/ios-install/step3.png',
+    image: '/images/ios-install/step3.jpg',
     title: 'الخطوة 3',
     text: 'اختر "إضافة إلى الشاشة الرئيسية".',
   },
   {
-    image: '/images/ios-install/step4.png',
+    image: '/images/ios-install/step4.jpg',
     title: 'الخطوة 4',
     text: 'اضغط "إضافة" وسيتم تثبيت التطبيق على جهازك.',
   },

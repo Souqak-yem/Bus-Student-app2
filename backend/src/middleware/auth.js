@@ -22,6 +22,21 @@ export function authenticate(req, res, next) {
   }
 }
 
+export function authenticateOptional(req, _res, next) {
+  const header = req.headers.authorization
+  if (header && header.startsWith('Bearer ')) {
+    try {
+      const decoded = jwt.verify(header.split(' ')[1], getJwtSecret())
+      req.user = decoded
+    } catch {
+      req.user = null
+    }
+  } else {
+    req.user = null
+  }
+  next()
+}
+
 export function authorize(...roles) {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {

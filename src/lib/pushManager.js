@@ -407,7 +407,7 @@ export async function subscribeToPush({ forceResubscribe = false } = {}) {
   }
 }
 
-export async function unsubscribeFromPush() {
+export async function unsubscribeFromPush({ skipServerCall = false } = {}) {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     return { success: false, reason: 'unsupported' }
   }
@@ -427,11 +427,18 @@ export async function unsubscribeFromPush() {
   }
 
   let serverDeleted = 0
-  try {
-    const result = await api.push.unsubscribe(endpoint).catch(() => null)
-    serverDeleted = result?.deletedCount || 0
-  } catch (err) {
-    console.warn(LOG_PREFIX, 'Server-side unsubscribe failed:', err?.message)
+  if (!skipServerCall) {
+    const hasToken = typeof localStorage !== 'undefined' && !!localStorage.getItem('token')
+    if (hasToken) {
+      try {
+        const result = await api.push.unsubscribe(endpoint).catch(() => null)
+        serverDeleted = result?.deletedCount || 0
+      } catch (err) {
+        console.warn(LOG_PREFIX, 'Server-side unsubscribe failed:', err?.message)
+      }
+    } else {
+      console.log(LOG_PREFIX, 'Skipping server-side unsubscribe: no auth token present.')
+    }
   }
 
   try {

@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { authenticate } from '../middleware/auth.js'
+import { authenticate, authenticateOptional } from '../middleware/auth.js'
 import { saveSubscription, removeSubscription, getVapidPublicKey, hasVapidKeys } from '../services/pushNotificationService.js'
 import { prisma } from '../lib/prisma.js'
 
@@ -53,24 +53,32 @@ router.post('/subscribe', authenticate, async (req, res) => {
   }
 })
 
-router.post('/unsubscribe', authenticate, async (req, res) => {
-  const userId = req.user.id
+router.post('/unsubscribe', authenticateOptional, async (req, res) => {
+  const userId = req.user?.id || null
   const { endpoint } = req.body
   console.log(
-    `[Push Route] unsubscribe POST user=${userId} endpoint_provided=${!!endpoint}`
+    `[Push Route] unsubscribe POST user=${userId || 'anonymous'} endpoint_provided=${!!endpoint}`
   )
   try {
     let deletedCount = 0
     if (endpoint) {
       const result = await removeSubscription(endpoint)
       deletedCount = result?.count || 0
-    } else {
+    } else if (userId) {
       const result = await prisma.pushSubscription.deleteMany({ where: { userId } })
       deletedCount = result.count
+    } else {
+      console.warn(`[Push Route] unsubscribe BLOCKED: no endpoint and no authenticated user`)
+      return res.status(400).json({
+        error: 'يجب توفير الـ endpoint أو تسجيل الدخول',
+        errorCode: 'MISSING_IDENTIFIER',
+      })
     }
-    const remaining = await prisma.pushSubscription.count({ where: { userId } })
+    const remaining = userId
+      ? await prisma.pushSubscription.count({ where: { userId } })
+      : 0
     console.log(
-      `[Push Route] unsubscribe SUCCESS user=${userId} deleted=${deletedCount} remaining=${remaining}`
+      `[Push Route] unsubscribe SUCCESS user=${userId || 'anonymous'} deleted=${deletedCount} remaining=${remaining}`
     )
     res.json({
       success: true,
@@ -79,7 +87,7 @@ router.post('/unsubscribe', authenticate, async (req, res) => {
       remaining,
     })
   } catch (error) {
-    console.error('[Push Route] unsubscribe FAILED user=' + userId + ':', error?.message || error)
+    console.error('[Push Route] unsubscribe FAILED user=' + (userId || 'anonymous') + ':', error?.message || error)
     res.status(500).json({
       error: 'فشل إلغاء الاشتراك في الإشعارات',
       errorCode: 'UNSUBSCRIBE_FAILED',

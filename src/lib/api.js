@@ -27,9 +27,15 @@ async function request(endpoint, options = {}) {
 
   if (res.status === 401) {
     if (endpoint !== "/auth/login") {
+      const hadToken = !!getToken();
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      window.location.href = "/login";
+      const currentPath = window.location.pathname;
+      const isAuthPage = currentPath === "/login" || currentPath === "/register" ||
+        currentPath === "/forgot-password" || currentPath.startsWith("/reset-password");
+      if (hadToken && !isAuthPage) {
+        window.location.href = "/login";
+      }
     }
     throw new Error(data.error || "غير مصرح به");
   }

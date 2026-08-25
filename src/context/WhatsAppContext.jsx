@@ -1,13 +1,20 @@
 import { createContext, useContext } from 'react'
-import { buildWhatsAppUrl, sanitizeWhatsAppNumber } from '../lib/whatsapp'
+import {
+  buildWhatsAppUrl,
+  sanitizeWhatsAppNumber,
+} from '../lib/whatsapp'
 
 const WhatsAppContext = createContext(null)
+
+function launchWhatsApp(app, phone, message) {
+  window.open(buildWhatsAppUrl(app, phone, message), '_blank', 'noopener,noreferrer')
+}
 
 export function WhatsAppProvider({ children }) {
   function openWhatsApp(phoneValue, message = '') {
     const phone = sanitizeWhatsAppNumber(phoneValue)
     if (!phone) return false
-    window.open(buildWhatsAppUrl(phone, message), '_blank', 'noopener,noreferrer')
+    launchWhatsApp('regular', phone, message)
     return true
   }
 

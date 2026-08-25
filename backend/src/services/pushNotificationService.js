@@ -195,17 +195,24 @@ export async function sendPushToUser(userId, payload) {
         }
       } catch (err) {
         const code = err?.statusCode
-        const isGone = code === 410 || code === 404
-        if (isGone) {
+        const isPermanentlyInvalid = code === 410 || code === 404 || code === 403 || code === 401
+        if (isPermanentlyInvalid) {
+          const reasonMap = {
+            410: 'Gone — endpoint no longer exists',
+            404: 'Not Found — endpoint no longer exists',
+            403: 'Forbidden — VAPID key mismatch or subscription permanently revoked',
+            401: 'Unauthorized — subscription auth invalid',
+          }
+          const reasonText = reasonMap[code] || 'permanently invalid'
           console.warn(
-            `[Push] EXPIRED sub=${sub.id} user=${userId} notif=${notificationId} — status=${code} (Gone/Not Found). Endpoint no longer valid; removing from DB.`
+            `[Push] Deleted invalid sub=${sub.id} due to status=${code}. ${reasonText}. user=${userId} notif=${notificationId}`
           )
           expiredSubIds.push(sub.id)
           try {
             await prisma.pushSubscription.delete({ where: { id: sub.id } })
           } catch (delErr) {
             console.error(
-              `[Push] Failed to delete expired sub=${sub.id}:`,
+              `[Push] Failed to delete invalid sub=${sub.id} (status=${code}):`,
               delErr?.message || delErr
             )
           }
@@ -213,8 +220,9 @@ export async function sendPushToUser(userId, payload) {
           return {
             subId: sub.id,
             endpointStart: sub.endpoint.slice(0, 30),
-            status: 'expired',
+            status: code === 410 || code === 404 ? 'expired' : 'invalid_vapid',
             statusCode: code,
+            invalidReason: reasonText,
           }
         } else {
           console.error(

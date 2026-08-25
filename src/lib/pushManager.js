@@ -3,7 +3,10 @@ import { api } from './api'
 const PUSH_NOTIFICATIONS_KEY = 'appPushNotifications'
 const LEGACY_PUSH_KEY = 'studentPushNotifications'
 const SUBSCRIPTION_STATE_KEY = 'appPushSubscriptionState'
+const VAPID_KEY_USED_KEY = 'appPushVapidKeyUsed'
+const LAST_VAPID_MISMATCH_KEY = 'appPushLastVapidMismatch'
 const SW_READY_TIMEOUT_MS = 15_000
+const VAPID_ALIGN_COOLDOWN_MS = 60_000
 const LOG_PREFIX = '[PushManager]'
 
 export const NOTIFICATION_CATEGORIES = [
@@ -57,6 +60,213 @@ export function setPushNotificationsEnabled(enabled) {
   return enabled
 }
 
+function getSavedVapidKeyUsed() {
+  try {
+    if (typeof localStorage === 'undefined') return null
+    const raw = localStorage.getItem(VAPID_KEY_USED_KEY)
+    return raw && raw !== 'undefined' && raw !== 'null' ? raw : null
+  } catch {
+    return null
+  }
+}
+
+function setSavedVapidKeyUsed(publicKey) {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      if (publicKey) localStorage.setItem(VAPID_KEY_USED_KEY, publicKey)
+      else localStorage.removeItem(VAPID_KEY_USED_KEY)
+    }
+  } catch {}
+}
+
+function getLastVapidMismatchAt() {
+  try {
+    if (typeof localStorage === 'undefined') return 0
+    const raw = localStorage.getItem(LAST_VAPID_MISMATCH_KEY)
+    const n = raw ? parseInt(raw, 10) : 0
+    return Number.isFinite(n) ? n : 0
+  } catch {
+    return 0
+  }
+}
+
+function setLastVapidMismatchAt(ts) {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(LAST_VAPID_MISMATCH_KEY, String(ts))
+    }
+  } catch {}
+}
+
+/**
+ * Detect whether the client's saved VAPID public key (used to create the
+ * current browser push subscription) differs from the server's current VAPID
+ * public key. A mismatch means the current client subscription is permanently
+ * invalid and must be recreated (403 Forbidden on send).
+ *
+ * Returns:
+ *   { needsResubscribe: boolean, reason: string|null, serverKey: string|null, clientKey: string|null }
+ */
+export async function detectVapidMismatch({ forceRefresh = false } = {}) {
+  const result = {
+    needsResubscribe: false,
+    reason: null,
+    serverKey: null,
+    clientKey: getSavedVapidKeyUsed(),
+    serverHasSubscription: null,
+    clientHasSubscription: null,
+  }
+
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      return result
+    }
+
+    const vapidInfo = await getVapidPublicKey({ forceRefresh })
+    result.serverKey = vapidInfo?.key || null
+
+    if (!vapidInfo?.available || !result.serverKey) {
+      return result
+    }
+
+    let hasClientSub = false
+    try {
+      const reg = await navigator.serviceWorker.getRegistration('/sw.js')
+      if (reg) {
+        const sub = await reg.pushManager.getSubscription()
+        hasClientSub = !!sub
+      }
+    } catch {}
+    result.clientHasSubscription = hasClientSub
+
+    const hasToken = typeof localStorage !== 'undefined' && !!localStorage.getItem('token')
+    if (hasToken) {
+      try {
+        const st = await api.push.status().catch(() => null)
+        result.serverHasSubscription = st ? (st.count || 0) > 0 : null
+      } catch {}
+    }
+
+    if (result.clientKey && result.serverKey && result.clientKey !== result.serverKey) {
+      result.needsResubscribe = true
+      result.reason = 'vapid_key_mismatch'
+      console.warn(
+        LOG_PREFIX,
+        `VAPID MISMATCH DETECTED. clientKey ends with=${result.clientKey.slice(-12)} serverKey ends with=${result.serverKey.slice(-12)}. Force resubscribe required.`
+      )
+      return result
+    }
+
+    if (!result.clientKey && hasClientSub) {
+      result.needsResubscribe = true
+      result.reason = 'client_sub_without_saved_vapid'
+      console.warn(
+        LOG_PREFIX,
+        'Client has an active Push subscription but no saved VAPID key on record. Assuming mismatch; forcing resubscribe.'
+      )
+      return result
+    }
+
+    if (result.serverHasSubscription === false && hasClientSub) {
+      result.needsResubscribe = true
+      result.reason = 'server_sub_missing_client_has_sub'
+      console.warn(
+        LOG_PREFIX,
+        'Server reports 0 push subscriptions, but client has an active subscription. This usually means the subscription was invalidated by a 403 error on the backend. Forcing resubscribe.'
+      )
+      return result
+    }
+
+    return result
+  } catch (err) {
+    console.warn(LOG_PREFIX, 'detectVapidMismatch threw (treating as no-op):', err?.message || err)
+    return result
+  }
+}
+
+/**
+ * If the current browser push subscription is out of alignment with the backend
+ * VAPID public key, destroy the old browser subscription and re-subscribe
+ * using the latest server key. Safe to call multiple times; includes a cooldown
+ * to avoid tight loops.
+ */
+export async function ensureVapidAligned({ force = false } = {}) {
+  const t0 = performance.now()
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      return { aligned: true, reason: 'unsupported', elapsedMs: 0 }
+    }
+    if (!isPushNotificationsEnabled()) {
+      return { aligned: true, reason: 'push_disabled_locally', elapsedMs: 0 }
+    }
+    if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+      return { aligned: true, reason: `permission_${Notification.permission}`, elapsedMs: 0 }
+    }
+
+    const now = Date.now()
+    const lastMismatch = getLastVapidMismatchAt()
+    if (!force && lastMismatch && now - lastMismatch < VAPID_ALIGN_COOLDOWN_MS) {
+      return { aligned: true, reason: 'cooldown', elapsedMs: (performance.now() - t0) | 0 }
+    }
+
+    const mismatch = await detectVapidMismatch({ forceRefresh: force })
+    if (!mismatch.needsResubscribe) {
+      return {
+        aligned: true,
+        reason: mismatch.reason || 'already_aligned',
+        elapsedMs: (performance.now() - t0) | 0,
+      }
+    }
+
+    setLastVapidMismatchAt(now)
+    console.log(
+      LOG_PREFIX,
+      `VAPID alignment required (reason=${mismatch.reason}). Clearing old subscription and re-subscribing...`
+    )
+
+    try {
+      const readyReg = await navigator.serviceWorker.ready
+      const existingSub = await readyReg.pushManager.getSubscription()
+      if (existingSub) {
+        try {
+          await existingSub.unsubscribe()
+          console.log(LOG_PREFIX, 'Old client Push subscription unregistered successfully.')
+        } catch (uErr) {
+          console.warn(LOG_PREFIX, 'Old client unsubscribe failed during alignment (continuing anyway):', uErr?.message)
+        }
+      }
+    } catch (swErr) {
+      console.warn(LOG_PREFIX, 'SW ready/getSubscription failed during alignment (continuing to subscribe anyway):', swErr?.message)
+    }
+
+    const subResult = await subscribeToPush({ forceResubscribe: true })
+    const elapsed = (performance.now() - t0) | 0
+    if (subResult?.success) {
+      console.log(LOG_PREFIX, `VAPID alignment SUCCESS in ${elapsed}ms. newSubId=${subResult.serverSubscriptionId || 'N/A'} totalSubs=${subResult.totalSubscriptions || 'N/A'}`)
+      return {
+        aligned: true,
+        realigned: true,
+        reason: mismatch.reason,
+        result: subResult,
+        elapsedMs: elapsed,
+      }
+    }
+    console.warn(LOG_PREFIX, `VAPID alignment FAILED in ${elapsed}ms. phase=${subResult?.phase || 'N/A'} reason=${subResult?.reason || 'N/A'}`)
+    return {
+      aligned: false,
+      realigned: false,
+      reason: mismatch.reason,
+      failReason: subResult?.reason || null,
+      result: subResult,
+      elapsedMs: elapsed,
+    }
+  } catch (err) {
+    const elapsed = (performance.now() - t0) | 0
+    console.error(LOG_PREFIX, 'ensureVapidAligned threw (swallowed):', err?.message || err)
+    return { aligned: false, reason: 'thrown', error: err?.message || String(err), elapsedMs: elapsed }
+  }
+}
+
 export function getDeviceType() {
   if (typeof navigator === 'undefined') return 'desktop'
   const ua = navigator.userAgent || ''
@@ -100,6 +310,12 @@ export async function getPushStatus() {
     serverSubscriptionCount: 0,
     vapidAvailable: false,
     localStorageEnabled: isPushNotificationsEnabled(),
+    vapid: {
+      serverKey: null,
+      savedClientKey: getSavedVapidKeyUsed(),
+      needsResubscribe: false,
+      mismatchReason: null,
+    },
   }
 
   if (typeof window === 'undefined') return base
@@ -109,8 +325,9 @@ export async function getPushStatus() {
   base.permission = 'Notification' in window ? Notification.permission : 'unsupported'
 
   try {
-    const { available } = await getVapidPublicKey()
+    const { available, key } = await getVapidPublicKey()
     base.vapidAvailable = !!available
+    base.vapid.serverKey = key || null
   } catch {}
 
   try {
@@ -136,6 +353,15 @@ export async function getPushStatus() {
     const st = await api.push.status().catch(() => null)
     if (st) {
       base.serverSubscriptionCount = st.count || 0
+    }
+  } catch {}
+
+  try {
+    const mismatch = await detectVapidMismatch()
+    if (mismatch) {
+      base.vapid.needsResubscribe = !!mismatch.needsResubscribe
+      base.vapid.mismatchReason = mismatch.reason || null
+      if (!base.vapid.serverKey) base.vapid.serverKey = mismatch.serverKey || null
     }
   } catch {}
 
@@ -390,10 +616,11 @@ export async function subscribeToPush({ forceResubscribe = false } = {}) {
     elapsedMs: Number(elapsed),
   }
   writePersistedState(finalState)
+  setSavedVapidKeyUsed(key)
 
   console.log(
     LOG_PREFIX,
-    `subscribeToPush DONE in ${elapsed}ms. clientExisting=${wasExistingClientSide} serverExisting=${serverResponse?.wasExisting} totalSubs=${serverResponse?.totalSubscriptions || 'N/A'}`
+    `subscribeToPush DONE in ${elapsed}ms. clientExisting=${wasExistingClientSide} serverExisting=${serverResponse?.wasExisting} totalSubs=${serverResponse?.totalSubscriptions || 'N/A'} vapidKeyEndsWith=${key.slice(-12)}`
   )
 
   return {
@@ -444,6 +671,7 @@ export async function unsubscribeFromPush({ skipServerCall = false } = {}) {
   try {
     localStorage.removeItem(SUBSCRIPTION_STATE_KEY)
   } catch {}
+  setSavedVapidKeyUsed(null)
 
   return {
     success: true,

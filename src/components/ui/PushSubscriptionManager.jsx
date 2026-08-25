@@ -4,17 +4,20 @@ import {
   subscribeToPush,
   isPushNotificationsEnabled,
   getPushStatus,
+  ensureVapidAligned,
 } from '../../lib/pushManager'
 
 const CHECK_INTERVAL_IDEAL_MS = 2 * 60_000
 const CHECK_INTERVAL_RELAXED_MS = 10 * 60_000
 const MIN_ATTEMPT_GAP_MS = 15_000
+const VAPID_ALIGN_GAP_MS = 45_000
 const LOG_PREFIX = '[PushSubscriptionManager]'
 
 export default function PushSubscriptionManager() {
   const { user } = useAuth()
   const lastAttemptRef = useRef(0)
   const lastCheckRef = useRef(0)
+  const lastVapidAlignRef = useRef(0)
   const mountedRef = useRef(true)
   const userIdRef = useRef(null)
 
@@ -46,6 +49,8 @@ export default function PushSubscriptionManager() {
           clientSub: !!status.clientSubscription,
           swRegistered: status.swRegistered,
           vapidAvailable: status.vapidAvailable,
+          vapidNeedsResubscribe: status.vapid?.needsResubscribe,
+          vapidMismatchReason: status.vapid?.mismatchReason,
         })
       } catch (statusErr) {
         console.warn(LOG_PREFIX, 'getPushStatus threw (continuing anyway):', statusErr?.message)
@@ -55,18 +60,53 @@ export default function PushSubscriptionManager() {
       const hasClientSub = status ? !!status.clientSubscription : null
       const vapidOk = status ? status.vapidAvailable : true
       const swOk = status ? status.swRegistered : true
+      const vapidNeedsResubscribe = !!(status?.vapid?.needsResubscribe)
+      const vapidMismatchReason = status?.vapid?.mismatchReason || null
+
+      if (vapidNeedsResubscribe) {
+        const shouldRunAlign =
+          force || !lastVapidAlignRef.current || now - lastVapidAlignRef.current >= VAPID_ALIGN_GAP_MS
+        if (shouldRunAlign) {
+          lastVapidAlignRef.current = now
+          console.log(
+            LOG_PREFIX,
+            `VAPID alignment required (reason=${vapidMismatchReason || 'detected_via_status'}). Running ensureVapidAligned. trigger=${reason}`
+          )
+          try {
+            const alignResult = await ensureVapidAligned({ force })
+            console.log(
+              LOG_PREFIX,
+              `ensureVapidAligned done in ${alignResult?.elapsedMs || 0}ms. aligned=${alignResult?.aligned} realigned=${alignResult?.realigned || false} reason=${alignResult?.reason || 'N/A'}`
+            )
+            if (alignResult?.aligned && alignResult?.realigned) {
+              return
+            }
+          } catch (alignErr) {
+            console.error(LOG_PREFIX, 'ensureVapidAligned threw (swallowed):', alignErr?.message || alignErr)
+          }
+        } else {
+          console.debug(
+            LOG_PREFIX,
+            `VAPID alignment needed but cooldown active (remaining=${VAPID_ALIGN_GAP_MS - (now - lastVapidAlignRef.current)}ms). Skipping this round.`
+          )
+        }
+      }
 
       const needsPush = !hasServerSub || !hasClientSub || !vapidOk || !swOk
 
-      if (hasServerSub && hasClientSub && vapidOk && swOk) {
-        console.log(LOG_PREFIX, `everything OK (serverSubs=${status.serverSubscriptionCount}, clientSub=true). reason=${reason}`)
+      if (hasServerSub && hasClientSub && vapidOk && swOk && !vapidNeedsResubscribe) {
+        console.log(LOG_PREFIX, `everything OK (serverSubs=${status.serverSubscriptionCount}, clientSub=true, vapid=aligned). reason=${reason}`)
         return
       }
 
-      console.log(LOG_PREFIX, `action required: serverSubs=${hasServerSub} clientSub=${hasClientSub} vapid=${vapidOk} sw=${swOk}. Force-resubscribing. reason=${reason}`)
+      console.log(
+        LOG_PREFIX,
+        `action required: serverSubs=${hasServerSub} clientSub=${hasClientSub} vapid=${vapidOk} sw=${swOk} vapidMismatch=${vapidNeedsResubscribe}. Force-resubscribing. reason=${reason}`
+      )
 
       try {
-        const result = await subscribeToPush({ forceResubscribe: !hasServerSub && hasClientSub ? false : force })
+        const forceResub = vapidNeedsResubscribe ? true : !hasServerSub && hasClientSub ? false : force
+        const result = await subscribeToPush({ forceResubscribe: forceResub })
         if (result?.success) {
           console.log(
             LOG_PREFIX,
@@ -92,6 +132,7 @@ export default function PushSubscriptionManager() {
       console.log(LOG_PREFIX, 'user id changed; resetting attempt windows.')
       lastAttemptRef.current = 0
       lastCheckRef.current = 0
+      lastVapidAlignRef.current = 0
     }
     userIdRef.current = user?.id || null
 

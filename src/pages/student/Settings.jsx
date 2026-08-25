@@ -7,7 +7,6 @@ import StudentGuide from '../../components/ui/StudentGuide'
 import { applyDisplaySettings, getDisplaySettings, saveDisplaySettings as persistDisplaySettings } from '../../lib/displaySettings'
 import { useAuth } from '../../context/AuthContext'
 import { api } from '../../lib/api'
-import { resetDefaultWhatsAppApp, getDefaultWhatsAppApp } from '../../lib/whatsapp'
 import { useWhatsAppRedirect } from '../../context/WhatsAppContext'
 
 const REGISTRATION_CONTACT_PHONE = '967734904945'
@@ -96,7 +95,6 @@ export default function Settings() {
   const [themeMode, setThemeMode] = useState('light')
   const [fontSize, setFontSize] = useState('normal')
   const [appColor, setAppColor] = useState('#2563EB')
-  const [defaultWhatsApp, setDefaultWhatsApp] = useState(getDefaultWhatsAppApp())
   const openWhatsApp = useWhatsAppRedirect()
 
   useEffect(() => {
@@ -258,16 +256,6 @@ export default function Settings() {
 
       {/* Notification preferences */}
       <SimpleNotificationToggle />
-
-      <div className="card p-3 fade-in">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-bold text-slate-800">تطبيق واتساب الافتراضي</h3>
-            <p className="mt-1 text-xs text-slate-500">{defaultWhatsApp ? 'سيتم استخدام اختيارك تلقائياً' : 'سيظهر الاختيار عند أول تواصل'}</p>
-          </div>
-          {defaultWhatsApp && <button type="button" onClick={() => { resetDefaultWhatsAppApp(); setDefaultWhatsApp(null) }} className="rounded-xl border border-red-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50">إعادة التعيين</button>}
-        </div>
-      </div>
 
       {/* Display settings */}
       <div className="card p-3 fade-in">

@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { api } from '../../lib/api'
 import { applyDisplaySettings, getDisplaySettings, saveDisplaySettings } from '../../lib/displaySettings'
 import SimpleNotificationToggle from '../../components/ui/SimpleNotificationToggle'
+import { getDefaultWhatsAppApp, resetDefaultWhatsAppApp } from '../../lib/whatsapp'
 
 export default function DriverSettings() {
   const { user, logout } = useAuth()
@@ -19,6 +20,7 @@ export default function DriverSettings() {
   const [passwordSuccess, setPasswordSuccess] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [fontSize, setFontSize] = useState('normal')
+  const [defaultWhatsApp, setDefaultWhatsApp] = useState(getDefaultWhatsAppApp())
 
   useEffect(() => {
     setFontSize(getDisplaySettings().fontSize || 'normal')
@@ -91,6 +93,16 @@ export default function DriverSettings() {
 
       {/* Notification preferences */}
       <SimpleNotificationToggle />
+
+      <div className="card p-3 fade-in">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-bold text-slate-800">تطبيق واتساب الافتراضي</h3>
+            <p className="mt-1 text-xs text-slate-500">{defaultWhatsApp ? 'سيتم استخدام اختيارك تلقائياً' : 'سيظهر الاختيار عند أول تواصل'}</p>
+          </div>
+          {defaultWhatsApp && <button type="button" onClick={() => { resetDefaultWhatsAppApp(); setDefaultWhatsApp(null) }} className="rounded-xl border border-red-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50">إعادة التعيين</button>}
+        </div>
+      </div>
 
       <div className="card p-3 fade-in">
         <button

@@ -3,6 +3,7 @@ import { NavLink, Navigate, useLocation } from 'react-router-dom'
 import { CalendarDays, CreditCard, Clock, FileText, Upload, ShoppingCart, Trash2 } from 'lucide-react'
 import { resolveDailyExecutionDates, serializeLocalDate, parseLocalDate } from '../../../backend/src/utils/dateUtils.js'
 import { api } from '../../lib/api'
+import { useWhatsAppRedirect } from '../../context/WhatsAppContext'
 import { formatCurrency, formatNumber } from '../../lib/format'
 import ConfirmModal from '../../components/ui/ConfirmModal'
 import Modal from '../../components/ui/Modal'
@@ -72,7 +73,7 @@ function getDailyDatesText(item) {
   return (item.data?.selectedDays || []).map((day) => DAY_NAMES_AR[day] || day).join('، ')
 }
 
-function openRegistrationWhatsApp({ studentName, items, depositReference }) {
+function getRegistrationWhatsAppMessage({ studentName, items, depositReference }) {
   const itemLines = items.map((item) => {
     const dailyDates = item.type === 'DAILY' ? getDailyDatesText(item) : ''
     return `- ${getCartItemLabel(item)}${dailyDates ? `\n  الأيام والتواريخ: ${dailyDates}` : ''}`
@@ -85,8 +86,7 @@ function openRegistrationWhatsApp({ studentName, items, depositReference }) {
     `رقم الإيداع / المرجع: ${depositReference}`,
   ].join('\n')
 
-  const url = `https://wa.me/${REGISTRATION_CONTACT_PHONE}?text=${encodeURIComponent(message)}`
-  window.open(url, '_blank', 'noopener,noreferrer')
+  return message
 }
 
 function WhatsAppNotice({ show, countdown, onContinue }) {
@@ -165,6 +165,7 @@ function convertImageToWebP(file) {
 }
 
 export default function Subscriptions() {
+  const openWhatsApp = useWhatsAppRedirect()
   const [subscriptions, setSubscriptions] = useState([])
   const [pricing, setPricing] = useState([])
   const [student, setStudent] = useState(null)
@@ -1135,7 +1136,7 @@ export default function Subscriptions() {
         countdown={whatsAppCountdown}
         onContinue={() => {
           if (whatsAppCountdown > 0 || !pendingWhatsApp) return
-          openRegistrationWhatsApp(pendingWhatsApp)
+          openWhatsApp(REGISTRATION_CONTACT_PHONE, getRegistrationWhatsAppMessage(pendingWhatsApp))
           setPendingWhatsApp(null)
           setShowWhatsAppNotice(false)
         }}

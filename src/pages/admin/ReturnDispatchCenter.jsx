@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useWhatsAppRedirect } from '../../context/WhatsAppContext'
 import { api } from '../../lib/api'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bus, Users, Search, Plus, X, GripVertical, Phone, MessageCircle, MapPin } from 'lucide-react'
@@ -26,6 +27,7 @@ function ReadinessBadge({ status }) {
 }
 
 export default function ReturnDispatchCenter() {
+  const openWhatsApp = useWhatsAppRedirect()
   const [loading, setLoading] = useState(true)
   const [queue, setQueue] = useState([])
   const [activeBuses, setActiveBuses] = useState([])
@@ -319,11 +321,11 @@ export default function ReturnDispatchCenter() {
                           </a>
                         )}
                         {item.student?.whatsapp && (
-                          <a href={`https://wa.me/${item.student.whatsapp.replace(/^0/, '966')}`} target="_blank" rel="noopener noreferrer"
+                          <button type="button" onClick={() => openWhatsApp(item.student.whatsapp)}
                             className="w-7 h-7 rounded-full bg-green-600 text-white hover:bg-green-700 flex items-center justify-center transition-colors"
                             title="واتساب">
                             <MessageCircle size={12} />
-                          </a>
+                          </button>
                         )}
                       </div>
                     </div>
@@ -538,15 +540,14 @@ export default function ReturnDispatchCenter() {
                                 </a>
                               )}
                               {s?.whatsapp && (
-                                <a
-                                  href={`https://wa.me/${s.whatsapp.replace(/^0/, '966')}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                                <button
+                                  type="button"
+                                  onClick={() => openWhatsApp(s.whatsapp)}
                                   className="w-6 h-6 rounded-full bg-green-600 text-white hover:bg-green-700 flex items-center justify-center transition-colors"
                                   title="واتساب"
                                 >
                                   <MessageCircle className="w-3.5 h-3.5" />
-                                </a>
+                                </button>
                               )}
                               <button
                                 onClick={() => setTransferMode({ studentId: load.studentId, activeBusId: selectedBus.id })}

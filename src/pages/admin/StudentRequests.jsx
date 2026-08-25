@@ -7,6 +7,7 @@ import Modal from '../../components/ui/Modal'
 import PageHeader from '../../components/ui/PageHeader'
 import StatusBadge from '../../components/ui/StatusBadge'
 import ConfirmModal from '../../components/ui/ConfirmModal'
+import { useWhatsAppRedirect } from '../../context/WhatsAppContext'
 
 const statusOptions = [
   { value: '', label: 'كل الطلبات' },
@@ -25,15 +26,6 @@ const dayLabels = {
   SATURDAY: 'السبت',
 }
 
-function sanitizeWhatsappNumber(value) {
-  if (!value) return null
-  const digits = String(value).replace(/\D/g, '')
-  if (!digits) return null
-  if (digits.startsWith('00')) return digits.slice(2)
-  if (digits.startsWith('0')) return `966${digits.slice(1)}`
-  return digits
-}
-
 export default function AdminStudentRequests() {
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
@@ -47,6 +39,7 @@ export default function AdminStudentRequests() {
   const [rejectReason, setRejectReason] = useState('')
   const [processing, setProcessing] = useState(false)
   const navigate = useNavigate()
+  const openWhatsApp = useWhatsAppRedirect()
 
   useEffect(() => {
     loadRequests()
@@ -65,13 +58,6 @@ export default function AdminStudentRequests() {
     } finally {
       setLoading(false)
     }
-  }
-
-  function openWhatsApp(number, text) {
-    const phone = sanitizeWhatsappNumber(number)
-    if (!phone) return
-    const encoded = encodeURIComponent(text)
-    window.open(`https://wa.me/${phone}?text=${encoded}`, '_blank')
   }
 
   function openPreview(request) {

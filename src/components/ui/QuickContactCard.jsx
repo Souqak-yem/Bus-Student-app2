@@ -1,4 +1,5 @@
 import { Phone, MessageCircle } from 'lucide-react'
+import { useWhatsAppRedirect } from '../../context/WhatsAppContext'
 
 const contacts = [
   {
@@ -7,7 +8,6 @@ const contacts = [
     type: 'whatsapp',
     icon: MessageCircle,
     phone: '967734904945',
-    href: 'https://wa.me/967734904945',
   },
   {
     id: 'manager',
@@ -31,16 +31,16 @@ const contacts = [
 ]
 
 export default function QuickContactCard() {
+  const openWhatsApp = useWhatsAppRedirect()
   const registration = contacts.find((c) => c.type === 'whatsapp')
   const manager = contacts.find((c) => c.type === 'phone-group')
 
   return (
     <div className="card px-4 py-3 flex items-center gap-0">
       {/* Registration - WhatsApp */}
-      <a
-        href={registration.href}
-        target="_blank"
-        rel="noopener noreferrer"
+      <button
+        type="button"
+        onClick={() => openWhatsApp(registration.phone)}
         aria-label={`تواصل مع ${registration.title} عبر واتساب`}
         title={registration.title}
         className="flex-1 flex flex-col items-center gap-1 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:rounded-lg"
@@ -49,7 +49,7 @@ export default function QuickContactCard() {
         <div className="w-8 h-8 rounded-xl bg-green-50 flex items-center justify-center group-hover:bg-green-100 group-active:bg-green-200 transition-colors duration-150">
           <MessageCircle size={16} className="text-green-600" />
         </div>
-      </a>
+      </button>
 
       {/* Divider */}
       <div className="w-px h-9 bg-slate-200 mx-3 shrink-0" />

@@ -14,6 +14,7 @@ import InstallPWAPopup from './components/ui/InstallPWAPopup'
 import UpdateNotification from './components/ui/UpdateNotification'
 import NotificationPrompt from './components/ui/NotificationPrompt'
 import PushSubscriptionManager from './components/ui/PushSubscriptionManager'
+import { WhatsAppProvider } from './context/WhatsAppContext'
 import DynamicMetaTags from './components/DynamicMetaTags'
 import StudentHome from './pages/student/Home'
 import StudentSubscriptions from './pages/student/Subscriptions'
@@ -107,7 +108,7 @@ export default function App() {
   }
 
   return (
-    <>
+    <WhatsAppProvider>
       <DynamicMetaTags />
       <Routes>
         <Route element={<AuthLayout />}>
@@ -222,6 +223,6 @@ export default function App() {
       <UpdateNotification />
       <NotificationPrompt />
       <PushSubscriptionManager />
-    </>
+    </WhatsAppProvider>
   )
 }

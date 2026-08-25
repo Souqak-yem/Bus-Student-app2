@@ -5,6 +5,7 @@ import { api } from '../../lib/api'
 import { connectSocket, joinBusRoom, leaveBusRoom, onTrackingUpdate, offTrackingUpdate, onEmergencyReportUpdate, offEmergencyReportUpdate, joinDriverBusRoom, leaveDriverBusRoom, onDriverOperationUpdate, offDriverOperationUpdate } from '../../lib/socket'
 import { getStudentGenderTone } from '../../lib/studentGender'
 import { useNotifications } from '../../context/NotificationContext'
+import { useWhatsAppRedirect } from '../../context/WhatsAppContext'
 import { AlertTriangle, MessageCircle, Phone, Send, Check, Clock, X, SkipForward, UserCheck, GraduationCap, MapPin, User, Bus } from 'lucide-react'
 
 const TrackingStatus = {
@@ -30,11 +31,8 @@ function getLineLabel(line) {
   return 'غير محدد'
 }
 
-const WHATSAPP_MSG = encodeURIComponent(
-  'السلام عليكم، أنا قريب من موقعك، يرجى التواجد في نقطة الانتظار. شكراً.'
-)
-
 export default function DriverDashboard() {
+  const openWhatsApp = useWhatsAppRedirect()
   const { user } = useAuth()
   const { addNotification } = useNotifications()
   const [busData, setBusData] = useState(null)
@@ -560,12 +558,11 @@ export default function DriverDashboard() {
                 <Phone size={16} />
               </a>
               {studentWhatsapp ? (
-                <a href={`https://wa.me/${studentWhatsapp.replace(/^0/, '966')}?text=${WHATSAPP_MSG}`}
-                  target="_blank" rel="noopener noreferrer"
+                <button type="button" onClick={() => openWhatsApp(studentWhatsapp, 'السلام عليكم، أنا قريب من موقعك، يرجى التواجد في نقطة الانتظار. شكراً.')}
                   className="w-9 h-9 rounded-full bg-green-600 text-white hover:bg-green-700 flex items-center justify-center transition-colors"
                   title="واتساب">
                   <MessageCircle size={16} />
-                </a>
+                </button>
               ) : (
                 <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center cursor-not-allowed"
                   title="واتساب غير متاح">

@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle, XCircle, Clock3, Search, UserCheck, UserX } from 'lucide-react'
 import { api } from '../../lib/api'
 import PageHeader from '../../components/ui/PageHeader'
+import { useWhatsAppRedirect } from '../../context/WhatsAppContext'
 
 export default function PasswordResetRequests() {
+  const openWhatsApp = useWhatsAppRedirect()
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -39,8 +41,7 @@ export default function PasswordResetRequests() {
       return
     }
 
-    const separator = link.includes('?') ? '&' : '?'
-    window.location.assign(`${link}${separator}text=${encodeURIComponent(message)}`)
+    openWhatsApp(link, message)
   }
 
   async function handleApprove(id) {

@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import { Bus, Phone, MessageCircle, Users, Clock, Building2, ChevronRight, User, UserRound } from 'lucide-react'
+import { useWhatsAppRedirect } from '../../../context/WhatsAppContext'
 
 function formatTime(timeStr) {
   if (!timeStr) return ''
@@ -32,6 +33,7 @@ function DriverAvatar({ driver }) {
 }
 
 function ReturnBusCardImpl({ bus, driver, readiness, readinessStats, pickupPoint, expectedDeparture, currentUniversity, nextUniversity }) {
+  const openWhatsApp = useWhatsAppRedirect()
   const busNumber = bus?.busNumber || bus?.plateNumber || '---'
   const plate = bus?.plateNumber && bus?.plateNumber !== busNumber ? bus.plateNumber : null
   const capacity = bus?.capacity || 0
@@ -83,15 +85,14 @@ function ReturnBusCardImpl({ bus, driver, readiness, readinessStats, pickupPoint
             </a>
           )}
           {whatsappPhone && (
-            <a
-              href={`https://wa.me/${whatsappPhone.startsWith('00') ? whatsappPhone.slice(2) : whatsappPhone.startsWith('0') ? `966${whatsappPhone.slice(1)}` : whatsappPhone}?text=${encodeURIComponent('السلام عليكم، بخصوص رحلة العودة')}`}
-              target="_blank"
-              rel="noreferrer noopener"
+            <button
+              type="button"
+              onClick={() => openWhatsApp(whatsappPhone, 'السلام عليكم، بخصوص رحلة العودة')}
               className="flex items-center justify-center gap-1 bg-emerald-500 active:bg-emerald-600 text-white rounded-lg py-2 text-[10.5px] font-extrabold transition-colors rt-btn-min"
               aria-label="واتساب"
             >
               <MessageCircle size={13} strokeWidth={2.5} /> واتساب
-            </a>
+            </button>
           )}
           {!phone && !whatsappPhone ? (
             <div className="flex items-center justify-center gap-1 bg-slate-100 text-slate-400 rounded-lg py-2 text-[10.5px] font-bold col-span-3">

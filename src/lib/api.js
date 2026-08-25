@@ -380,6 +380,7 @@ export const api = {
     vapidKey: () => api.get("/push/vapid-public-key"),
     subscribe: (subscription, deviceType, userAgent) => api.post("/push/subscribe", { subscription, deviceType, userAgent }),
     unsubscribe: (endpoint) => api.post("/push/unsubscribe", { endpoint }),
+    status: () => api.get("/push/status"),
   },
 
   busStudentOrder: {

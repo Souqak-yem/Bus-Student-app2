@@ -2,6 +2,9 @@ import { api } from './api'
 
 const PUSH_NOTIFICATIONS_KEY = 'appPushNotifications'
 const LEGACY_PUSH_KEY = 'studentPushNotifications'
+const SUBSCRIPTION_STATE_KEY = 'appPushSubscriptionState'
+const SW_READY_TIMEOUT_MS = 15_000
+const LOG_PREFIX = '[PushManager]'
 
 export const NOTIFICATION_CATEGORIES = [
   { key: 'subscription', label: 'الاشتراكات', types: ['subscription_request', 'subscription_approved', 'subscription_rejected', 'student_subscription_requested', 'student_subscription_approved', 'student_subscription_rejected', 'student_subscription_resubmission_requested', 'student_subscription_reactivated', 'student_subscription_activated_with_trip', 'student_subscription_activated_suspended', 'student_subscription_expiring_soon', 'student_subscription_expired', 'student_payment_reminder', 'student_home_delivery_price', 'student_grace_period_started', 'student_grace_period_ended', 'student_account_suspended', 'student_account_reactivated', 'payment_reminder', 'subscription_expired', 'subscription_expiring_soon', 'cart_submitted', 'cart_rejected'] },
@@ -69,113 +72,395 @@ export function getDeviceType() {
   return 'desktop'
 }
 
-const PUBLIC_KEY_CACHE = { key: null, available: false }
+const PUBLIC_KEY_CACHE = { key: null, available: false, fetchedAt: 0 }
 
-async function getVapidPublicKey() {
-  if (PUBLIC_KEY_CACHE.key) return PUBLIC_KEY_CACHE
+async function getVapidPublicKey({ forceRefresh = false } = {}) {
+  const now = Date.now()
+  if (!forceRefresh && PUBLIC_KEY_CACHE.key && now - PUBLIC_KEY_CACHE.fetchedAt < 10 * 60_000) {
+    return PUBLIC_KEY_CACHE
+  }
   try {
     const res = await api.push.vapidKey()
     PUBLIC_KEY_CACHE.key = res.publicKey
-    PUBLIC_KEY_CACHE.available = res.vapidAvailable
+    PUBLIC_KEY_CACHE.available = !!res.vapidAvailable
+    PUBLIC_KEY_CACHE.fetchedAt = now
     return PUBLIC_KEY_CACHE
-  } catch {
-    return { key: null, available: false }
+  } catch (err) {
+    console.warn(LOG_PREFIX, 'getVapidPublicKey fetch failed:', err?.message || err)
+    return { key: null, available: false, error: err?.message || 'network_error' }
   }
+}
+
+export async function getPushStatus() {
+  const base = {
+    supported: false,
+    permission: 'unsupported' in window ? 'unsupported' : 'default',
+    swRegistered: false,
+    clientSubscription: null,
+    serverSubscriptionCount: 0,
+    vapidAvailable: false,
+    localStorageEnabled: isPushNotificationsEnabled(),
+  }
+
+  if (typeof window === 'undefined') return base
+  base.supported = 'serviceWorker' in navigator && 'PushManager' in window
+  if (!base.supported) return base
+
+  base.permission = 'Notification' in window ? Notification.permission : 'unsupported'
+
+  try {
+    const { available } = await getVapidPublicKey()
+    base.vapidAvailable = !!available
+  } catch {}
+
+  try {
+    const reg = await navigator.serviceWorker.getRegistration('/sw.js')
+    base.swRegistered = !!reg
+    if (reg) {
+      try {
+        const sub = await reg.pushManager.getSubscription()
+        base.clientSubscription = !!sub
+          ? {
+              endpoint: sub.endpoint?.slice(0, 50) + '...',
+            }
+          : null
+      } catch (err) {
+        console.warn(LOG_PREFIX, 'getPushStatus getSubscription failed:', err?.message)
+      }
+    }
+  } catch (err) {
+    console.warn(LOG_PREFIX, 'getPushStatus getRegistration failed:', err?.message)
+  }
+
+  try {
+    const st = await api.push.status().catch(() => null)
+    if (st) {
+      base.serverSubscriptionCount = st.count || 0
+    }
+  } catch {}
+
+  return base
 }
 
 export async function requestPermission() {
   if (!('Notification' in window)) return 'unsupported'
   if (Notification.permission === 'granted') return 'granted'
   if (Notification.permission === 'denied') return 'denied'
-  const result = await Notification.requestPermission()
-  return result
+  try {
+    const result = await Notification.requestPermission()
+    return result
+  } catch (err) {
+    console.error(LOG_PREFIX, 'requestPermission threw:', err?.message || err)
+    return 'thrown'
+  }
 }
 
-export async function subscribeToPush() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    return { success: false, reason: 'unsupported' }
+function readPersistedState() {
+  try {
+    const raw = localStorage.getItem(SUBSCRIPTION_STATE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
   }
+}
 
-  if (!isPushNotificationsEnabled()) {
-    return { success: false, reason: 'disabled' }
-  }
+function writePersistedState(state) {
+  try {
+    localStorage.setItem(SUBSCRIPTION_STATE_KEY, JSON.stringify(state))
+  } catch {}
+}
 
-  const permission = await requestPermission()
-  if (permission !== 'granted') {
-    return { success: false, reason: permission }
-  }
-
-  const { key, available } = await getVapidPublicKey()
-  if (!available || !key) {
-    return { success: false, reason: 'vapid-not-configured' }
-  }
+async function waitForSwReady({ timeoutMs = SW_READY_TIMEOUT_MS } = {}) {
+  if (!('serviceWorker' in navigator)) throw new Error('Service Worker غير مدعوم في المتصفح')
 
   let registration = await navigator.serviceWorker.getRegistration('/sw.js')
   if (!registration) {
-    registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    console.log(LOG_PREFIX, 'No SW found; registering /sw.js')
+    try {
+      registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      console.log(LOG_PREFIX, 'SW registered:', registration.scope)
+    } catch (regErr) {
+      console.error(LOG_PREFIX, 'SW register FAILED:', regErr?.message || regErr)
+      throw new Error('فشل تسجيل خدمة العمل (Service Worker): ' + (regErr?.message || String(regErr)))
+    }
   }
-  const readyRegistration = await navigator.serviceWorker.ready
-  const existingSubscription = await readyRegistration.pushManager.getSubscription()
+
+  const readyPromise = navigator.serviceWorker.ready
+  const timeoutPromise = new Promise((_, reject) => {
+    const id = setTimeout(() => {
+      clearTimeout(id)
+      reject(new Error(`انتهت مهلة انتظار جاهزية خدمة العمل (${Math.round(timeoutMs / 1000)} ثانية)`))
+    }, timeoutMs)
+  })
+
+  try {
+    const ready = await Promise.race([readyPromise, timeoutPromise])
+    if (!ready) throw new Error('serviceWorker.ready رجع فارغ')
+    return ready
+  } catch (err) {
+    console.error(LOG_PREFIX, 'waitForSwReady failed:', err?.message || err)
+    throw err
+  }
+}
+
+const SUBSCRIBE_ERROR = {
+  UNSUPPORTED: 'unsupported',
+  DISABLED_BY_USER: 'disabled',
+  PERMISSION_DENIED: 'denied',
+  PERMISSION_DEFAULT: 'default',
+  PERMISSION_UNSUPPORTED: 'unsupported_permission',
+  VAPID_NOT_CONFIGURED: 'vapid-not-configured',
+  SW_FAILURE: 'sw_failure',
+  CLIENT_SUBSCRIBE_FAILED: 'client_subscribe_failed',
+  SERVER_SYNC_FAILED: 'server_sync_failed',
+  INVALID_SUBSCRIPTION_PAYLOAD: 'invalid_subscription_payload',
+}
+
+export async function subscribeToPush({ forceResubscribe = false } = {}) {
+  const t0 = performance.now()
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return {
+      success: false,
+      subscribed: false,
+      reason: SUBSCRIBE_ERROR.UNSUPPORTED,
+      phase: 'capability_check',
+    }
+  }
+
+  if (!isPushNotificationsEnabled()) {
+    return {
+      success: false,
+      subscribed: false,
+      reason: SUBSCRIBE_ERROR.DISABLED_BY_USER,
+      phase: 'local_toggle_check',
+    }
+  }
+
+  let permission
+  try {
+    permission = await requestPermission()
+  } catch (permErr) {
+    return {
+      success: false,
+      subscribed: false,
+      reason: 'permission_request_threw',
+      phase: 'permission_request',
+      message: permErr?.message,
+    }
+  }
+  if (permission !== 'granted') {
+    const reasonMap = {
+      denied: SUBSCRIBE_ERROR.PERMISSION_DENIED,
+      default: SUBSCRIBE_ERROR.PERMISSION_DEFAULT,
+      unsupported: SUBSCRIBE_ERROR.PERMISSION_UNSUPPORTED,
+    }
+    return {
+      success: false,
+      subscribed: false,
+      reason: reasonMap[permission] || permission,
+      phase: 'permission_check',
+    }
+  }
+
+  const { key, available } = await getVapidPublicKey({ forceRefresh: true })
+  if (!available || !key) {
+    console.error(LOG_PREFIX, 'VAPID NOT AVAILABLE on server.')
+    return {
+      success: false,
+      subscribed: false,
+      reason: SUBSCRIBE_ERROR.VAPID_NOT_CONFIGURED,
+      phase: 'vapid_check',
+    }
+  }
+
+  let readyRegistration
+  try {
+    readyRegistration = await waitForSwReady()
+  } catch (swErr) {
+    return {
+      success: false,
+      subscribed: false,
+      reason: SUBSCRIBE_ERROR.SW_FAILURE,
+      phase: 'sw_ready',
+      message: swErr?.message,
+    }
+  }
+
   const deviceType = getDeviceType()
   const userAgent = navigator.userAgent
 
-  if (existingSubscription) {
-    const subJson = existingSubscription.toJSON()
-    await api.push.subscribe(
+  let subscription
+  try {
+    subscription = await readyRegistration.pushManager.getSubscription()
+  } catch (err) {
+    console.error(LOG_PREFIX, 'getSubscription() threw:', err?.message)
+    return {
+      success: false,
+      subscribed: false,
+      reason: SUBSCRIBE_ERROR.CLIENT_SUBSCRIBE_FAILED,
+      phase: 'get_subscription',
+      message: err?.message,
+    }
+  }
+
+  let wasExistingClientSide = !!subscription
+
+  if (subscription && forceResubscribe) {
+    console.log(LOG_PREFIX, 'forceResubscribe=true; unsubscribing existing client subscription first.')
+    try {
+      await subscription.unsubscribe()
+      subscription = null
+      wasExistingClientSide = false
+    } catch (unsubErr) {
+      console.warn(LOG_PREFIX, 'forceResubscribe unsubscribe failed (continuing):', unsubErr?.message)
+    }
+  }
+
+  if (!subscription) {
+    try {
+      subscription = await readyRegistration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(key),
+      })
+      console.log(LOG_PREFIX, 'Client-side Push subscription created.')
+    } catch (err) {
+      console.error(
+        LOG_PREFIX,
+        'pushManager.subscribe() FAILED. Common causes: invalid VAPID key, permission not granted, missing SW scope, or secure-context issues.',
+        err?.message || err
+      )
+      return {
+        success: false,
+        subscribed: false,
+        reason: SUBSCRIBE_ERROR.CLIENT_SUBSCRIBE_FAILED,
+        phase: 'subscribe_client',
+        message: err?.message,
+        name: err?.name,
+      }
+    }
+  } else {
+    console.log(LOG_PREFIX, 'Client-side Push subscription already exists; will sync to server.')
+  }
+
+  const subJson = subscription.toJSON()
+  if (!subJson?.endpoint || !subJson?.keys?.p256dh || !subJson?.keys?.auth) {
+    return {
+      success: false,
+      subscribed: false,
+      reason: SUBSCRIBE_ERROR.INVALID_SUBSCRIPTION_PAYLOAD,
+      phase: 'payload_check',
+    }
+  }
+
+  let serverResponse
+  try {
+    serverResponse = await api.push.subscribe(
       {
         endpoint: subJson.endpoint,
         keys: { p256dh: subJson.keys.p256dh, auth: subJson.keys.auth },
       },
       deviceType,
-      userAgent,
+      userAgent
     )
-    return { success: true, subscribed: true }
+  } catch (serverErr) {
+    console.error(
+      LOG_PREFIX,
+      'api.push.subscribe FAILED (server rejected the subscription):',
+      serverErr?.message || serverErr
+    )
+    return {
+      success: false,
+      subscribed: false,
+      reason: SUBSCRIBE_ERROR.SERVER_SYNC_FAILED,
+      phase: 'subscribe_server',
+      message: serverErr?.message,
+      status: serverErr?.status,
+    }
   }
 
-  const subscription = await readyRegistration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(key),
-  })
-
-  const subJson = subscription.toJSON()
-  await api.push.subscribe(
-    {
-      endpoint: subJson.endpoint,
-      keys: { p256dh: subJson.keys.p256dh, auth: subJson.keys.auth },
-    },
+  const elapsed = (performance.now() - t0).toFixed(0)
+  const finalState = {
+    subscribedAt: Date.now(),
     deviceType,
-    userAgent,
+    endpointStart: subJson.endpoint.slice(0, 40),
+    serverId: serverResponse?.id || null,
+    totalSubscriptions: serverResponse?.totalSubscriptions || null,
+    wasExistingClientSide,
+    wasExistingServerSide: serverResponse?.wasExisting === true,
+    elapsedMs: Number(elapsed),
+  }
+  writePersistedState(finalState)
+
+  console.log(
+    LOG_PREFIX,
+    `subscribeToPush DONE in ${elapsed}ms. clientExisting=${wasExistingClientSide} serverExisting=${serverResponse?.wasExisting} totalSubs=${serverResponse?.totalSubscriptions || 'N/A'}`
   )
 
-  return { success: true, subscribed: true }
+  return {
+    success: true,
+    subscribed: true,
+    serverSubscriptionId: serverResponse?.id || null,
+    totalSubscriptions: serverResponse?.totalSubscriptions || null,
+    wasExistingClientSide,
+    wasExistingServerSide: serverResponse?.wasExisting === true,
+    elapsedMs: Number(elapsed),
+  }
 }
 
 export async function unsubscribeFromPush() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    return { success: false }
+    return { success: false, reason: 'unsupported' }
   }
 
-  const registration = await navigator.serviceWorker.ready
-  const subscription = await registration.pushManager.getSubscription()
-
-  if (subscription) {
-    const endpoint = subscription.endpoint
-    await subscription.unsubscribe()
-    try {
-      await api.push.unsubscribe(endpoint)
-    } catch {}
+  let endpoint = null
+  let clientUnsubscribed = false
+  try {
+    const registration = await navigator.serviceWorker.ready
+    const subscription = await registration.pushManager.getSubscription()
+    if (subscription) {
+      endpoint = subscription.endpoint
+      await subscription.unsubscribe()
+      clientUnsubscribed = true
+    }
+  } catch (err) {
+    console.warn(LOG_PREFIX, 'Client-side unsubscribe failed:', err?.message)
   }
 
-  return { success: true }
+  let serverDeleted = 0
+  try {
+    const result = await api.push.unsubscribe(endpoint).catch(() => null)
+    serverDeleted = result?.deletedCount || 0
+  } catch (err) {
+    console.warn(LOG_PREFIX, 'Server-side unsubscribe failed:', err?.message)
+  }
+
+  try {
+    localStorage.removeItem(SUBSCRIPTION_STATE_KEY)
+  } catch {}
+
+  return {
+    success: true,
+    clientUnsubscribed,
+    serverDeleted,
+  }
 }
 
 function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
-  const rawData = atob(base64)
-  const output = new Uint8Array(rawData.length)
-  for (let i = 0; i < rawData.length; ++i) {
-    output[i] = rawData.charCodeAt(i)
+  try {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+    const rawData = atob(base64)
+    const output = new Uint8Array(rawData.length)
+    for (let i = 0; i < rawData.length; ++i) {
+      output[i] = rawData.charCodeAt(i)
+    }
+    return output
+  } catch (err) {
+    console.error(LOG_PREFIX, 'urlBase64ToUint8Array INVALID VAPID PUBLIC KEY base64 input:', base64String?.slice(0, 30), err?.message)
+    throw err
   }
-  return output
+}
+
+export function getLastSubscriptionState() {
+  return readPersistedState()
 }

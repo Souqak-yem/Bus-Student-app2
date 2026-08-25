@@ -48,7 +48,26 @@ export async function createAndBroadcast({ userId, type, title, message, data, p
   broadcastNotification(userId, notification)
   broadcastUnreadCount(userId)
 
-  sendPushToUser(userId, notification)
+  Promise.resolve()
+    .then(() => sendPushToUser(userId, notification))
+    .then((pushResult) => {
+      if (pushResult?.expiredCount && pushResult.expiredCount > 0) {
+        console.warn(
+          `[NotificationService] user=${userId} notif=${notification.id} type=${notification.type} push expiredCount=${pushResult.expiredCount} — subscriptions invalidated and removed.`
+        )
+      }
+      if (pushResult?.skipped && pushResult.skipReason) {
+        console.warn(
+          `[NotificationService] user=${userId} notif=${notification.id} type=${notification.type} push skipped reason=${pushResult.skipReason}`
+        )
+      }
+    })
+    .catch((pushErr) => {
+      console.error(
+        `[NotificationService] user=${userId} notif=${notification.id} type=${notification.type} sendPushToUser THREW (should not happen):`,
+        pushErr?.message || pushErr
+      )
+    })
 
   return notification
 }

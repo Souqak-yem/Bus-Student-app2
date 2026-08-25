@@ -59,24 +59,96 @@ export function hasVapidKeys() {
   return !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY)
 }
 
+export const PUSH_SKIP_REASON = {
+  VAPID_NOT_CONFIGURED: 'vapid_not_configured',
+  NO_SUBSCRIPTIONS: 'no_subscriptions',
+  PUSH_DISABLED_BY_PREFS: 'push_disabled_by_prefs',
+  USER_NOT_FOUND: 'user_not_found',
+}
+
 export async function sendPushToUser(userId, payload) {
-  if (!hasVapidKeys()) return
+  const notificationId = payload?.id || 'anonymous'
+  const notificationType = payload?.type || 'unknown'
 
-  const [user, subscriptions] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: userId },
-      select: { notificationPrefs: true },
-    }),
-    prisma.pushSubscription.findMany({
-      where: { userId },
-    }),
-  ])
+  if (!hasVapidKeys()) {
+    console.warn(
+      `[Push] SKIP user=${userId} notif=${notificationId} type=${notificationType} — reason=${PUSH_SKIP_REASON.VAPID_NOT_CONFIGURED}`
+    )
+    return {
+      sent: false,
+      skipped: true,
+      skipReason: PUSH_SKIP_REASON.VAPID_NOT_CONFIGURED,
+      deliveredCount: 0,
+      totalCount: 0,
+      failedCount: 0,
+      results: [],
+    }
+  }
 
-  if (!subscriptions.length) return
+  let user = null
+  let subscriptions = []
+  try {
+    ;[user, subscriptions] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { notificationPrefs: true },
+      }),
+      prisma.pushSubscription.findMany({
+        where: { userId },
+      }),
+    ])
+  } catch (dbErr) {
+    console.error(
+      `[Push] DB_ERROR user=${userId} notif=${notificationId} type=${notificationType}:`,
+      dbErr?.message || dbErr
+    )
+    return {
+      sent: false,
+      skipped: false,
+      error: 'db_error',
+      deliveredCount: 0,
+      totalCount: 0,
+      failedCount: 0,
+      results: [],
+    }
+  }
 
+  if (!subscriptions.length) {
+    console.warn(
+      `[Push] SKIP user=${userId} notif=${notificationId} type=${notificationType} — reason=${PUSH_SKIP_REASON.NO_SUBSCRIPTIONS} (no rows in push_subscriptions for this user)`
+    )
+    return {
+      sent: false,
+      skipped: true,
+      skipReason: PUSH_SKIP_REASON.NO_SUBSCRIPTIONS,
+      deliveredCount: 0,
+      totalCount: 0,
+      failedCount: 0,
+      results: [],
+    }
+  }
+
+  let pushDisabledByPrefs = false
   if (user?.notificationPrefs && typeof user.notificationPrefs === 'object') {
     const typePrefs = user.notificationPrefs[payload.type] || user.notificationPrefs.default
-    if (typePrefs && typePrefs.push === false) return
+    if (typePrefs && typePrefs.push === false) {
+      pushDisabledByPrefs = true
+    }
+  }
+
+  if (pushDisabledByPrefs) {
+    console.warn(
+      `[Push] SKIP user=${userId} notif=${notificationId} type=${notificationType} — reason=${PUSH_SKIP_REASON.PUSH_DISABLED_BY_PREFS} (type=${notificationType} push=false in prefs)`
+    )
+    return {
+      sent: false,
+      skipped: true,
+      skipReason: PUSH_SKIP_REASON.PUSH_DISABLED_BY_PREFS,
+      deliveredCount: 0,
+      totalCount: subscriptions.length,
+      failedCount: 0,
+      results: [],
+    }
   }
 
   const iconPath = '/app-icon.svg'
@@ -100,33 +172,109 @@ export async function sendPushToUser(userId, payload) {
     createdAt: payload.createdAt,
   })
 
+  const expiredSubIds = []
+  let deliveredCount = 0
+  let failedCount = 0
+
   const results = await Promise.allSettled(
-    subscriptions.map((sub) =>
-      webpush.sendNotification({
-        endpoint: sub.endpoint,
-        keys: { p256dh: sub.p256dh, auth: sub.auth },
-      }, data).catch(async (err) => {
-        if (err.statusCode === 410 || err.statusCode === 404) {
-          await prisma.pushSubscription.delete({ where: { id: sub.id } })
-        } else {
-          console.error(`[Push] send failed for ${sub.endpoint.slice(0, 30)}...:`, err.statusCode || err.message)
+    subscriptions.map(async (sub) => {
+      try {
+        const result = await webpush.sendNotification(
+          {
+            endpoint: sub.endpoint,
+            keys: { p256dh: sub.p256dh, auth: sub.auth },
+          },
+          data
+        )
+        deliveredCount += 1
+        return {
+          subId: sub.id,
+          endpointStart: sub.endpoint.slice(0, 30),
+          status: 'delivered',
+          statusCode: result?.statusCode,
         }
-      })
-    )
+      } catch (err) {
+        const code = err?.statusCode
+        const isGone = code === 410 || code === 404
+        if (isGone) {
+          console.warn(
+            `[Push] EXPIRED sub=${sub.id} user=${userId} notif=${notificationId} — status=${code} (Gone/Not Found). Endpoint no longer valid; removing from DB.`
+          )
+          expiredSubIds.push(sub.id)
+          try {
+            await prisma.pushSubscription.delete({ where: { id: sub.id } })
+          } catch (delErr) {
+            console.error(
+              `[Push] Failed to delete expired sub=${sub.id}:`,
+              delErr?.message || delErr
+            )
+          }
+          failedCount += 1
+          return {
+            subId: sub.id,
+            endpointStart: sub.endpoint.slice(0, 30),
+            status: 'expired',
+            statusCode: code,
+          }
+        } else {
+          console.error(
+            `[Push] SEND_FAIL sub=${sub.id} user=${userId} notif=${notificationId} endpoint=${sub.endpoint.slice(0, 40)}...: status=${code || 'none'} msg=${err?.message || err}`
+          )
+          failedCount += 1
+          return {
+            subId: sub.id,
+            endpointStart: sub.endpoint.slice(0, 30),
+            status: 'failed',
+            statusCode: code,
+            error: err?.message || String(err),
+          }
+        }
+      }
+    })
   )
 
-  return results
+  if (deliveredCount > 0 || failedCount > 0) {
+    const level = deliveredCount === subscriptions.length ? 'info' : 'warn'
+    const logFn = level === 'info' ? console.log : console.warn
+    logFn(
+      `[Push] SUMMARY user=${userId} notif=${notificationId} type=${notificationType} — total=${subscriptions.length} delivered=${deliveredCount} failed=${failedCount} expired=${expiredSubIds.length}`
+    )
+  }
+
+  return {
+    sent: deliveredCount > 0,
+    skipped: false,
+    deliveredCount,
+    failedCount,
+    expiredCount: expiredSubIds.length,
+    totalCount: subscriptions.length,
+    expiredSubIds,
+    results,
+  }
 }
 
 export async function saveSubscription(userId, subscription, deviceType, userAgent) {
   const { endpoint, keys } = subscription
+
+  if (!endpoint || !keys?.p256dh || !keys?.auth) {
+    const msg = `[Push] saveSubscription INVALID_INPUT user=${userId}: missing endpoint/keys`
+    console.error(msg)
+    throw new Error('بيانات اشتراك الإشعارات غير مكتملة')
+  }
+
+  console.log(
+    `[Push] saveSubscription user=${userId} device=${deviceType || 'unknown'} endpoint=${endpoint.slice(0, 50)}...`
+  )
 
   const existing = await prisma.pushSubscription.findFirst({
     where: { OR: [{ endpoint }, { userId, p256dh: keys.p256dh }] },
   })
 
   if (existing) {
-    return prisma.pushSubscription.update({
+    console.log(
+      `[Push] saveSubscription UPDATE existing=${existing.id} for user=${userId}`
+    )
+    const updated = await prisma.pushSubscription.update({
       where: { id: existing.id },
       data: {
         userId,
@@ -137,9 +285,10 @@ export async function saveSubscription(userId, subscription, deviceType, userAge
         userAgent: userAgent || existing.userAgent,
       },
     })
+    return { ...updated, wasExisting: true }
   }
 
-  return prisma.pushSubscription.create({
+  const created = await prisma.pushSubscription.create({
     data: {
       userId,
       endpoint,
@@ -149,8 +298,18 @@ export async function saveSubscription(userId, subscription, deviceType, userAge
       userAgent: userAgent || null,
     },
   })
+  console.log(
+    `[Push] saveSubscription NEW sub=${created.id} created for user=${userId}`
+  )
+  return { ...created, wasExisting: false }
 }
 
-export async function removeSubscription(endpoint) {
-  await prisma.pushSubscription.deleteMany({ where: { endpoint } })
+export async function removeSubscription(endpoint, userId) {
+  if (!endpoint && !userId) return
+  const where = endpoint ? { endpoint } : { userId }
+  const deleted = await prisma.pushSubscription.deleteMany({ where })
+  console.log(
+    `[Push] removeSubscription: endpoint=${endpoint ? endpoint.slice(0, 30) + '...' : 'N/A'} userId=${userId || 'N/A'} — deleted=${deleted.count}`
+  )
+  return deleted
 }

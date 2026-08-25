@@ -61,13 +61,14 @@ export default defineConfig({
     swCacheVersionPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
-      workbox: {
-        cleanupOutdatedCaches: true,
-        clientsClaim: true,
-        skipWaiting: true,
-        navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/api\//],
+      injectRegister: null,
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
+      injectManifest: {
+        injectionPoint: 'self.__WB_MANIFEST',
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        manifestTransforms: [],
       },
       devOptions: {
         enabled: false,

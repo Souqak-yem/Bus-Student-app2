@@ -442,7 +442,8 @@ const SUBSCRIBE_ERROR = {
   INVALID_SUBSCRIPTION_PAYLOAD: 'invalid_subscription_payload',
 }
 
-export async function subscribeToPush({ forceResubscribe = false } = {}) {
+export async function subscribeToPush({ forceResubscribe = false, forceRefresh = false } = {}) {
+  const force = !!(forceResubscribe || forceRefresh)
   const t0 = performance.now()
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     return {
@@ -531,14 +532,14 @@ export async function subscribeToPush({ forceResubscribe = false } = {}) {
 
   let wasExistingClientSide = !!subscription
 
-  if (subscription && forceResubscribe) {
-    console.log(LOG_PREFIX, 'forceResubscribe=true; unsubscribing existing client subscription first.')
+  if (subscription && force) {
+    console.log(LOG_PREFIX, `force refresh requested (forceResubscribe=${forceResubscribe}, forceRefresh=${forceRefresh}); unsubscribing existing client subscription first.`)
     try {
       await subscription.unsubscribe()
       subscription = null
       wasExistingClientSide = false
     } catch (unsubErr) {
-      console.warn(LOG_PREFIX, 'forceResubscribe unsubscribe failed (continuing):', unsubErr?.message)
+      console.warn(LOG_PREFIX, 'force refresh unsubscribe failed (continuing):', unsubErr?.message)
     }
   }
 

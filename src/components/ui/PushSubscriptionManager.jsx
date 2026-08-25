@@ -20,6 +20,7 @@ export default function PushSubscriptionManager() {
   const lastVapidAlignRef = useRef(0)
   const mountedRef = useRef(true)
   const userIdRef = useRef(null)
+  const prevUserIdRef = useRef(null)
 
   const runEnsure = useCallback(
     async ({ force = false, reason = 'unspecified' } = {}) => {
@@ -128,15 +129,51 @@ export default function PushSubscriptionManager() {
   useEffect(() => {
     mountedRef.current = true
 
-    if (userIdRef.current && userIdRef.current !== user?.id) {
-      console.log(LOG_PREFIX, 'user id changed; resetting attempt windows.')
+    const currentUserId = user?.id || null
+    const currentUserRole = user?.role || null
+    const userRoleNormalized = typeof currentUserRole === 'string' ? currentUserRole.toUpperCase() : null
+    const isAdmin = userRoleNormalized === 'ADMIN' || userRoleNormalized === 'SUPERADMIN' || userRoleNormalized === 'SUPER_ADMIN'
+
+    if (userIdRef.current && userIdRef.current !== currentUserId) {
+      console.log(LOG_PREFIX, `user id changed ${userIdRef.current} → ${currentUserId}; resetting attempt windows. isAdmin=${isAdmin}`)
       lastAttemptRef.current = 0
       lastCheckRef.current = 0
       lastVapidAlignRef.current = 0
     }
-    userIdRef.current = user?.id || null
+    userIdRef.current = currentUserId
 
-    const initTimer = setTimeout(() => runEnsure({ reason: 'mount' }), 1500)
+    const prevUserId = prevUserIdRef.current
+    const isFreshLogin = !prevUserId && !!currentUserId
+    const isFreshAdminLogin = isFreshLogin && isAdmin
+    prevUserIdRef.current = currentUserId
+
+    if (isFreshAdminLogin) {
+      console.log(LOG_PREFIX, `FRESH ADMIN LOGIN detected (user=${currentUserId}). Running IMMEDIATE force push sync.`)
+      const immediateSync = async () => {
+        try {
+          lastAttemptRef.current = Date.now()
+          const r1 = await subscribeToPush({ forceRefresh: true })
+          console.log(
+            LOG_PREFIX,
+            `Admin immediate sync subscribeToPush done. success=${r1?.success} reason=${r1?.reason || 'N/A'} subId=${r1?.serverSubscriptionId || 'N/A'} totalSubs=${r1?.totalSubscriptions || 'N/A'}`
+          )
+          if (r1?.success) return
+        } catch (err) {
+          console.error(LOG_PREFIX, 'Admin immediate subscribeToPush threw (falling back to runEnsure):', err?.message || err)
+        }
+        try {
+          await runEnsure({ force: true, reason: 'admin_login_immediate_fallback' })
+        } catch (err) {
+          console.error(LOG_PREFIX, 'Admin immediate fallback runEnsure threw (swallowed):', err?.message || err)
+        }
+      }
+      immediateSync()
+    }
+
+    const initTimer = setTimeout(
+      () => runEnsure({ reason: isFreshAdminLogin ? 'mount_admin_post_immediate' : 'mount' }),
+      isFreshAdminLogin ? 8000 : 1500
+    )
 
     let visibilityTimer = null
     const visibilityHandler = () => {
@@ -170,7 +207,7 @@ export default function PushSubscriptionManager() {
           aggressiveTimer = setTimeout(runAggressive, CHECK_INTERVAL_RELAXED_MS)
         })
     }
-    aggressiveTimer = setTimeout(runAggressive, 30_000)
+    aggressiveTimer = setTimeout(runAggressive, isAdmin ? 10_000 : 30_000)
 
     return () => {
       mountedRef.current = false
@@ -182,7 +219,7 @@ export default function PushSubscriptionManager() {
       document.removeEventListener('visibilitychange', visibilityHandler)
       window.removeEventListener('online', onlineHandler)
     }
-  }, [runEnsure, user?.id])
+  }, [runEnsure, user?.id, user?.role])
 
   return null
 }

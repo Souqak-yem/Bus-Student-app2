@@ -13,12 +13,20 @@ const STATIC = [
   '/fonts/cairo/SLXVc1nY6HkvangtZmpQdkhzfH5lkSscRiyS.woff2',
 ]
 
+const WB_MANIFEST = (typeof self !== 'undefined' && self.__WB_MANIFEST) || []
+const EXTRA_PRECACHE_URLS = WB_MANIFEST
+  .map((entry) => (typeof entry === 'string' ? entry : entry && entry.url ? entry.url : null))
+  .filter((u) => typeof u === 'string' && u.length > 0)
+const PRECACHE_URLS = Array.from(new Set([...STATIC, ...EXTRA_PRECACHE_URLS]))
+
 self.addEventListener('install', (e) => {
-  console.log(`[SW] Installing ${CACHE}`)
+  console.log(`[SW] Installing ${CACHE} — precaching ${PRECACHE_URLS.length} URLs (static=${STATIC.length} injected=${EXTRA_PRECACHE_URLS.length})`)
   self.skipWaiting()
   e.waitUntil(
-    caches.open(CACHE).then((c) => c.addAll(STATIC)).then(() => {
-      console.log(`[SW] Static assets cached in ${CACHE}`)
+    caches.open(CACHE).then((c) => c.addAll(PRECACHE_URLS)).then(() => {
+      console.log(`[SW] Precache finished for ${CACHE}`)
+    }).catch((err) => {
+      console.error(`[SW] Precache failed in ${CACHE}:`, err?.message || err)
     })
   )
 })
@@ -78,26 +86,43 @@ self.addEventListener('push', (e) => {
       title: 'تنسيقية مواصلات فلك',
       message: 'لديك إشعار جديد',
       priority: 'INFO',
-      icon: '/app-icon.svg',
-      badge: '/app-icon.svg',
+      icon: '/icon-192x192.png',
+      badge: '/badge-72x72.png',
       data: { url: '/' },
     }
   }
 
   const title = data.title || 'تنسيقية مواصلات فلك'
-  const body = data.message || data.body || 'لديك إشعار جديد'
-  const icon = data.icon || '/app-icon.svg'
-  const badge = data.badge || '/app-icon.svg'
+  const body = data.body || data.message || data.body || 'لديك إشعار جديد'
+  const icon = data.icon || '/icon-192x192.png'
+  const badge = data.badge || '/badge-72x72.png'
   const priority = data.priority || 'INFO'
   const notificationId = data.notificationId || `notif-${Date.now()}`
-  const targetRoute = data.targetRoute || data.data?.url || '/'
+  const targetRoute = data.targetRoute || data.data?.url || data.data?.targetRoute || '/'
 
-  let vibrate = []
+  let vibrate
   if (priority === 'CRITICAL') vibrate = [200, 100, 200, 100, 200]
   else if (priority === 'WARNING') vibrate = [200, 100, 200]
-  else if (priority === 'INFO') vibrate = [100, 50, 100]
+  else vibrate = [100, 50, 100]
 
-  const requireInteraction = priority === 'CRITICAL'
+  const requireInteraction = true
+
+  const notificationData = {
+    targetRoute,
+    url: targetRoute,
+    notificationId,
+    type: data.type,
+    priority,
+    createdAt: data.createdAt,
+    ...(data.data || {}),
+  }
+
+  const actions = (data.actions && Array.isArray(data.actions) && data.actions.length > 0)
+    ? data.actions
+    : [
+        { action: 'open', title: 'عرض الآن', icon: '' },
+        { action: 'close', title: 'إغلاق', icon: '' },
+      ]
 
   const options = {
     body,
@@ -109,21 +134,36 @@ self.addEventListener('push', (e) => {
     vibrate,
     requireInteraction,
     timestamp: Date.now(),
-    data: {
-      targetRoute,
-      notificationId,
-      type: data.type,
-      priority,
-      createdAt: data.createdAt,
-      ...(data.data || {}),
-    },
-    actions: [
-      { action: 'open', title: 'عرض الآن', icon: '' },
-      { action: 'close', title: 'إغلاق', icon: '' },
-    ],
+    data: notificationData,
+    actions,
   }
 
-  e.waitUntil(self.registration.showNotification(title, options))
+  const showPromise = self.registration.showNotification(title, options)
+
+  const broadcastPromise = (async () => {
+    try {
+      const allClients = await clients.matchAll({ type: 'window', includeUncontrolled: true })
+      for (const client of allClients) {
+        try {
+          client.postMessage({
+            type: 'SW_PUSH_RECEIVED',
+            payload: {
+              title,
+              body,
+              notificationId,
+              priority,
+              targetRoute,
+              type: data.type,
+              createdAt: data.createdAt,
+              raw: data,
+            },
+          })
+        } catch {}
+      }
+    } catch {}
+  })()
+
+  e.waitUntil(Promise.all([showPromise, broadcastPromise]))
 })
 
 self.addEventListener('notificationclick', (e) => {
